@@ -210,7 +210,7 @@ The server can be configured using environment variables:
 
 ```bash
 # Build the server
-go build ./cmd/server
+go build .
 
 # Run the server
 ./server
