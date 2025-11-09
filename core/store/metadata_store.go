@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +32,9 @@ func NewMetadataStore(brokers []string, clustersTopicName, topicsTopicName strin
 		return nil, fmt.Errorf("no brokers provided")
 	}
 
+	log.Printf("[MetadataStore] Initializing with brokers: %v, clusters topic: %s, topics topic: %s",
+		brokers, clustersTopicName, topicsTopicName)
+
 	store := &MetadataStore{
 		brokers:           brokers,
 		clustersTopicName: clustersTopicName,
@@ -43,10 +48,14 @@ func NewMetadataStore(brokers []string, clustersTopicName, topicsTopicName strin
 		return nil, fmt.Errorf("failed to initialize topics: %w", err)
 	}
 
+	log.Printf("[MetadataStore] Topics initialized successfully")
+
 	// Load existing data
 	if err := store.loadData(); err != nil {
 		return nil, fmt.Errorf("failed to load existing data: %w", err)
 	}
+
+	log.Printf("[MetadataStore] Loaded %d clusters and %d topics from storage", len(store.clusters), len(store.topics))
 
 	return store, nil
 }
@@ -250,11 +259,30 @@ func (s *MetadataStore) SaveCluster(ctx context.Context, cluster *models.Cluster
 		return fmt.Errorf("failed to marshal cluster: %w", err)
 	}
 
-	writer := &kafka.Writer{
-		Addr:     kafka.TCP(s.brokers...),
-		Topic:    s.clustersTopicName,
-		Balancer: &kafka.Hash{},
+	log.Printf("[MetadataStore] Saving cluster %s to broker %s, topic %s", cluster.ID, s.brokers[0], s.clustersTopicName)
+
+	// Create a custom dialer that maps Docker hostnames to localhost
+	customDialer := &kafka.Dialer{
+		Timeout:   10 * time.Second,
+		DualStack: true,
+		DialFunc: func(ctx context.Context, network, address string) (net.Conn, error) {
+			// Map internal Docker hostnames to localhost addresses
+			mappedAddr := s.mapBrokerAddress(address)
+			log.Printf("[MetadataStore] Dialing: %s -> %s", address, mappedAddr)
+			d := &net.Dialer{Timeout: 10 * time.Second}
+			return d.DialContext(ctx, network, mappedAddr)
+		},
 	}
+
+	// Use Writer with custom dialer
+	writer := kafka.NewWriter(kafka.WriterConfig{
+		Brokers:      s.brokers,
+		Topic:        s.clustersTopicName,
+		Balancer:     &kafka.Hash{},
+		RequiredAcks: 1,
+		MaxAttempts:  3,
+		Dialer:       customDialer,
+	})
 	defer writer.Close()
 
 	err = writer.WriteMessages(ctx, kafka.Message{
@@ -262,8 +290,11 @@ func (s *MetadataStore) SaveCluster(ctx context.Context, cluster *models.Cluster
 		Value: data,
 	})
 	if err != nil {
+		log.Printf("[MetadataStore] ERROR writing cluster message: %v", err)
 		return fmt.Errorf("failed to write cluster message: %w", err)
 	}
+
+	log.Printf("[MetadataStore] Successfully saved cluster %s", cluster.ID)
 
 	// Update in-memory cache
 	s.mu.Lock()
@@ -284,11 +315,30 @@ func (s *MetadataStore) SaveTopic(ctx context.Context, topic *models.TopicMetada
 
 	key := fmt.Sprintf("%s:%s", topic.ClusterID, topic.TopicName)
 
-	writer := &kafka.Writer{
-		Addr:     kafka.TCP(s.brokers...),
-		Topic:    s.topicsTopicName,
-		Balancer: &kafka.Hash{},
+	log.Printf("[MetadataStore] Saving topic %s to broker %s, topic %s", key, s.brokers[0], s.topicsTopicName)
+
+	// Create a custom dialer that maps Docker hostnames to localhost
+	customDialer := &kafka.Dialer{
+		Timeout:   10 * time.Second,
+		DualStack: true,
+		DialFunc: func(ctx context.Context, network, address string) (net.Conn, error) {
+			// Map internal Docker hostnames to localhost addresses
+			mappedAddr := s.mapBrokerAddress(address)
+			log.Printf("[MetadataStore] Dialing: %s -> %s", address, mappedAddr)
+			d := &net.Dialer{Timeout: 10 * time.Second}
+			return d.DialContext(ctx, network, mappedAddr)
+		},
 	}
+
+	// Use Writer with custom dialer
+	writer := kafka.NewWriter(kafka.WriterConfig{
+		Brokers:      s.brokers,
+		Topic:        s.topicsTopicName,
+		Balancer:     &kafka.Hash{},
+		RequiredAcks: 1,
+		MaxAttempts:  3,
+		Dialer:       customDialer,
+	})
 	defer writer.Close()
 
 	err = writer.WriteMessages(ctx, kafka.Message{
@@ -296,8 +346,11 @@ func (s *MetadataStore) SaveTopic(ctx context.Context, topic *models.TopicMetada
 		Value: data,
 	})
 	if err != nil {
+		log.Printf("[MetadataStore] ERROR writing topic message: %v", err)
 		return fmt.Errorf("failed to write topic message: %w", err)
 	}
+
+	log.Printf("[MetadataStore] Successfully saved topic %s", key)
 
 	// Update in-memory cache
 	s.mu.Lock()
@@ -360,4 +413,21 @@ func (s *MetadataStore) ListTopics(clusterID string) []*models.TopicMetadata {
 	}
 
 	return topics
+}
+
+// mapBrokerAddress maps Docker internal hostnames to localhost addresses
+func (s *MetadataStore) mapBrokerAddress(address string) string {
+	// Common Docker Kafka container hostnames and their localhost mappings
+	hostMappings := map[string]string{
+		"kafka-fleet:9092": "localhost:19092",
+		"kafka-2:9092":     "localhost:29092",
+		"kafka-3:9092":     "localhost:39092",
+	}
+
+	if mapped, ok := hostMappings[address]; ok {
+		return mapped
+	}
+
+	// If no mapping found, return as-is (might be localhost already)
+	return address
 }

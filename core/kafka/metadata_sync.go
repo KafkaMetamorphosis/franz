@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/franz-kafka/server/core/models"
 	"github.com/franz-kafka/server/core/store"
@@ -75,6 +76,8 @@ func (ms *MetadataSync) SyncTopic(ctx context.Context, clusterID, topicName stri
 		return fmt.Errorf("no brokers provided")
 	}
 
+	log.Printf("[MetadataSync] Syncing topic %s from cluster %s using broker %s", topicName, clusterID, brokers[0])
+
 	// Connect to the cluster
 	conn, err := kafka.Dial("tcp", brokers[0])
 	if err != nil {
@@ -137,10 +140,12 @@ func (ms *MetadataSync) SyncTopic(ctx context.Context, clusterID, topicName stri
 	}
 
 	// Save to store
+	log.Printf("[MetadataSync] Saving topic %s metadata to store", topicName)
 	if err := ms.metadataStore.SaveTopic(ctx, topicMetadata); err != nil {
 		return fmt.Errorf("failed to save topic metadata: %w", err)
 	}
 
+	log.Printf("[MetadataSync] Successfully synced topic %s", topicName)
 	return nil
 }
 
