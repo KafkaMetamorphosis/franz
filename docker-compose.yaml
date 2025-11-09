@@ -85,6 +85,29 @@ services:
     networks:
       - kafka-3-network
 
+  franz-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: franz-app
+    hostname: franz-app
+    depends_on:
+      kafka-fleet:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_PORT: 8080
+      SERVER_HOST: 0.0.0.0
+      STORAGE_KAFKA_BROKERS: kafka-fleet:9092
+      STORAGE_CLUSTERS_TOPIC: franz.clusters.store
+      STORAGE_DEFINITIONS_TOPIC: franz.topic.definitions.store
+      STORAGE_CLUSTER_TOPICS_TOPIC: franz.cluster.topics.store
+    networks:
+      - kafka-fleet-network
+      - kafka-2-network
+      - kafka-3-network
+
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: kafka-ui

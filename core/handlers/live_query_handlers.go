@@ -29,7 +29,11 @@ func (h *LiveQueryHandler) getAdminForCluster(clusterName string) (*kafka.Admin,
 
 	// Parse bootstrap URL to create admin client
 	brokers := []string{cluster.BootstrapURL}
-	return kafka.NewAdmin(brokers), nil
+	admin, err := kafka.NewAdmin(brokers)
+	if err != nil {
+		return nil, err
+	}
+	return admin, nil
 }
 
 // GetLiveTopics handles GET /api/cluster/{cluster_name}/live/topics

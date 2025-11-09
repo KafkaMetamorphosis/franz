@@ -62,7 +62,14 @@ func main() {
 	mux.HandleFunc("/api/cluster/", func(w http.ResponseWriter, r *http.Request) {
 		// Check if it's a sub-route
 		if contains(r.URL.Path, "/topics") {
-			configHandler.ListClusterTopics(w, r)
+			switch r.Method {
+			case http.MethodGet:
+				configHandler.ListClusterTopics(w, r)
+			case http.MethodPost:
+				configHandler.AddTopicToCluster(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
 		} else if contains(r.URL.Path, "/topic/") {
 			switch r.Method {
 			case http.MethodGet:
