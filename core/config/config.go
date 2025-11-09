@@ -7,8 +7,8 @@ import (
 
 // Config holds the application configuration
 type Config struct {
-	Server ServerConfig
-	Kafka  KafkaConfig
+	Server  ServerConfig
+	Storage StorageConfig
 }
 
 // ServerConfig holds HTTP server configuration
@@ -17,9 +17,13 @@ type ServerConfig struct {
 	Host string
 }
 
-// KafkaConfig holds Kafka broker configuration
-type KafkaConfig struct {
-	Brokers []string
+// StorageConfig holds Kafka storage configuration
+// Franz uses Kafka compacted topics to store cluster and topic definitions
+type StorageConfig struct {
+	Brokers                []string
+	ClustersTopicName      string
+	DefinitionsTopicName   string
+	ClusterTopicsTopicName string
 }
 
 // Load reads configuration from environment variables
@@ -34,18 +38,41 @@ func Load() *Config {
 		host = "0.0.0.0"
 	}
 
-	brokersEnv := os.Getenv("KAFKA_FLEET_BOOTSTRAP_URLS")
-	if brokersEnv == "" {
-		brokersEnv = "localhost:19092"
+	// Storage Kafka brokers (where Franz stores configuration data)
+	storageBrokersEnv := os.Getenv("STORAGE_KAFKA_BROKERS")
+	if storageBrokersEnv == "" {
+		// Fallback to legacy names
+		storageBrokersEnv = os.Getenv("PRIMARY_KAFKA_BROKERS")
+	}
+	if storageBrokersEnv == "" {
+		storageBrokersEnv = os.Getenv("KAFKA_BROKERS")
+	}
+	if storageBrokersEnv == "" {
+		storageBrokersEnv = "localhost:19092"
 	}
 
-	// Split comma-separated brokers
-	brokers := []string{}
-	for _, broker := range strings.Split(brokersEnv, ",") {
+	storageBrokers := []string{}
+	for _, broker := range strings.Split(storageBrokersEnv, ",") {
 		broker = strings.TrimSpace(broker)
 		if broker != "" {
-			brokers = append(brokers, broker)
+			storageBrokers = append(storageBrokers, broker)
 		}
+	}
+
+	// Storage topic names for the three compacted topics
+	clustersTopicName := os.Getenv("STORAGE_CLUSTERS_TOPIC")
+	if clustersTopicName == "" {
+		clustersTopicName = "franz.clusters.store"
+	}
+
+	definitionsTopicName := os.Getenv("STORAGE_DEFINITIONS_TOPIC")
+	if definitionsTopicName == "" {
+		definitionsTopicName = "franz.topic.definitions.store"
+	}
+
+	clusterTopicsTopicName := os.Getenv("STORAGE_CLUSTER_TOPICS_TOPIC")
+	if clusterTopicsTopicName == "" {
+		clusterTopicsTopicName = "franz.cluster.topics.store"
 	}
 
 	return &Config{
@@ -53,8 +80,11 @@ func Load() *Config {
 			Port: port,
 			Host: host,
 		},
-		Kafka: KafkaConfig{
-			Brokers: brokers,
+		Storage: StorageConfig{
+			Brokers:                storageBrokers,
+			ClustersTopicName:      clustersTopicName,
+			DefinitionsTopicName:   definitionsTopicName,
+			ClusterTopicsTopicName: clusterTopicsTopicName,
 		},
 	}
 }

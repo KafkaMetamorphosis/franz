@@ -1,210 +1,78 @@
-# Franz Kafka
+# Franz - Kafka Configuration Management System
 
-Franz is a fleet wide Kafka cluster project that manages a pool of Kafka cluster and the Kafka topics, users and quotas, providing a topic allocation given the defined affinities among clusters and topics and a traffic control mechanism.
+Franz is a configuration management system for Kafka clusters and topics. It uses Kafka itself as a storage backend (via compacted topics) to store cluster definitions, topic templates, and their mappings, while providing REST APIs for CRUD operations and live queries to actual Kafka clusters.
 
 ![Project Overview](docs/imgs/overview.jpeg)
 
-## The cluster manager
+## Key Features
 
-The cluster manager is responsible for keeping the cluster configuration given the configuration.
+- **Configuration Storage**: Stores cluster and topic definitions in Kafka compacted topics
+- **REST API**: Full CRUD operations for managing configurations
+- **Live Queries**: Real-time queries to actual Kafka clusters for topics, brokers, and metadata
+- **Kafka-Native**: Uses Kafka as its storage backend - no external databases required
+- **Docker-Ready**: Fully containerized with Docker Compose support
 
-The dimensions
-```yaml
+## Architecture
 
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: organization
-spec:
-    name: org-name
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: country
-spec:
-    parent:
-        kind: organization
-        name: org-name
-    name: br
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: country
-spec:
-    parent:
-        kind: organization
-        name: org-name
-    name: mx
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: environment
-spec:
-    parent:
-        kind: country
-    name: staging
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: environment
-spec:
-    parent:
-        kind: country
-    name: prod
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: global
-spec:
-    parent:
-        kind: environment
-    name: s0
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: shard
-spec:
-    parent:
-        kind: environment
-    name: s0
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: shard
-spec:
-    parent:
-        kind: environment
-        name: prod
-    name: s1
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: flavor
-spec:
-    name: standard-0
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: flavor
-spec:
-    name: high-volume-0
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: flavor
-spec:
-    name: high-volume-1
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTopology
-metadata:
-  name: flavor
-spec:
-    name: low-latency-1
-```
+Franz separates **configuration** (what you want) from **live state** (what exists):
 
-The kafka template
-```yaml
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTemplate
-metadata:
-  name: low-latency
-spec:
-  kafka:
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTemplate
-metadata:
-  name: standard
-spec:
-  kafka:
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTemplate
-metadata:
-  name: high-volume
-spec:
-  kafka:
----
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaTemplate
-metadata:
-  name: staging
-spec:
-  kafka:
-```
+1. **Configuration Storage** (stored in Kafka compacted topics):
+   - Cluster definitions with bootstrap URLs and metadata
+   - Topic templates/definitions with configuration parameters
+   - Cluster-to-topic mappings
 
-The kafka pool
-```yaml
-apiVersion: kafka.franz.io/v1beta2
-kind: KafkaPool
-metadata:
-  name: standard-pool
-spec:
-  template: high-volume
-  selectors:
-    countries:
-        - br
-        - mx
-    environments:
-        - prod
-    flavors: 
-        - "*"
-  kafka:
-```
+2. **Live Query Layer** (read from actual Kafka clusters):
+   - Real-time topic discovery
+   - Broker information
+   - Topic metadata
 
-## The resource manager
+### Storage Topics
 
-## The traffic manager
+Franz uses three Kafka compacted topics:
+- `franz.clusters.store` - Cluster definitions
+- `franz.topic.definitions.store` - Topic templates
+- `franz.cluster.topics.store` - Cluster-to-topic mappings
 
-### The traffic coordinator 
+## Quick Start
 
-## The governance director
+### Using Docker Compose
 
-## HTTP Server
-
-The HTTP server provides a REST API to retrieve information from Kafka admin operations.
-
-### Running Kafka Cluster
-
-A Docker Compose file is provided to spin up a local Kafka cluster for development and testing:
+Start Franz with Kafka clusters:
 
 ```bash
-# Start Kafka cluster (Zookeeper + Kafka + Kafka UI)
-docker-compose up -d
+# Start all services (Franz + 3 Kafka clusters + Kafka UI)
+docker-compose up --build -d
 
 # Check status
 docker-compose ps
 
-# View logs
-docker-compose logs -f kafka
+# View Franz logs
+docker-compose logs -f franz-app
 
-# Stop the cluster
+# Stop all services
 docker-compose down
 ```
 
-The cluster includes:
-- **Zookeeper** on port `2181`
-- **Kafka broker** on port `9092` (for external clients) and `9093`
-- **Kafka UI** on port `8081` - Web interface to manage and monitor Kafka
+The stack includes:
+- **Franz API** on port `8080`
+- **Kafka Fleet** on port `19092` (used for storage)
+- **Kafka-2** on port `29092`
+- **Kafka-3** on port `39092`
+- **Kafka UI** on port `8081` - Web interface to manage and monitor Kafka clusters
 
 ### Configuration
 
-The server can be configured using environment variables:
+Franz can be configured using environment variables:
 
+**Server Configuration:**
 - `SERVER_PORT`: HTTP server port (default: `8080`)
 - `SERVER_HOST`: HTTP server host (default: `0.0.0.0`)
-- `KAFKA_BROKERS`: Comma-separated list of Kafka broker addresses (default: `localhost:9092`)
+
+**Storage Configuration:**
+- `STORAGE_KAFKA_BROKERS`: Kafka brokers for storing Franz configuration (default: `localhost:19092`)
+- `STORAGE_CLUSTERS_TOPIC`: Topic name for cluster definitions (default: `franz.clusters.store`)
+- `STORAGE_DEFINITIONS_TOPIC`: Topic name for topic templates (default: `franz.topic.definitions.store`)
+- `STORAGE_CLUSTER_TOPICS_TOPIC`: Topic name for cluster-topic mappings (default: `franz.cluster.topics.store`)
 
 ### Building and Running
 
@@ -221,27 +89,119 @@ KAFKA_BROKERS=localhost:9092 SERVER_PORT=8080 ./server
 
 ### API Endpoints
 
-- `GET /health` - Health check endpoint
-- `GET /api/topics` - List all topics in the cluster
-- `GET /api/topics/{topic}` - Get metadata for a specific topic
-- `GET /api/brokers` - Get broker information
-- `GET /api/cluster` - Get cluster metadata
+Franz provides REST APIs for both configuration management and live queries.
 
-### Example Usage
+**Configuration Endpoints:**
+- `POST /api/clusters` - Create cluster definition
+- `GET /api/clusters` - List all cluster definitions
+- `GET /api/cluster/{name}` - Get cluster definition
+- `PUT /api/cluster/{name}` - Update cluster definition
+- `DELETE /api/cluster/{name}` - Delete cluster definition
+- `POST /api/topic_definitions` - Create topic template
+- `GET /api/topic_definitions` - List topic templates
+- `POST /api/cluster/{name}/topics` - Assign topic to cluster
+
+**Live Query Endpoints:**
+- `GET /api/cluster/{name}/live/topics` - Query actual topics from Kafka
+- `GET /api/cluster/{name}/live/brokers` - Query actual brokers from Kafka
+- `GET /api/cluster/{name}/live/topic/{topic}` - Query topic metadata from Kafka
+
+**Health:**
+- `GET /health` - Health check endpoint
+
+For complete API documentation with examples, see [API.md](API.md).
+
+### Example Workflow
 
 ```bash
-# Health check
-curl http://localhost:8080/health
+# 1. Define a cluster
+curl -X POST http://localhost:8080/api/clusters \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "production-cluster",
+    "bootstrap_url": "kafka-fleet:9092",
+    "metadata": {"environment": "production"}
+  }'
 
-# List all topics
-curl http://localhost:8080/api/topics
+# 2. Create a topic template
+curl -X POST http://localhost:8080/api/topic_definitions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "high-throughput",
+    "metadata": {"partitions": "24", "replication": "3"}
+  }'
 
-# Get specific topic
-curl http://localhost:8080/api/topics/my-topic
+# 3. Assign topic to cluster
+curl -X POST http://localhost:8080/api/cluster/production-cluster/topics \
+  -H "Content-Type: application/json" \
+  -d '{
+    "topic_name": "user-events",
+    "topic_template": "high-throughput"
+  }'
 
-# Get brokers
-curl http://localhost:8080/api/brokers
-
-# Get cluster metadata
-curl http://localhost:8080/api/cluster
+# 4. Query live cluster data
+curl http://localhost:8080/api/cluster/production-cluster/live/topics
+curl http://localhost:8080/api/cluster/production-cluster/live/brokers
 ```
+
+## Development
+
+### Building from Source
+
+```bash
+# Build the application
+go build -o franz .
+
+# Run locally (requires Kafka running)
+STORAGE_KAFKA_BROKERS=localhost:19092 ./franz
+```
+
+### Running with Docker
+
+```bash
+# Build Docker image
+docker build -t franz:latest .
+
+# Run with docker-compose (recommended)
+docker-compose up --build
+```
+
+## Project Structure
+
+```
+franz/
+├── core/
+│   ├── config/         # Configuration loading
+│   ├── handlers/       # HTTP request handlers
+│   │   ├── cluster_handlers.go            # Cluster CRUD
+│   │   ├── topic_definition_handlers.go   # Topic definition CRUD
+│   │   ├── cluster_topic_handlers.go      # Cluster-topic mappings
+│   │   └── live_query_handlers.go         # Live Kafka queries
+│   ├── kafka/          # Kafka admin operations
+│   ├── models/         # Data models
+│   │   ├── cluster.go
+│   │   ├── topic_definition.go
+│   │   └── cluster_topic.go
+│   └── store/          # Storage layer (Kafka compacted topics)
+│       ├── config_store.go
+│       ├── cluster_store.go
+│       ├── topic_definition_store.go
+│       └── cluster_topic_store.go
+├── main.go             # Application entry point
+├── docker-compose.yaml # Development environment
+├── Dockerfile          # Container image
+├── API.md              # Complete API documentation
+└── README.md           # This file
+```
+
+## Use Cases
+
+1. **Multi-Cluster Management**: Define and manage multiple Kafka clusters with metadata
+2. **Topic Standardization**: Create topic templates for consistent topic configurations
+3. **Environment Tracking**: Track which topics should exist in which clusters
+4. **Discovery**: Query actual state of Kafka clusters without direct access
+5. **Configuration Audit**: Keep track of cluster and topic configurations over time
+
+## License
+
+See [LICENSE](LICENSE) file for details.
