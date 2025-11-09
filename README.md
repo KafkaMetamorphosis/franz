@@ -144,45 +144,64 @@ curl http://localhost:8080/api/cluster/production-cluster/live/topics
 curl http://localhost:8080/api/cluster/production-cluster/live/brokers
 ```
 
-## Testing
-
-Franz includes comprehensive testing at multiple levels:
-
-- **Unit Tests**: Fast tests with mocked dependencies
-- **Integration Tests**: Tests with real Kafka using testcontainers
-- **Docker Tests**: Full application stack in Docker
-
-### Quick Start
-
-```bash
-# Run all tests
-./scripts/test-integration.sh --all
-
-# Run only unit tests
-./scripts/test-integration.sh --unit
-
-# Run only integration tests
-./scripts/test-integration.sh --integration
-
-# Run Docker compose tests
-./scripts/test-integration.sh --docker
-```
-
-For detailed testing documentation, see [TESTING.md](TESTING.md).
-
 ## Development
 
-### Running with Docker Compose for Testing
-
-For development and testing, use the test Docker Compose setup:
+### Building from Source
 
 ```bash
-# Start Franz app with Kafka
-docker-compose -f docker-compose.test.yaml up --build
+# Build the application
+go build -o franz .
 
-# The services will be available at:
-# - Franz API: http://localhost:8080
-# - Kafka: localhost:29092
+# Run locally (requires Kafka running)
+STORAGE_KAFKA_BROKERS=localhost:19092 ./franz
 ```
 
-This setup runs Franz inside Docker, which properly handles internal Kafka hostnames and simulates a production-like environment.
+### Running with Docker
+
+```bash
+# Build Docker image
+docker build -t franz:latest .
+
+# Run with docker-compose (recommended)
+docker-compose up --build
+```
+
+## Project Structure
+
+```
+franz/
+├── core/
+│   ├── config/         # Configuration loading
+│   ├── handlers/       # HTTP request handlers
+│   │   ├── cluster_handlers.go            # Cluster CRUD
+│   │   ├── topic_definition_handlers.go   # Topic definition CRUD
+│   │   ├── cluster_topic_handlers.go      # Cluster-topic mappings
+│   │   └── live_query_handlers.go         # Live Kafka queries
+│   ├── kafka/          # Kafka admin operations
+│   ├── models/         # Data models
+│   │   ├── cluster.go
+│   │   ├── topic_definition.go
+│   │   └── cluster_topic.go
+│   └── store/          # Storage layer (Kafka compacted topics)
+│       ├── config_store.go
+│       ├── cluster_store.go
+│       ├── topic_definition_store.go
+│       └── cluster_topic_store.go
+├── main.go             # Application entry point
+├── docker-compose.yaml # Development environment
+├── Dockerfile          # Container image
+├── API.md              # Complete API documentation
+└── README.md           # This file
+```
+
+## Use Cases
+
+1. **Multi-Cluster Management**: Define and manage multiple Kafka clusters with metadata
+2. **Topic Standardization**: Create topic templates for consistent topic configurations
+3. **Environment Tracking**: Track which topics should exist in which clusters
+4. **Discovery**: Query actual state of Kafka clusters without direct access
+5. **Configuration Audit**: Keep track of cluster and topic configurations over time
+
+## License
+
+See [LICENSE](LICENSE) file for details.
