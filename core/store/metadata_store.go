@@ -18,6 +18,7 @@ type MetadataStore struct {
 	brokers           []string
 	clustersTopicName string
 	topicsTopicName   string
+	client            KafkaClient // Kafka client for operations
 
 	// In-memory caches
 	clusters map[string]*models.ClusterMetadata
@@ -34,10 +35,17 @@ func NewMetadataStore(brokers []string, clustersTopicName, topicsTopicName strin
 	log.Printf("[MetadataStore] Initializing with brokers: %v, clusters topic: %s, topics topic: %s",
 		brokers, clustersTopicName, topicsTopicName)
 
+	// Create real Kafka client with 10s timeout
+	client, err := NewRealKafkaClient(brokers, 10*time.Second)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create Kafka client: %w", err)
+	}
+
 	store := &MetadataStore{
 		brokers:           brokers,
 		clustersTopicName: clustersTopicName,
 		topicsTopicName:   topicsTopicName,
+		client:            client,
 		clusters:          make(map[string]*models.ClusterMetadata),
 		topics:            make(map[string]*models.TopicMetadata),
 	}
@@ -61,39 +69,33 @@ func NewMetadataStore(brokers []string, clustersTopicName, topicsTopicName strin
 
 // initializeTopics creates the compact topics if they don't exist
 func (s *MetadataStore) initializeTopics() error {
-	conn, err := kafka.Dial("tcp", s.brokers[0])
-	if err != nil {
-		return fmt.Errorf("failed to connect to kafka: %w", err)
-	}
-	defer conn.Close()
-
-	// Try to get controller connection, but fall back to existing connection if it fails
-	// (handles Docker networking where controller host might not be resolvable)
-	controllerConn := conn
-	shouldCloseController := false
-
-	controller, err := conn.Controller()
-	if err == nil {
-		// Try to connect to controller, but don't fail if we can't
-		tempConn, err := kafka.Dial("tcp", fmt.Sprintf("%s:%d", controller.Host, controller.Port))
-		if err == nil {
-			controllerConn = tempConn
-			shouldCloseController = true
-		}
-		// If connection fails, we'll just use the original broker connection
-	}
-
-	if shouldCloseController {
-		defer controllerConn.Close()
-	}
-
 	// Create clusters topic
-	if err := s.createTopicIfNotExists(controllerConn, s.clustersTopicName); err != nil {
+	err := s.client.CreateTopics(kafka.TopicConfig{
+		Topic:             s.clustersTopicName,
+		NumPartitions:     1,
+		ReplicationFactor: 1,
+		ConfigEntries: []kafka.ConfigEntry{
+			{ConfigName: "cleanup.policy", ConfigValue: "compact"},
+			{ConfigName: "segment.ms", ConfigValue: "86400000"},
+			{ConfigName: "min.cleanable.dirty.ratio", ConfigValue: "0.01"},
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "already exists") {
 		return fmt.Errorf("failed to create clusters topic: %w", err)
 	}
 
 	// Create topics topic
-	if err := s.createTopicIfNotExists(controllerConn, s.topicsTopicName); err != nil {
+	err = s.client.CreateTopics(kafka.TopicConfig{
+		Topic:             s.topicsTopicName,
+		NumPartitions:     1,
+		ReplicationFactor: 1,
+		ConfigEntries: []kafka.ConfigEntry{
+			{ConfigName: "cleanup.policy", ConfigValue: "compact"},
+			{ConfigName: "segment.ms", ConfigValue: "86400000"},
+			{ConfigName: "min.cleanable.dirty.ratio", ConfigValue: "0.01"},
+		},
+	})
+	if err != nil && !strings.Contains(err.Error(), "already exists") {
 		return fmt.Errorf("failed to create topics topic: %w", err)
 	}
 
@@ -141,13 +143,51 @@ func (s *MetadataStore) loadData() error {
 	ctx := context.Background()
 
 	// Load clusters
-	if err := s.loadClusters(ctx); err != nil {
-		return fmt.Errorf("failed to load clusters: %w", err)
+	clusterMsgs, err := s.client.ReadMessages(ctx, s.clustersTopicName, 0)
+	if err != nil {
+		return fmt.Errorf("failed to read clusters: %w", err)
+	}
+
+	for _, msg := range clusterMsgs {
+		if msg.Value == nil {
+			s.mu.Lock()
+			delete(s.clusters, string(msg.Key))
+			s.mu.Unlock()
+			continue
+		}
+
+		var cluster models.ClusterMetadata
+		if err := json.Unmarshal(msg.Value, &cluster); err != nil {
+			continue
+		}
+
+		s.mu.Lock()
+		s.clusters[cluster.ID] = &cluster
+		s.mu.Unlock()
 	}
 
 	// Load topics
-	if err := s.loadTopics(ctx); err != nil {
-		return fmt.Errorf("failed to load topics: %w", err)
+	topicMsgs, err := s.client.ReadMessages(ctx, s.topicsTopicName, 0)
+	if err != nil {
+		return fmt.Errorf("failed to read topics: %w", err)
+	}
+
+	for _, msg := range topicMsgs {
+		if msg.Value == nil {
+			s.mu.Lock()
+			delete(s.topics, string(msg.Key))
+			s.mu.Unlock()
+			continue
+		}
+
+		var topic models.TopicMetadata
+		if err := json.Unmarshal(msg.Value, &topic); err != nil {
+			continue
+		}
+
+		s.mu.Lock()
+		s.topics[string(msg.Key)] = &topic
+		s.mu.Unlock()
 	}
 
 	return nil
@@ -249,8 +289,13 @@ func (s *MetadataStore) loadTopics(ctx context.Context) error {
 	return nil
 }
 
-// SaveCluster saves cluster metadata to the compact topic
+// SaveCluster saves cluster metadata to the compact topic with retries
 func (s *MetadataStore) SaveCluster(ctx context.Context, cluster *models.ClusterMetadata) error {
+	// Validate cluster data
+	if err := s.validateCluster(cluster); err != nil {
+		return fmt.Errorf("invalid cluster data: %w", err)
+	}
+
 	cluster.LastSyncTime = time.Now().UTC()
 
 	data, err := json.Marshal(cluster)
@@ -258,25 +303,13 @@ func (s *MetadataStore) SaveCluster(ctx context.Context, cluster *models.Cluster
 		return fmt.Errorf("failed to marshal cluster: %w", err)
 	}
 
-	log.Printf("[MetadataStore] Saving cluster %s to broker %s, topic %s", cluster.ID, s.brokers[0], s.clustersTopicName)
+	log.Printf("[MetadataStore] Saving cluster %s to topic %s", cluster.ID, s.clustersTopicName)
 
-	// Connect directly to avoid Docker hostname resolution
-	conn, err := kafka.Dial("tcp", s.brokers[0])
-	if err != nil {
-		log.Printf("[MetadataStore] ERROR connecting to broker: %v", err)
-		return fmt.Errorf("failed to connect to broker: %w", err)
-	}
-	defer conn.Close()
-
-	// Set write deadline
-	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-
-	// Write the message directly to the partition
-	_, err = conn.WriteMessages(kafka.Message{
-		Topic: s.clustersTopicName,
-		Key:   []byte(cluster.ID),
-		Value: data,
+	// Retry logic with exponential backoff
+	err = s.retryWithBackoff(ctx, func() error {
+		return s.client.WriteMessage(ctx, s.clustersTopicName, []byte(cluster.ID), data)
 	})
+
 	if err != nil {
 		log.Printf("[MetadataStore] ERROR writing cluster message: %v", err)
 		return fmt.Errorf("failed to write cluster message: %w", err)
@@ -292,8 +325,13 @@ func (s *MetadataStore) SaveCluster(ctx context.Context, cluster *models.Cluster
 	return nil
 }
 
-// SaveTopic saves topic metadata to the compact topic
+// SaveTopic saves topic metadata to the compact topic with retries
 func (s *MetadataStore) SaveTopic(ctx context.Context, topic *models.TopicMetadata) error {
+	// Validate topic data
+	if err := s.validateTopic(topic); err != nil {
+		return fmt.Errorf("invalid topic data: %w", err)
+	}
+
 	topic.LastSyncTime = time.Now().UTC()
 
 	data, err := json.Marshal(topic)
@@ -303,25 +341,13 @@ func (s *MetadataStore) SaveTopic(ctx context.Context, topic *models.TopicMetada
 
 	key := fmt.Sprintf("%s:%s", topic.ClusterID, topic.TopicName)
 
-	log.Printf("[MetadataStore] Saving topic %s to broker %s, topic %s", key, s.brokers[0], s.topicsTopicName)
+	log.Printf("[MetadataStore] Saving topic %s to topic %s", key, s.topicsTopicName)
 
-	// Connect directly to avoid Docker hostname resolution
-	conn, err := kafka.Dial("tcp", s.brokers[0])
-	if err != nil {
-		log.Printf("[MetadataStore] ERROR connecting to broker: %v", err)
-		return fmt.Errorf("failed to connect to broker: %w", err)
-	}
-	defer conn.Close()
-
-	// Set write deadline
-	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
-
-	// Write the message directly to the partition
-	_, err = conn.WriteMessages(kafka.Message{
-		Topic: s.topicsTopicName,
-		Key:   []byte(key),
-		Value: data,
+	// Retry logic with exponential backoff
+	err = s.retryWithBackoff(ctx, func() error {
+		return s.client.WriteMessage(ctx, s.topicsTopicName, []byte(key), data)
 	})
+
 	if err != nil {
 		log.Printf("[MetadataStore] ERROR writing topic message: %v", err)
 		return fmt.Errorf("failed to write topic message: %w", err)
@@ -392,19 +418,69 @@ func (s *MetadataStore) ListTopics(clusterID string) []*models.TopicMetadata {
 	return topics
 }
 
-// mapBrokerAddress maps Docker internal hostnames to localhost addresses
-func (s *MetadataStore) mapBrokerAddress(address string) string {
-	// Common Docker Kafka container hostnames and their localhost mappings
-	hostMappings := map[string]string{
-		"kafka-fleet:9092": "localhost:19092",
-		"kafka-2:9092":     "localhost:29092",
-		"kafka-3:9092":     "localhost:39092",
+// validateCluster validates cluster metadata before storing
+func (s *MetadataStore) validateCluster(cluster *models.ClusterMetadata) error {
+	if cluster == nil {
+		return fmt.Errorf("cluster is nil")
+	}
+	if cluster.ID == "" {
+		return fmt.Errorf("cluster ID is required")
+	}
+	if cluster.Name == "" {
+		return fmt.Errorf("cluster name is required")
+	}
+	if len(cluster.BootstrapURLs) == 0 {
+		return fmt.Errorf("at least one bootstrap URL is required")
+	}
+	return nil
+}
+
+// validateTopic validates topic metadata before storing
+func (s *MetadataStore) validateTopic(topic *models.TopicMetadata) error {
+	if topic == nil {
+		return fmt.Errorf("topic is nil")
+	}
+	if topic.ClusterID == "" {
+		return fmt.Errorf("cluster ID is required")
+	}
+	if topic.TopicName == "" {
+		return fmt.Errorf("topic name is required")
+	}
+	return nil
+}
+
+// retryWithBackoff retries a function with exponential backoff
+func (s *MetadataStore) retryWithBackoff(ctx context.Context, fn func() error) error {
+	maxRetries := 3
+	baseDelay := 100 * time.Millisecond
+	maxDelay := 2 * time.Second
+
+	var lastErr error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		if attempt > 0 {
+			// Calculate exponential backoff delay
+			delay := baseDelay * time.Duration(1<<uint(attempt-1))
+			if delay > maxDelay {
+				delay = maxDelay
+			}
+
+			log.Printf("[MetadataStore] Retry attempt %d after %v", attempt+1, delay)
+
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+
+		err := fn()
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+		log.Printf("[MetadataStore] Attempt %d failed: %v", attempt+1, err)
 	}
 
-	if mapped, ok := hostMappings[address]; ok {
-		return mapped
-	}
-
-	// If no mapping found, return as-is (might be localhost already)
-	return address
+	return fmt.Errorf("failed after %d attempts: %w", maxRetries, lastErr)
 }
