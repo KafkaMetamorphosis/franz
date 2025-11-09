@@ -6,10 +6,12 @@ package store
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/franz-kafka/server/core/models"
+	"github.com/segmentio/kafka-go"
 )
 
 // Run these tests with: go test -tags=integration ./core/store -v
@@ -345,4 +347,248 @@ func TestIntegration_CompactTopicCleanup(t *testing.T) {
 	if cluster.TopicCount != 8 {
 		t.Errorf("Expected topic count 8, got %d", cluster.TopicCount)
 	}
+}
+
+func TestIntegration_HostnameResolution(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx := context.Background()
+	broker, cleanup := SetupTestKafka(t, ctx)
+	defer cleanup()
+
+	store, storeCleanup := SetupTestMetadataStore(t, ctx, broker)
+	defer storeCleanup()
+
+	// This test reproduces the issue where Kafka returns internal hostnames
+	// like "kafka-fleet:9092" that need to be resolved to actual addresses
+
+	// Create a topic with multiple partitions
+	topic := &models.TopicMetadata{
+		ClusterID:         "hostname-test-cluster",
+		TopicName:         "hostname-test-topic",
+		ReplicationFactor: 1,
+		Partitions: []models.PartitionMetadata{
+			{ID: 0, Leader: 0, Replicas: []int{0}, ISRs: []int{0}},
+			{ID: 1, Leader: 0, Replicas: []int{0}, ISRs: []int{0}},
+			{ID: 2, Leader: 0, Replicas: []int{0}, ISRs: []int{0}},
+		},
+	}
+
+	// This should work even if Kafka returns internal hostnames
+	err := store.SaveTopic(ctx, topic)
+	if err != nil {
+		t.Fatalf("Failed to save topic (hostname resolution failed): %v", err)
+	}
+
+	// Verify the topic was saved and can be retrieved
+	retrieved, err := store.GetTopic("hostname-test-cluster", "hostname-test-topic")
+	if err != nil {
+		t.Fatalf("Failed to retrieve topic after save: %v", err)
+	}
+
+	if retrieved.TopicName != topic.TopicName {
+		t.Errorf("Expected topic name %s, got %s", topic.TopicName, retrieved.TopicName)
+	}
+
+	if len(retrieved.Partitions) != 3 {
+		t.Errorf("Expected 3 partitions, got %d", len(retrieved.Partitions))
+	}
+
+	// Try writing directly with the client to test low-level hostname handling
+	testKey := []byte("test-key")
+	testValue := []byte(`{"test": "data"}`)
+
+	err = store.client.WriteMessage(ctx, store.topicsTopicName, testKey, testValue)
+	if err != nil {
+		t.Fatalf("Direct write failed (hostname resolution issue): %v", err)
+	}
+
+	t.Log("Hostname resolution test passed - able to write to Kafka successfully")
+}
+
+func TestIntegration_SyncTopicFlow(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx := context.Background()
+	broker, cleanup := SetupTestKafka(t, ctx)
+	defer cleanup()
+
+	// Create a real metadata store
+	store, storeCleanup := SetupTestMetadataStore(t, ctx, broker)
+	defer storeCleanup()
+
+	// First, create an actual topic in Kafka to sync
+	client, err := NewRealKafkaClient([]string{broker}, 10*time.Second)
+	if err != nil {
+		t.Fatalf("Failed to create Kafka client: %v", err)
+	}
+	defer client.Close()
+
+	// Create a test topic with multiple partitions
+	testTopicName := "sync-flow-test-topic"
+	err = client.CreateTopics(kafka.TopicConfig{
+		Topic:             testTopicName,
+		NumPartitions:     3,
+		ReplicationFactor: 1,
+	})
+	if err != nil && !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("Failed to create test topic: %v", err)
+	}
+
+	// Give Kafka a moment to create the topic
+	time.Sleep(2 * time.Second)
+
+	// Now simulate the SyncTopic flow that was failing in production
+	// Step 1: Read topic metadata from Kafka (like SyncTopic does)
+	conn, err := kafka.Dial("tcp", broker)
+	if err != nil {
+		t.Fatalf("Failed to connect to Kafka: %v", err)
+	}
+	defer conn.Close()
+
+	partitions, err := conn.ReadPartitions(testTopicName)
+	if err != nil {
+		t.Fatalf("Failed to read partitions: %v", err)
+	}
+
+	if len(partitions) == 0 {
+		t.Fatalf("Expected partitions for topic %s, got 0", testTopicName)
+	}
+
+	t.Logf("Successfully read %d partitions from Kafka", len(partitions))
+
+	// Step 2: Build partition metadata (like SyncTopic does)
+	partitionMetadata := make([]models.PartitionMetadata, 0, len(partitions))
+	replicationFactor := 0
+
+	for _, partition := range partitions {
+		pm := models.PartitionMetadata{
+			ID:       partition.ID,
+			Leader:   partition.Leader.ID,
+			Replicas: make([]int, 0, len(partition.Replicas)),
+			ISRs:     make([]int, 0, len(partition.Isr)),
+		}
+
+		for _, replica := range partition.Replicas {
+			pm.Replicas = append(pm.Replicas, replica.ID)
+		}
+
+		for _, isr := range partition.Isr {
+			pm.ISRs = append(pm.ISRs, isr.ID)
+		}
+
+		partitionMetadata = append(partitionMetadata, pm)
+
+		if replicationFactor == 0 {
+			replicationFactor = len(partition.Replicas)
+		}
+	}
+
+	// Step 3: Create topic metadata (like SyncTopic does)
+	topicMetadata := &models.TopicMetadata{
+		ClusterID:         "sync-test-cluster",
+		TopicName:         testTopicName,
+		Partitions:        partitionMetadata,
+		ReplicationFactor: replicationFactor,
+		Configs:           make(map[string]string),
+	}
+
+	// Step 4: Save to store (THIS IS WHERE IT WAS FAILING)
+	// This should work now with our hostname resolution fixes
+	t.Log("Attempting to save topic metadata to store (previously failing step)...")
+	err = store.SaveTopic(ctx, topicMetadata)
+	if err != nil {
+		t.Fatalf("Failed to save topic metadata (the bug we're fixing): %v", err)
+	}
+
+	t.Log("Successfully saved topic metadata!")
+
+	// Step 5: Verify the topic was saved and can be retrieved
+	retrieved, err := store.GetTopic("sync-test-cluster", testTopicName)
+	if err != nil {
+		t.Fatalf("Failed to retrieve saved topic: %v", err)
+	}
+
+	if retrieved.TopicName != testTopicName {
+		t.Errorf("Expected topic name %s, got %s", testTopicName, retrieved.TopicName)
+	}
+
+	if len(retrieved.Partitions) != len(partitionMetadata) {
+		t.Errorf("Expected %d partitions, got %d", len(partitionMetadata), len(retrieved.Partitions))
+	}
+
+	t.Logf("Full SyncTopic flow test passed! Topic %s synced successfully", testTopicName)
+}
+
+func TestIntegration_MultipleClustersSync(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	ctx := context.Background()
+	broker, cleanup := SetupTestKafka(t, ctx)
+	defer cleanup()
+
+	store, storeCleanup := SetupTestMetadataStore(t, ctx, broker)
+	defer storeCleanup()
+
+	// Simulate syncing multiple clusters (common in production)
+	clusters := []struct {
+		id   string
+		name string
+	}{
+		{"cluster-1", "Production Cluster 1"},
+		{"cluster-2", "Production Cluster 2"},
+		{"cluster-3", "Staging Cluster"},
+	}
+
+	for _, cluster := range clusters {
+		clusterMeta := &models.ClusterMetadata{
+			ID:            cluster.id,
+			Name:          cluster.name,
+			BootstrapURLs: []string{broker},
+			BrokerCount:   1,
+			TopicCount:    0,
+		}
+
+		err := store.SaveCluster(ctx, clusterMeta)
+		if err != nil {
+			t.Fatalf("Failed to save cluster %s: %v", cluster.id, err)
+		}
+	}
+
+	// Verify all clusters were saved
+	allClusters := store.ListClusters()
+	if len(allClusters) != len(clusters) {
+		t.Errorf("Expected %d clusters, got %d", len(clusters), len(allClusters))
+	}
+
+	// Now sync topics for each cluster
+	for _, cluster := range clusters {
+		topic := &models.TopicMetadata{
+			ClusterID:         cluster.id,
+			TopicName:         fmt.Sprintf("topic-in-%s", cluster.id),
+			ReplicationFactor: 1,
+			Partitions: []models.PartitionMetadata{
+				{ID: 0, Leader: 0, Replicas: []int{0}, ISRs: []int{0}},
+			},
+		}
+
+		err := store.SaveTopic(ctx, topic)
+		if err != nil {
+			t.Fatalf("Failed to save topic for cluster %s: %v", cluster.id, err)
+		}
+	}
+
+	// Verify all topics were saved
+	allTopics := store.ListTopics("")
+	if len(allTopics) != len(clusters) {
+		t.Errorf("Expected %d topics, got %d", len(clusters), len(allTopics))
+	}
+
+	t.Log("Multi-cluster sync test passed!")
 }

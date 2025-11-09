@@ -42,7 +42,11 @@ func Load() *Config {
 		host = "0.0.0.0"
 	}
 
-	brokersEnv := os.Getenv("KAFKA_FLEET_BOOTSTRAP_URLS")
+	// Support both simple and legacy environment variable names
+	brokersEnv := os.Getenv("KAFKA_BROKERS")
+	if brokersEnv == "" {
+		brokersEnv = os.Getenv("KAFKA_FLEET_BOOTSTRAP_URLS")
+	}
 	if brokersEnv == "" {
 		brokersEnv = "localhost:19092"
 	}
@@ -57,7 +61,11 @@ func Load() *Config {
 	}
 
 	// Primary Kafka DB configuration
-	primaryBrokersEnv := os.Getenv("KAFKA_PRIMARY_DB_BOOTSTRAP_URLS")
+	// Support both simple and legacy environment variable names
+	primaryBrokersEnv := os.Getenv("PRIMARY_KAFKA_BROKERS")
+	if primaryBrokersEnv == "" {
+		primaryBrokersEnv = os.Getenv("KAFKA_PRIMARY_DB_BOOTSTRAP_URLS")
+	}
 	if primaryBrokersEnv == "" {
 		primaryBrokersEnv = "localhost:19092"
 	}
@@ -70,12 +78,19 @@ func Load() *Config {
 		}
 	}
 
-	clustersTopicName := os.Getenv("KAFKA_METADATA_CLUSTERS_TOPIC")
+	// Support both simple and legacy environment variable names for topic names
+	clustersTopicName := os.Getenv("CLUSTERS_TOPIC_NAME")
+	if clustersTopicName == "" {
+		clustersTopicName = os.Getenv("KAFKA_METADATA_CLUSTERS_TOPIC")
+	}
 	if clustersTopicName == "" {
 		clustersTopicName = "franz.metadata.clusters"
 	}
 
-	topicsTopicName := os.Getenv("KAFKA_METADATA_TOPICS_TOPIC")
+	topicsTopicName := os.Getenv("TOPICS_TOPIC_NAME")
+	if topicsTopicName == "" {
+		topicsTopicName = os.Getenv("KAFKA_METADATA_TOPICS_TOPIC")
+	}
 	if topicsTopicName == "" {
 		topicsTopicName = "franz.metadata.topics"
 	}

@@ -245,3 +245,46 @@ curl http://localhost:8080/api/brokers
 # Get cluster metadata
 curl http://localhost:8080/api/cluster
 ```
+
+## Testing
+
+Franz includes comprehensive testing at multiple levels:
+
+- **Unit Tests**: Fast tests with mocked dependencies
+- **Integration Tests**: Tests with real Kafka using testcontainers
+- **Docker Tests**: Full application stack in Docker
+
+### Quick Start
+
+```bash
+# Run all tests
+./scripts/test-integration.sh --all
+
+# Run only unit tests
+./scripts/test-integration.sh --unit
+
+# Run only integration tests
+./scripts/test-integration.sh --integration
+
+# Run Docker compose tests
+./scripts/test-integration.sh --docker
+```
+
+For detailed testing documentation, see [TESTING.md](TESTING.md).
+
+## Development
+
+### Running with Docker Compose for Testing
+
+For development and testing, use the test Docker Compose setup:
+
+```bash
+# Start Franz app with Kafka
+docker-compose -f docker-compose.test.yaml up --build
+
+# The services will be available at:
+# - Franz API: http://localhost:8080
+# - Kafka: localhost:29092
+```
+
+This setup runs Franz inside Docker, which properly handles internal Kafka hostnames and simulates a production-like environment.

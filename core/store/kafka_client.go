@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/segmentio/kafka-go"
@@ -53,14 +54,43 @@ func NewRealKafkaClient(brokers []string, timeout time.Duration) (*RealKafkaClie
 
 // WriteMessage writes a message to Kafka
 func (r *RealKafkaClient) WriteMessage(ctx context.Context, topic string, key, value []byte) error {
-	// Set write deadline
-	if err := r.conn.SetWriteDeadline(time.Now().Add(r.timeout)); err != nil {
-		return err
+	// Create custom dialer to handle Docker hostname resolution
+	// This dialer will map Docker internal hostnames (e.g., kafka-fleet:9092)
+	// to localhost addresses (e.g., localhost:19092) when running on host machine
+	customDialer := &kafka.Dialer{
+		Timeout:   r.timeout,
+		DualStack: true,
+		Resolver: &net.Resolver{
+			PreferGo: true,
+			Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+				// Use custom resolver to prevent standard DNS lookup
+				d := &net.Dialer{Timeout: r.timeout}
+				return d.DialContext(ctx, network, address)
+			},
+		},
 	}
 
+	// Also set a custom DialFunc that applies our hostname mapping
+	customDialer.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
+		// Map Docker internal hostnames to localhost if needed
+		mappedAddr := mapBrokerAddress(address)
+		d := &net.Dialer{Timeout: r.timeout}
+		return d.DialContext(ctx, network, mappedAddr)
+	}
+
+	// Use a Writer which is the proper way to write messages in kafka-go
+	writer := kafka.NewWriter(kafka.WriterConfig{
+		Brokers:      r.brokers,
+		Topic:        topic,
+		Balancer:     &kafka.Hash{},
+		RequiredAcks: 1,
+		WriteTimeout: r.timeout,
+		Dialer:       customDialer,
+	})
+	defer writer.Close()
+
 	// Write the message
-	_, err := r.conn.WriteMessages(kafka.Message{
-		Topic: topic,
+	err := writer.WriteMessages(ctx, kafka.Message{
 		Key:   key,
 		Value: value,
 	})
@@ -211,4 +241,45 @@ func (m *MockKafkaClient) Reset() {
 	m.WriteError = nil
 	m.ReadError = nil
 	m.CreateError = nil
+}
+
+// mapBrokerAddress maps Docker internal hostnames to localhost addresses when needed
+// This function is primarily used when running the app on the host machine
+// and connecting to Kafka in Docker. When both are in Docker, no mapping is needed.
+func mapBrokerAddress(address string) string {
+	// Check if we can already connect to the address (e.g., inside Docker network)
+	// If address can be resolved, use it as-is
+	// Otherwise, try to map it for host-based testing
+
+	// Common Docker Kafka container hostnames and their localhost mappings
+	// These are used when the app runs on host connecting to Docker containers
+	hostMappings := map[string]string{
+		"kafka-fleet:9092": "localhost:19092",
+		"kafka-2:9092":     "localhost:29092",
+		"kafka-3:9092":     "localhost:39092",
+		"kafka-test:9092":  "localhost:29092",
+	}
+
+	// Try to map the address
+	if mapped, ok := hostMappings[address]; ok {
+		// Check if the original address resolves (we're inside Docker)
+		// If it does, use original. Otherwise use mapped version (on host).
+		if _, err := net.LookupHost(extractHost(address)); err == nil {
+			// Address resolves - we're likely inside Docker network
+			return address
+		}
+		// Address doesn't resolve - map to localhost for host-based access
+		return mapped
+	}
+
+	// If no mapping found, return as-is (might be localhost already or valid hostname)
+	return address
+}
+
+// extractHost extracts the hostname from an address like "hostname:port"
+func extractHost(address string) string {
+	if host, _, err := net.SplitHostPort(address); err == nil {
+		return host
+	}
+	return address
 }
