@@ -59,16 +59,25 @@ func (s *MetadataStore) initializeTopics() error {
 	}
 	defer conn.Close()
 
+	// Try to get controller connection, but fall back to existing connection if it fails
+	// (handles Docker networking where controller host might not be resolvable)
+	controllerConn := conn
+	shouldCloseController := false
+
 	controller, err := conn.Controller()
-	if err != nil {
-		return fmt.Errorf("failed to get controller: %w", err)
+	if err == nil {
+		// Try to connect to controller, but don't fail if we can't
+		tempConn, err := kafka.Dial("tcp", fmt.Sprintf("%s:%d", controller.Host, controller.Port))
+		if err == nil {
+			controllerConn = tempConn
+			shouldCloseController = true
+		}
+		// If connection fails, we'll just use the original broker connection
 	}
 
-	controllerConn, err := kafka.Dial("tcp", fmt.Sprintf("%s:%d", controller.Host, controller.Port))
-	if err != nil {
-		return fmt.Errorf("failed to connect to controller: %w", err)
+	if shouldCloseController {
+		defer controllerConn.Close()
 	}
-	defer controllerConn.Close()
 
 	// Create clusters topic
 	if err := s.createTopicIfNotExists(controllerConn, s.clustersTopicName); err != nil {
