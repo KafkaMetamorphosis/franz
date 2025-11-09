@@ -13,6 +13,7 @@ import (
 	"github.com/franz-kafka/server/core/config"
 	"github.com/franz-kafka/server/core/handlers"
 	"github.com/franz-kafka/server/core/kafka"
+	"github.com/franz-kafka/server/core/store"
 )
 
 func main() {
@@ -26,8 +27,22 @@ func main() {
 	}
 	defer admin.Close()
 
+	// Initialize metadata store
+	metadataStore, err := store.NewMetadataStore(
+		cfg.PrimaryKafka.Brokers,
+		cfg.PrimaryKafka.ClustersTopicName,
+		cfg.PrimaryKafka.TopicsTopicName,
+	)
+	if err != nil {
+		log.Fatalf("Failed to initialize metadata store: %v", err)
+	}
+
+	// Initialize metadata sync service
+	metadataSync := kafka.NewMetadataSync(metadataStore)
+
 	// Initialize handlers
 	h := handlers.NewHandler(admin)
+	metadataHandler := handlers.NewMetadataHandler(metadataStore, metadataSync)
 
 	// Setup routes
 	mux := http.NewServeMux()
@@ -36,6 +51,14 @@ func main() {
 	mux.HandleFunc("/api/topics/", h.GetTopic)
 	mux.HandleFunc("/api/brokers", h.GetBrokers)
 	mux.HandleFunc("/api/cluster", h.GetClusterMetadata)
+
+	// Metadata routes
+	mux.HandleFunc("/api/metadata/clusters/sync", metadataHandler.SyncCluster)
+	mux.HandleFunc("/api/metadata/topics/sync", metadataHandler.SyncTopics)
+	mux.HandleFunc("/api/metadata/clusters", metadataHandler.ListClusters)
+	mux.HandleFunc("/api/metadata/clusters/", metadataHandler.GetCluster)
+	mux.HandleFunc("/api/metadata/topics", metadataHandler.ListTopics)
+	mux.HandleFunc("/api/metadata/topics/", metadataHandler.GetTopic)
 
 	// Create HTTP server
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
