@@ -28,29 +28,44 @@ func (ms *MetadataSync) SyncCluster(ctx context.Context, clusterID, clusterName 
 		return fmt.Errorf("no brokers provided")
 	}
 
+	log.Printf("[MetadataSync] SyncCluster: Starting sync for cluster %s (%s) using brokers: %v", clusterID, clusterName, brokers)
+
 	// Connect to the cluster
 	conn, err := kafka.Dial("tcp", brokers[0])
 	if err != nil {
+		log.Printf("[MetadataSync] SyncCluster: ERROR connecting to broker %s: %v", brokers[0], err)
 		return fmt.Errorf("failed to connect to cluster: %w", err)
 	}
 	defer conn.Close()
+	log.Printf("[MetadataSync] SyncCluster: Successfully connected to broker %s", brokers[0])
 
 	// Get brokers
 	kafkaBrokers, err := conn.Brokers()
 	if err != nil {
+		log.Printf("[MetadataSync] SyncCluster: ERROR getting brokers: %v", err)
 		return fmt.Errorf("failed to get brokers: %w", err)
+	}
+	log.Printf("[MetadataSync] SyncCluster: Found %d brokers:", len(kafkaBrokers))
+	for i, broker := range kafkaBrokers {
+		log.Printf("[MetadataSync] SyncCluster:   Broker %d: ID=%d, Host=%s, Port=%d", i, broker.ID, broker.Host, broker.Port)
 	}
 
 	// Get all partitions (topics)
 	partitions, err := conn.ReadPartitions()
 	if err != nil {
+		log.Printf("[MetadataSync] SyncCluster: ERROR reading partitions: %v", err)
 		return fmt.Errorf("failed to read partitions: %w", err)
 	}
+	log.Printf("[MetadataSync] SyncCluster: Found %d partitions total", len(partitions))
 
 	// Count unique topics
 	topicMap := make(map[string]bool)
 	for _, partition := range partitions {
 		topicMap[partition.Topic] = true
+	}
+	log.Printf("[MetadataSync] SyncCluster: Found %d unique topics:", len(topicMap))
+	for topic := range topicMap {
+		log.Printf("[MetadataSync] SyncCluster:   - %s", topic)
 	}
 
 	// Create cluster metadata
@@ -63,10 +78,13 @@ func (ms *MetadataSync) SyncCluster(ctx context.Context, clusterID, clusterName 
 	}
 
 	// Save to store
+	log.Printf("[MetadataSync] SyncCluster: Saving cluster metadata to store")
 	if err := ms.metadataStore.SaveCluster(ctx, clusterMetadata); err != nil {
+		log.Printf("[MetadataSync] SyncCluster: ERROR saving cluster metadata: %v", err)
 		return fmt.Errorf("failed to save cluster metadata: %w", err)
 	}
 
+	log.Printf("[MetadataSync] SyncCluster: Successfully synced cluster %s", clusterID)
 	return nil
 }
 
@@ -76,30 +94,35 @@ func (ms *MetadataSync) SyncTopic(ctx context.Context, clusterID, topicName stri
 		return fmt.Errorf("no brokers provided")
 	}
 
-	log.Printf("[MetadataSync] Syncing topic %s from cluster %s using broker %s", topicName, clusterID, brokers[0])
+	log.Printf("[MetadataSync] SyncTopic: Starting sync for topic %s from cluster %s using broker %s", topicName, clusterID, brokers[0])
 
 	// Connect to the cluster
 	conn, err := kafka.Dial("tcp", brokers[0])
 	if err != nil {
+		log.Printf("[MetadataSync] SyncTopic: ERROR connecting to broker %s: %v", brokers[0], err)
 		return fmt.Errorf("failed to connect to cluster: %w", err)
 	}
 	defer conn.Close()
+	log.Printf("[MetadataSync] SyncTopic: Successfully connected to broker %s", brokers[0])
 
 	// Get topic partitions
 	partitions, err := conn.ReadPartitions(topicName)
 	if err != nil {
+		log.Printf("[MetadataSync] SyncTopic: ERROR reading partitions for topic %s: %v", topicName, err)
 		return fmt.Errorf("failed to read partitions for topic %s: %w", topicName, err)
 	}
 
 	if len(partitions) == 0 {
+		log.Printf("[MetadataSync] SyncTopic: WARNING - topic %s not found (0 partitions)", topicName)
 		return fmt.Errorf("topic %s not found", topicName)
 	}
+	log.Printf("[MetadataSync] SyncTopic: Found %d partitions for topic %s", len(partitions), topicName)
 
 	// Build partition metadata
 	partitionMetadata := make([]models.PartitionMetadata, 0, len(partitions))
 	replicationFactor := 0
 
-	for _, partition := range partitions {
+	for i, partition := range partitions {
 		pm := models.PartitionMetadata{
 			ID:       partition.ID,
 			Leader:   partition.Leader.ID,
@@ -115,6 +138,9 @@ func (ms *MetadataSync) SyncTopic(ctx context.Context, clusterID, topicName stri
 			pm.ISRs = append(pm.ISRs, isr.ID)
 		}
 
+		log.Printf("[MetadataSync] SyncTopic:   Partition %d: ID=%d, Leader=%d, Replicas=%v, ISRs=%v",
+			i, pm.ID, pm.Leader, pm.Replicas, pm.ISRs)
+
 		partitionMetadata = append(partitionMetadata, pm)
 
 		// Set replication factor from first partition
@@ -122,6 +148,7 @@ func (ms *MetadataSync) SyncTopic(ctx context.Context, clusterID, topicName stri
 			replicationFactor = len(partition.Replicas)
 		}
 	}
+	log.Printf("[MetadataSync] SyncTopic: Replication factor: %d", replicationFactor)
 
 	// Get topic configs
 	configs, err := ms.getTopicConfigs(conn, topicName)
@@ -155,9 +182,12 @@ func (ms *MetadataSync) SyncAllTopics(ctx context.Context, clusterID string, bro
 		return fmt.Errorf("no brokers provided")
 	}
 
+	log.Printf("[MetadataSync] SyncAllTopics: Starting sync for all topics in cluster %s using broker %s", clusterID, brokers[0])
+
 	// Connect to the cluster
 	conn, err := kafka.Dial("tcp", brokers[0])
 	if err != nil {
+		log.Printf("[MetadataSync] SyncAllTopics: ERROR connecting: %v", err)
 		return fmt.Errorf("failed to connect to cluster: %w", err)
 	}
 	defer conn.Close()
@@ -165,24 +195,33 @@ func (ms *MetadataSync) SyncAllTopics(ctx context.Context, clusterID string, bro
 	// Get all partitions
 	partitions, err := conn.ReadPartitions()
 	if err != nil {
+		log.Printf("[MetadataSync] SyncAllTopics: ERROR reading partitions: %v", err)
 		return fmt.Errorf("failed to read partitions: %w", err)
 	}
+	log.Printf("[MetadataSync] SyncAllTopics: Found %d partitions total", len(partitions))
 
 	// Get unique topic names
 	topicMap := make(map[string]bool)
 	for _, partition := range partitions {
 		topicMap[partition.Topic] = true
 	}
+	log.Printf("[MetadataSync] SyncAllTopics: Found %d unique topics to sync", len(topicMap))
 
 	// Sync each topic
+	successCount := 0
+	errorCount := 0
 	for topicName := range topicMap {
+		log.Printf("[MetadataSync] SyncAllTopics: Syncing topic %s...", topicName)
 		if err := ms.SyncTopic(ctx, clusterID, topicName, brokers); err != nil {
 			// Log error but continue with other topics
-			fmt.Printf("Error syncing topic %s: %v\n", topicName, err)
+			log.Printf("[MetadataSync] SyncAllTopics: ERROR syncing topic %s: %v", topicName, err)
+			errorCount++
 			continue
 		}
+		successCount++
 	}
 
+	log.Printf("[MetadataSync] SyncAllTopics: Completed. Success: %d, Errors: %d", successCount, errorCount)
 	return nil
 }
 

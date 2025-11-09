@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -147,7 +148,14 @@ func (h *MetadataHandler) ListClusters(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("[MetadataHandler] ListClusters: Fetching all clusters from store")
 	clusters := h.metadataStore.ListClusters()
+	log.Printf("[MetadataHandler] ListClusters: Found %d clusters", len(clusters))
+
+	for i, cluster := range clusters {
+		log.Printf("[MetadataHandler] ListClusters:   Cluster %d: ID=%s, Name=%s, Brokers=%d, Topics=%d",
+			i, cluster.ID, cluster.Name, cluster.BrokerCount, cluster.TopicCount)
+	}
 
 	response := map[string]interface{}{
 		"clusters": clusters,
@@ -189,8 +197,15 @@ func (h *MetadataHandler) ListTopics(w http.ResponseWriter, r *http.Request) {
 
 	// Optional filter by cluster_id
 	clusterID := r.URL.Query().Get("cluster_id")
+	log.Printf("[MetadataHandler] ListTopics: Fetching topics (cluster_id filter: %s)", clusterID)
 
 	topics := h.metadataStore.ListTopics(clusterID)
+	log.Printf("[MetadataHandler] ListTopics: Found %d topics", len(topics))
+
+	for i, topic := range topics {
+		log.Printf("[MetadataHandler] ListTopics:   Topic %d: Cluster=%s, Name=%s, Partitions=%d, RF=%d",
+			i, topic.ClusterID, topic.TopicName, len(topic.Partitions), topic.ReplicationFactor)
+	}
 
 	response := map[string]interface{}{
 		"topics": topics,

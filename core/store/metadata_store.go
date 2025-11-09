@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-	"net"
 	"strings"
 	"sync"
 	"time"
@@ -261,31 +260,20 @@ func (s *MetadataStore) SaveCluster(ctx context.Context, cluster *models.Cluster
 
 	log.Printf("[MetadataStore] Saving cluster %s to broker %s, topic %s", cluster.ID, s.brokers[0], s.clustersTopicName)
 
-	// Create a custom dialer that maps Docker hostnames to localhost
-	customDialer := &kafka.Dialer{
-		Timeout:   10 * time.Second,
-		DualStack: true,
-		DialFunc: func(ctx context.Context, network, address string) (net.Conn, error) {
-			// Map internal Docker hostnames to localhost addresses
-			mappedAddr := s.mapBrokerAddress(address)
-			log.Printf("[MetadataStore] Dialing: %s -> %s", address, mappedAddr)
-			d := &net.Dialer{Timeout: 10 * time.Second}
-			return d.DialContext(ctx, network, mappedAddr)
-		},
+	// Connect directly to avoid Docker hostname resolution
+	conn, err := kafka.Dial("tcp", s.brokers[0])
+	if err != nil {
+		log.Printf("[MetadataStore] ERROR connecting to broker: %v", err)
+		return fmt.Errorf("failed to connect to broker: %w", err)
 	}
+	defer conn.Close()
 
-	// Use Writer with custom dialer
-	writer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:      s.brokers,
-		Topic:        s.clustersTopicName,
-		Balancer:     &kafka.Hash{},
-		RequiredAcks: 1,
-		MaxAttempts:  3,
-		Dialer:       customDialer,
-	})
-	defer writer.Close()
+	// Set write deadline
+	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 
-	err = writer.WriteMessages(ctx, kafka.Message{
+	// Write the message directly to the partition
+	_, err = conn.WriteMessages(kafka.Message{
+		Topic: s.clustersTopicName,
 		Key:   []byte(cluster.ID),
 		Value: data,
 	})
@@ -317,31 +305,20 @@ func (s *MetadataStore) SaveTopic(ctx context.Context, topic *models.TopicMetada
 
 	log.Printf("[MetadataStore] Saving topic %s to broker %s, topic %s", key, s.brokers[0], s.topicsTopicName)
 
-	// Create a custom dialer that maps Docker hostnames to localhost
-	customDialer := &kafka.Dialer{
-		Timeout:   10 * time.Second,
-		DualStack: true,
-		DialFunc: func(ctx context.Context, network, address string) (net.Conn, error) {
-			// Map internal Docker hostnames to localhost addresses
-			mappedAddr := s.mapBrokerAddress(address)
-			log.Printf("[MetadataStore] Dialing: %s -> %s", address, mappedAddr)
-			d := &net.Dialer{Timeout: 10 * time.Second}
-			return d.DialContext(ctx, network, mappedAddr)
-		},
+	// Connect directly to avoid Docker hostname resolution
+	conn, err := kafka.Dial("tcp", s.brokers[0])
+	if err != nil {
+		log.Printf("[MetadataStore] ERROR connecting to broker: %v", err)
+		return fmt.Errorf("failed to connect to broker: %w", err)
 	}
+	defer conn.Close()
 
-	// Use Writer with custom dialer
-	writer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:      s.brokers,
-		Topic:        s.topicsTopicName,
-		Balancer:     &kafka.Hash{},
-		RequiredAcks: 1,
-		MaxAttempts:  3,
-		Dialer:       customDialer,
-	})
-	defer writer.Close()
+	// Set write deadline
+	conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
 
-	err = writer.WriteMessages(ctx, kafka.Message{
+	// Write the message directly to the partition
+	_, err = conn.WriteMessages(kafka.Message{
+		Topic: s.topicsTopicName,
 		Key:   []byte(key),
 		Value: data,
 	})
