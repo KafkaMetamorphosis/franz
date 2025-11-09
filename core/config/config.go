@@ -7,9 +7,8 @@ import (
 
 // Config holds the application configuration
 type Config struct {
-	Server       ServerConfig
-	Kafka        KafkaConfig
-	PrimaryKafka PrimaryKafkaConfig
+	Server  ServerConfig
+	Storage StorageConfig
 }
 
 // ServerConfig holds HTTP server configuration
@@ -18,16 +17,13 @@ type ServerConfig struct {
 	Host string
 }
 
-// KafkaConfig holds Kafka broker configuration
-type KafkaConfig struct {
-	Brokers []string
-}
-
-// PrimaryKafkaConfig holds the primary Kafka DB configuration
-type PrimaryKafkaConfig struct {
-	Brokers           []string
-	ClustersTopicName string
-	TopicsTopicName   string
+// StorageConfig holds Kafka storage configuration
+// Franz uses Kafka compacted topics to store cluster and topic definitions
+type StorageConfig struct {
+	Brokers                []string
+	ClustersTopicName      string
+	DefinitionsTopicName   string
+	ClusterTopicsTopicName string
 }
 
 // Load reads configuration from environment variables
@@ -42,57 +38,41 @@ func Load() *Config {
 		host = "0.0.0.0"
 	}
 
-	// Support both simple and legacy environment variable names
-	brokersEnv := os.Getenv("KAFKA_BROKERS")
-	if brokersEnv == "" {
-		brokersEnv = os.Getenv("KAFKA_FLEET_BOOTSTRAP_URLS")
+	// Storage Kafka brokers (where Franz stores configuration data)
+	storageBrokersEnv := os.Getenv("STORAGE_KAFKA_BROKERS")
+	if storageBrokersEnv == "" {
+		// Fallback to legacy names
+		storageBrokersEnv = os.Getenv("PRIMARY_KAFKA_BROKERS")
 	}
-	if brokersEnv == "" {
-		brokersEnv = "localhost:19092"
+	if storageBrokersEnv == "" {
+		storageBrokersEnv = os.Getenv("KAFKA_BROKERS")
+	}
+	if storageBrokersEnv == "" {
+		storageBrokersEnv = "localhost:19092"
 	}
 
-	// Split comma-separated brokers
-	brokers := []string{}
-	for _, broker := range strings.Split(brokersEnv, ",") {
+	storageBrokers := []string{}
+	for _, broker := range strings.Split(storageBrokersEnv, ",") {
 		broker = strings.TrimSpace(broker)
 		if broker != "" {
-			brokers = append(brokers, broker)
+			storageBrokers = append(storageBrokers, broker)
 		}
 	}
 
-	// Primary Kafka DB configuration
-	// Support both simple and legacy environment variable names
-	primaryBrokersEnv := os.Getenv("PRIMARY_KAFKA_BROKERS")
-	if primaryBrokersEnv == "" {
-		primaryBrokersEnv = os.Getenv("KAFKA_PRIMARY_DB_BOOTSTRAP_URLS")
-	}
-	if primaryBrokersEnv == "" {
-		primaryBrokersEnv = "localhost:19092"
-	}
-
-	primaryBrokers := []string{}
-	for _, broker := range strings.Split(primaryBrokersEnv, ",") {
-		broker = strings.TrimSpace(broker)
-		if broker != "" {
-			primaryBrokers = append(primaryBrokers, broker)
-		}
-	}
-
-	// Support both simple and legacy environment variable names for topic names
-	clustersTopicName := os.Getenv("CLUSTERS_TOPIC_NAME")
+	// Storage topic names for the three compacted topics
+	clustersTopicName := os.Getenv("STORAGE_CLUSTERS_TOPIC")
 	if clustersTopicName == "" {
-		clustersTopicName = os.Getenv("KAFKA_METADATA_CLUSTERS_TOPIC")
-	}
-	if clustersTopicName == "" {
-		clustersTopicName = "franz.metadata.clusters"
+		clustersTopicName = "franz.clusters.store"
 	}
 
-	topicsTopicName := os.Getenv("TOPICS_TOPIC_NAME")
-	if topicsTopicName == "" {
-		topicsTopicName = os.Getenv("KAFKA_METADATA_TOPICS_TOPIC")
+	definitionsTopicName := os.Getenv("STORAGE_DEFINITIONS_TOPIC")
+	if definitionsTopicName == "" {
+		definitionsTopicName = "franz.topic.definitions.store"
 	}
-	if topicsTopicName == "" {
-		topicsTopicName = "franz.metadata.topics"
+
+	clusterTopicsTopicName := os.Getenv("STORAGE_CLUSTER_TOPICS_TOPIC")
+	if clusterTopicsTopicName == "" {
+		clusterTopicsTopicName = "franz.cluster.topics.store"
 	}
 
 	return &Config{
@@ -100,13 +80,11 @@ func Load() *Config {
 			Port: port,
 			Host: host,
 		},
-		Kafka: KafkaConfig{
-			Brokers: brokers,
-		},
-		PrimaryKafka: PrimaryKafkaConfig{
-			Brokers:           primaryBrokers,
-			ClustersTopicName: clustersTopicName,
-			TopicsTopicName:   topicsTopicName,
+		Storage: StorageConfig{
+			Brokers:                storageBrokers,
+			ClustersTopicName:      clustersTopicName,
+			DefinitionsTopicName:   definitionsTopicName,
+			ClusterTopicsTopicName: clusterTopicsTopicName,
 		},
 	}
 }

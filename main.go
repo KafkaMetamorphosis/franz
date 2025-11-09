@@ -12,7 +12,6 @@ import (
 
 	"github.com/franz-kafka/server/core/config"
 	"github.com/franz-kafka/server/core/handlers"
-	"github.com/franz-kafka/server/core/kafka"
 	"github.com/franz-kafka/server/core/store"
 )
 
@@ -20,45 +19,105 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
-	// Initialize Kafka admin client
-	admin, err := kafka.NewAdmin(cfg.Kafka.Brokers)
-	if err != nil {
-		log.Fatalf("Failed to initialize Kafka admin client: %v", err)
-	}
-	defer admin.Close()
+	log.Println("Franz Configuration Management System starting...")
+	log.Printf("Storage Kafka Brokers: %v", cfg.Storage.Brokers)
 
-	// Initialize metadata store
-	metadataStore, err := store.NewMetadataStore(
-		cfg.PrimaryKafka.Brokers,
-		cfg.PrimaryKafka.ClustersTopicName,
-		cfg.PrimaryKafka.TopicsTopicName,
+	// Initialize configuration store
+	configStore, err := store.NewConfigStore(
+		cfg.Storage.Brokers,
+		cfg.Storage.ClustersTopicName,
+		cfg.Storage.DefinitionsTopicName,
+		cfg.Storage.ClusterTopicsTopicName,
 	)
 	if err != nil {
-		log.Fatalf("Failed to initialize metadata store: %v", err)
+		log.Fatalf("Failed to initialize configuration store: %v", err)
 	}
-
-	// Initialize metadata sync service
-	metadataSync := kafka.NewMetadataSync(metadataStore)
+	defer configStore.Close()
 
 	// Initialize handlers
-	h := handlers.NewHandler(admin)
-	metadataHandler := handlers.NewMetadataHandler(metadataStore, metadataSync)
+	configHandler := handlers.NewConfigHandler(configStore)
+	liveQueryHandler := handlers.NewLiveQueryHandler(configStore)
 
 	// Setup routes
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", h.HealthCheck)
-	mux.HandleFunc("/api/topics", h.GetTopics)
-	mux.HandleFunc("/api/topics/", h.GetTopic)
-	mux.HandleFunc("/api/brokers", h.GetBrokers)
-	mux.HandleFunc("/api/cluster", h.GetClusterMetadata)
 
-	// Metadata routes
-	mux.HandleFunc("/api/metadata/clusters/sync", metadataHandler.SyncCluster)
-	mux.HandleFunc("/api/metadata/topics/sync", metadataHandler.SyncTopics)
-	mux.HandleFunc("/api/metadata/clusters", metadataHandler.ListClusters)
-	mux.HandleFunc("/api/metadata/clusters/", metadataHandler.GetCluster)
-	mux.HandleFunc("/api/metadata/topics", metadataHandler.ListTopics)
-	mux.HandleFunc("/api/metadata/topics/", metadataHandler.GetTopic)
+	// Health endpoint
+	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":"healthy"}`))
+	})
+
+	// Cluster management endpoints
+	mux.HandleFunc("/api/clusters", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			configHandler.ListClusters(w, r)
+		case http.MethodPost:
+			configHandler.CreateCluster(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/cluster/", func(w http.ResponseWriter, r *http.Request) {
+		// Check if it's a sub-route
+		if contains(r.URL.Path, "/topics") {
+			configHandler.ListClusterTopics(w, r)
+		} else if contains(r.URL.Path, "/topic/") {
+			switch r.Method {
+			case http.MethodGet:
+				configHandler.GetClusterTopic(w, r)
+			case http.MethodPut:
+				configHandler.UpdateClusterTopic(w, r)
+			case http.MethodDelete:
+				configHandler.RemoveTopicFromCluster(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		} else if contains(r.URL.Path, "/live/topics") {
+			liveQueryHandler.GetLiveTopics(w, r)
+		} else if contains(r.URL.Path, "/live/topic/") {
+			liveQueryHandler.GetLiveTopic(w, r)
+		} else if contains(r.URL.Path, "/live/brokers") {
+			liveQueryHandler.GetLiveBrokers(w, r)
+		} else {
+			// It's a cluster CRUD operation
+			switch r.Method {
+			case http.MethodGet:
+				configHandler.GetCluster(w, r)
+			case http.MethodPut:
+				configHandler.UpdateCluster(w, r)
+			case http.MethodDelete:
+				configHandler.DeleteCluster(w, r)
+			default:
+				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			}
+		}
+	})
+
+	// Topic definition endpoints
+	mux.HandleFunc("/api/topic_definitions", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			configHandler.ListTopicDefinitions(w, r)
+		case http.MethodPost:
+			configHandler.CreateTopicDefinition(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
+	mux.HandleFunc("/api/topic_definition/", func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			configHandler.GetTopicDefinition(w, r)
+		case http.MethodPut:
+			configHandler.UpdateTopicDefinition(w, r)
+		case http.MethodDelete:
+			configHandler.DeleteTopicDefinition(w, r)
+		default:
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		}
+	})
 
 	// Create HTTP server
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
@@ -94,4 +153,18 @@ func main() {
 	}
 
 	log.Println("Server exited")
+}
+
+// contains checks if a string contains a substring
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > len(substr) && s[:len(substr)] == substr || s[len(s)-len(substr):] == substr || findSubstring(s, substr))
+}
+
+func findSubstring(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
