@@ -1,8 +1,8 @@
 module github.com/franz-kafka/server
 
-go 1.24.0
+go 1.24
 
-toolchain go1.24.4
+toolchain go1.24.0
 
 require github.com/segmentio/kafka-go v0.4.49
 

@@ -19,8 +19,7 @@ func main() {
 	// Load configuration
 	cfg := config.Load()
 
-	log.Println("Franz Configuration Management System starting...")
-	log.Printf("Storage Kafka Brokers: %v", cfg.Storage.Brokers)
+	log.Println("[Main] Franz Configuration Management System starting...")
 
 	// Initialize configuration store
 	configStore, err := store.NewConfigStore(
@@ -29,10 +28,16 @@ func main() {
 		cfg.Storage.DefinitionsTopicName,
 		cfg.Storage.ClusterTopicsTopicName,
 	)
+
+	log.Printf("[Main] Storage Kafka ConfigStore: %v", configStore)
+
 	if err != nil {
-		log.Fatalf("Failed to initialize configuration store: %v", err)
+		log.Fatalf("[Main] Failed to initialize configuration store: %v", err)
 	}
 	defer configStore.Close()
+
+	brokers := []string{cfg.Storage.Brokers}
+	admin, err := kafka.NewAdmin(brokers)
 
 	// Initialize handlers
 	configHandler := handlers.NewConfigHandler(configStore)

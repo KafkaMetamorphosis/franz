@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/franz-kafka/server/core/models"
@@ -11,6 +12,7 @@ import (
 
 // SaveCluster saves a cluster definition
 func (s *ConfigStore) SaveCluster(ctx context.Context, cluster *models.Cluster) error {
+	log.Printf("[ClusterStore] Saving cluster: %v", cluster)
 	if err := cluster.Validate(); err != nil {
 		return err
 	}
@@ -27,6 +29,7 @@ func (s *ConfigStore) SaveCluster(ctx context.Context, cluster *models.Cluster) 
 	if err != nil {
 		return fmt.Errorf("failed to marshal cluster: %w", err)
 	}
+	log.Printf("[ClusterStore] Cluster data: %v", string(data))
 
 	// Write to Kafka
 	if err := s.writeMessage(ctx, s.clustersTopicName, []byte(cluster.Name), data); err != nil {

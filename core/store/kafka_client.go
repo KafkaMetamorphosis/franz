@@ -3,6 +3,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"time"
 
@@ -73,9 +74,10 @@ func (r *RealKafkaClient) WriteMessage(ctx context.Context, topic string, key, v
 	// Also set a custom DialFunc that applies our hostname mapping
 	customDialer.DialFunc = func(ctx context.Context, network, address string) (net.Conn, error) {
 		// Map Docker internal hostnames to localhost if needed
-		mappedAddr := mapBrokerAddress(address)
+		//mappedAddr := mapBrokerAddress(address)
+		log.Printf("[KafkaClient] Dialing: %v", address)
 		d := &net.Dialer{Timeout: r.timeout}
-		return d.DialContext(ctx, network, mappedAddr)
+		return d.DialContext(ctx, network, address)
 	}
 
 	// Use a Writer which is the proper way to write messages in kafka-go
@@ -179,7 +181,6 @@ func NewMockKafkaClient() *MockKafkaClient {
 // WriteMessage simulates writing a message
 func (m *MockKafkaClient) WriteMessage(ctx context.Context, topic string, key, value []byte) error {
 	m.WriteCalls++
-
 	if m.WriteError != nil {
 		return m.WriteError
 	}

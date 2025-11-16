@@ -3,18 +3,18 @@ version: '3.8'
 services:
   kafka-fleet:
     image: apache/kafka:latest
-    hostname: kafka
+    hostname: kafka-fleet
     container_name: kafka-fleet
     ports:
-      - "19092:9092"
+      - "19092:19092"
     environment:
         KAFKA_NODE_ID: 0
         KAFKA_PROCESS_ROLES: broker,controller
-        KAFKA_LISTENERS: PLAINTEXT://kafka-fleet:9092,CONTROLLER://kafka-fleet:9093
-        KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-fleet:9092
+        KAFKA_LISTENERS: PLAINTEXT://:19092,CONTROLLER://:29093
+        KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://:19092
         KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
         KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-        KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka-fleet:9093
+        KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka-fleet:29093
         KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
         KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
         KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -22,7 +22,7 @@ services:
         KAFKA_NUM_PARTITIONS: 1
         KAFKA_CLUSTER_ID: kafka-fleet
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-fleet:9092 --list"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-fleet:19092 --list"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -34,15 +34,15 @@ services:
     hostname: kafka-2
     container_name: kafka-2
     ports:
-      - "29092:9092"
+      - "29092:29092"
     environment:
         KAFKA_NODE_ID: 0
         KAFKA_PROCESS_ROLES: broker,controller
-        KAFKA_LISTENERS: PLAINTEXT://kafka-2:9092,CONTROLLER://kafka-2:9093
-        KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092
+        KAFKA_LISTENERS: PLAINTEXT://:29092,CONTROLLER://:29093
+        KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://:29092
         KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
         KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-        KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka-2:9093
+        KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka-2:29093
         KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
         KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
         KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -50,7 +50,7 @@ services:
         KAFKA_NUM_PARTITIONS: 1
         KAFKA_CLUSTER_ID: kafka-2
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-2:9092 --list"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-2:29092 --list"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -62,15 +62,15 @@ services:
     hostname: kafka-3
     container_name: kafka-3
     ports:
-      - "39092:9092"
+      - "39092:39092"
     environment:
       KAFKA_NODE_ID: 0
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://kafka-3:9092,CONTROLLER://kafka-3:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092
+      KAFKA_LISTENERS: PLAINTEXT://:39092,CONTROLLER://:39093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://:39092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka-3:9093
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 0@kafka-3:39093
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
@@ -78,34 +78,11 @@ services:
       KAFKA_NUM_PARTITIONS: 1
       KAFKA_CLUSTER_ID: kafka-3
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-3:9092 --list"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka-3:39092 --list"]
       interval: 5s
       timeout: 5s
       retries: 5
     networks:
-      - kafka-3-network
-
-  franz-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: franz-app
-    hostname: franz-app
-    depends_on:
-      kafka-fleet:
-        condition: service_healthy
-    ports:
-      - "8080:8080"
-    environment:
-      SERVER_PORT: 8080
-      SERVER_HOST: 0.0.0.0
-      STORAGE_KAFKA_BROKERS: kafka-fleet:9092
-      STORAGE_CLUSTERS_TOPIC: franz.clusters.store
-      STORAGE_DEFINITIONS_TOPIC: franz.topic.definitions.store
-      STORAGE_CLUSTER_TOPICS_TOPIC: franz.cluster.topics.store
-    networks:
-      - kafka-fleet-network
-      - kafka-2-network
       - kafka-3-network
 
   kafka-ui:
@@ -123,11 +100,11 @@ services:
       - "8081:8080"
     environment:
       KAFKA_CLUSTERS_0_NAME: kafka-fleet
-      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-fleet:9092
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka-fleet:19092
       KAFKA_CLUSTERS_1_NAME: kafka-2
-      KAFKA_CLUSTERS_1_BOOTSTRAPSERVERS: kafka-2:9092
+      KAFKA_CLUSTERS_1_BOOTSTRAPSERVERS: kafka-2:29092
       KAFKA_CLUSTERS_2_NAME: kafka-3
-      KAFKA_CLUSTERS_2_BOOTSTRAPSERVERS: kafka-3:9092
+      KAFKA_CLUSTERS_2_BOOTSTRAPSERVERS: kafka-3:39092
     networks:
       - kafka-fleet-network
       - kafka-2-network

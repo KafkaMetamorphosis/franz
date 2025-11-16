@@ -75,6 +75,7 @@ func NewConfigStore(brokers []string, clustersTopicName, definitionsTopicName, c
 
 // initializeTopics creates the compact topics if they don't exist
 func (s *ConfigStore) initializeTopics() error {
+	log.Printf("[ConfigStore] initializing topics")
 	conn, err := kafka.Dial("tcp", s.brokers[0])
 	if err != nil {
 		return fmt.Errorf("failed to connect to Kafka: %w", err)
@@ -88,7 +89,6 @@ func (s *ConfigStore) initializeTopics() error {
 			ReplicationFactor: 1,
 			ConfigEntries: []kafka.ConfigEntry{
 				{ConfigName: "cleanup.policy", ConfigValue: "compact"},
-				{ConfigName: "min.cleanable.dirty.ratio", ConfigValue: "0.01"},
 			},
 		},
 		{
@@ -97,7 +97,6 @@ func (s *ConfigStore) initializeTopics() error {
 			ReplicationFactor: 1,
 			ConfigEntries: []kafka.ConfigEntry{
 				{ConfigName: "cleanup.policy", ConfigValue: "compact"},
-				{ConfigName: "min.cleanable.dirty.ratio", ConfigValue: "0.01"},
 			},
 		},
 		{
@@ -106,10 +105,11 @@ func (s *ConfigStore) initializeTopics() error {
 			ReplicationFactor: 1,
 			ConfigEntries: []kafka.ConfigEntry{
 				{ConfigName: "cleanup.policy", ConfigValue: "compact"},
-				{ConfigName: "min.cleanable.dirty.ratio", ConfigValue: "0.01"},
 			},
 		},
 	}
+
+	log.Printf("[ConfigStore] creating topics: %v", topicsToCreate)
 
 	err = conn.CreateTopics(topicsToCreate...)
 	if err != nil {
@@ -286,6 +286,9 @@ func (s *ConfigStore) loadClusterTopics(ctx context.Context) error {
 
 // writeMessage writes a message to a specific topic
 func (s *ConfigStore) writeMessage(ctx context.Context, topic string, key, value []byte) error {
+	log.Printf("[ConfigStore] Writing message to topic: %s, key: %s, value: %s", topic, string(key), string(value))
+	log.Printf("[ConfigStore] Writer: %v", s.writer)
+	log.Printf("[ConfigStore] context: %v", ctx)
 	return s.writer.WriteMessages(ctx, kafka.Message{
 		Topic: topic,
 		Key:   key,

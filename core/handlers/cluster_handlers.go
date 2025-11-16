@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
@@ -24,6 +25,7 @@ func NewConfigHandler(configStore *store.ConfigStore) *ConfigHandler {
 
 // CreateCluster handles POST /api/clusters
 func (h *ConfigHandler) CreateCluster(w http.ResponseWriter, r *http.Request) {
+	log.Printf("[ClusterHandler] Request to create cluster: %v", r)
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "Method not allowed", nil)
 		return
@@ -34,6 +36,7 @@ func (h *ConfigHandler) CreateCluster(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "Failed to read request body", err)
 		return
 	}
+	log.Printf("[ClusterHandler] Request body: %v", string(body))
 	defer r.Body.Close()
 
 	var cluster models.Cluster
@@ -42,7 +45,10 @@ func (h *ConfigHandler) CreateCluster(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("[ClusterHandler] Cluster: %v", cluster)
+
 	if err := h.configStore.SaveCluster(r.Context(), &cluster); err != nil {
+		log.Printf("[ClusterHandler] Failed to save cluster: %v", err)
 		writeError(w, http.StatusInternalServerError, "Failed to save cluster", err)
 		return
 	}
