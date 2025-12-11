@@ -2,89 +2,88 @@ package config
 
 import (
 	"os"
-	"strings"
+	"strconv"
 )
 
-// Config holds the application configuration
-type Config struct {
-	Server  ServerConfig
-	Storage StorageConfig
+type StoreTopicConfig struct {
+	Topic             string
+	Partitions        int
+	ReplicationFactor int
 }
 
-// ServerConfig holds HTTP server configuration
-type ServerConfig struct {
+type StoreConfig struct {
+	BootstrapURLs            []string
+	ClusterClaimsTopicConfig StoreTopicConfig
+	DefinitionsTopicConfig   StoreTopicConfig
+	TopicsClaimConfig        StoreTopicConfig
+}
+
+type HttpServerConfig struct {
 	Port string
 	Host string
 }
 
-// StorageConfig holds Kafka storage configuration
-// Franz uses Kafka compacted topics to store cluster and topic definitions
-type StorageConfig struct {
-	Brokers                []string
-	ClustersTopicName      string
-	DefinitionsTopicName   string
-	ClusterTopicsTopicName string
+type Config struct {
+	Server  HttpServerConfig
+	Storage StoreConfig
 }
 
-// Load reads configuration from environment variables
-func Load() *Config {
-	port := os.Getenv("SERVER_PORT")
-	if port == "" {
-		port = "8080"
+func getStringEnvOr(key, fallback string) string {
+	if envVar, exists := os.LookupEnv(key); exists {
+		return envVar
 	}
+	return fallback
+}
 
-	host := os.Getenv("SERVER_HOST")
-	if host == "" {
-		host = "0.0.0.0"
-	}
-
-	// Storage Kafka brokers (where Franz stores configuration data)
-	storageBrokersEnv := os.Getenv("STORAGE_KAFKA_BROKERS")
-	if storageBrokersEnv == "" {
-		// Fallback to legacy names
-		storageBrokersEnv = os.Getenv("PRIMARY_KAFKA_BROKERS")
-	}
-	if storageBrokersEnv == "" {
-		storageBrokersEnv = os.Getenv("KAFKA_BROKERS")
-	}
-	if storageBrokersEnv == "" {
-		storageBrokersEnv = "localhost:19092"
-	}
-
-	storageBrokers := []string{}
-	for _, broker := range strings.Split(storageBrokersEnv, ",") {
-		broker = strings.TrimSpace(broker)
-		if broker != "" {
-			storageBrokers = append(storageBrokers, broker)
+func getIntEnvOr(key string, fallback int) int {
+	if envVar, exists := os.LookupEnv(key); exists {
+		if intVar, err := strconv.Atoi(envVar); err != nil {
+			return intVar
 		}
 	}
+	return fallback
+}
 
-	// Storage topic names for the three compacted topics
-	clustersTopicName := os.Getenv("STORAGE_CLUSTERS_TOPIC")
-	if clustersTopicName == "" {
-		clustersTopicName = "franz.clusters.store"
-	}
+func Load() *Config {
+	port := getStringEnvOr("FRANZ_SERVER_PORT", "8080")
+	host := getStringEnvOr("FRANZ_SERVER_HOST", "0.0.0.0")
 
-	definitionsTopicName := os.Getenv("STORAGE_DEFINITIONS_TOPIC")
-	if definitionsTopicName == "" {
-		definitionsTopicName = "franz.topic.definitions.store"
-	}
+	storageBootstrapUrls := []string{getStringEnvOr("FRANZ_STORAGE_KAFKA_BOOTSTRAP_URL", "kafka-fleet:19092")} // if you don't have kafka-fleet yet, config your /etc/hosts with "127.0.0.1 kafka-fleet"
 
-	clusterTopicsTopicName := os.Getenv("STORAGE_CLUSTER_TOPICS_TOPIC")
-	if clusterTopicsTopicName == "" {
-		clusterTopicsTopicName = "franz.cluster.topics.store"
-	}
+	clustersTopicName := getStringEnvOr("FRANZ_STORAGE_CLUSTERS_NAME", "franz.cluster_claims.store")
+	clustersTopicPartitions := getIntEnvOr("FRANZ_STORAGE_CLUSTERS_PARTITIONS", 1)
+	clustersTopicReplicationFactor := getIntEnvOr("FRANZ_STORAGE_CLUSTERS_REPLICATION_FACTOR", 1)
+
+	definitionsTopicName := getStringEnvOr("FRANZ_STORAGE_DEFINITIONS_NAME", "franz.topic.definitions.store")
+	definitionsTopicPartitions := getIntEnvOr("FRANZ_STORAGE_DEFINITIONS_PARTITIONS", 1)
+	definitionsTopicReplicationFactor := getIntEnvOr("FRANZ_STORAGE_DEFINITIONS_REPLICATION_FACTOR", 1)
+
+	topicClaimsTopicName := getStringEnvOr("FRANZ_STORAGE_TOPIC_CLAIMS_NAME", "franz.cluster.topic.claims.store")
+	topicClaimsTopicPartitions := getIntEnvOr("FRANZ_STORAGE_TOPIC_CLAIMS_PARTITIONS", 1)
+	topicClaimsTopicReplicationFactor := getIntEnvOr("FRANZ_STORAGE_TOPIC_CLAIMS_REPLICATION_FACTOR", 1)
 
 	return &Config{
-		Server: ServerConfig{
+		Server: HttpServerConfig{
 			Port: port,
 			Host: host,
 		},
-		Storage: StorageConfig{
-			Brokers:                storageBrokers,
-			ClustersTopicName:      clustersTopicName,
-			DefinitionsTopicName:   definitionsTopicName,
-			ClusterTopicsTopicName: clusterTopicsTopicName,
+		Storage: StoreConfig{
+			BootstrapURLs: storageBootstrapUrls,
+			ClusterClaimsTopicConfig: StoreTopicConfig{
+				Topic:             clustersTopicName,
+				Partitions:        clustersTopicPartitions,
+				ReplicationFactor: clustersTopicReplicationFactor,
+			},
+			DefinitionsTopicConfig: StoreTopicConfig{
+				Topic:             definitionsTopicName,
+				Partitions:        definitionsTopicPartitions,
+				ReplicationFactor: definitionsTopicReplicationFactor,
+			},
+			TopicsClaimConfig: StoreTopicConfig{
+				Topic:             topicClaimsTopicName,
+				Partitions:        topicClaimsTopicPartitions,
+				ReplicationFactor: topicClaimsTopicReplicationFactor,
+			},
 		},
 	}
 }

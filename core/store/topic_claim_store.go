@@ -10,27 +10,24 @@ import (
 )
 
 // SaveClusterTopic saves a cluster topic mapping
-func (s *ConfigStore) SaveClusterTopic(ctx context.Context, ct *models.ClusterTopic) error {
+func (s *Store) SaveClusterTopic(ctx context.Context, ct *models.ClusterTopic) error {
 	if err := ct.Validate(); err != nil {
 		return err
 	}
 
-	// Set timestamps
 	now := time.Now().UTC()
 	if ct.CreatedAt.IsZero() {
 		ct.CreatedAt = now
 	}
 	ct.UpdatedAt = now
 
-	// Marshal to JSON
 	data, err := json.Marshal(ct)
 	if err != nil {
 		return fmt.Errorf("failed to marshal cluster topic: %w", err)
 	}
 
-	// Write to Kafka (key is cluster:topic)
 	key := ct.Key()
-	if err := s.writeMessage(ctx, s.clusterTopicsTopicName, []byte(key), data); err != nil {
+	if err := s.writeMessage(ctx, s.storeConfig.TopicsClaimConfig.Topic, []byte(key), data); err != nil {
 		return fmt.Errorf("failed to write cluster topic: %w", err)
 	}
 
@@ -43,7 +40,7 @@ func (s *ConfigStore) SaveClusterTopic(ctx context.Context, ct *models.ClusterTo
 }
 
 // GetClusterTopic retrieves a cluster topic mapping
-func (s *ConfigStore) GetClusterTopic(clusterName, topicName string) (*models.ClusterTopic, error) {
+func (s *Store) GetClusterTopic(clusterName, topicName string) (*models.ClusterTopic, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -57,7 +54,7 @@ func (s *ConfigStore) GetClusterTopic(clusterName, topicName string) (*models.Cl
 }
 
 // ListClusterTopics returns all cluster topic mappings, optionally filtered by cluster
-func (s *ConfigStore) ListClusterTopics(clusterName string) []*models.ClusterTopic {
+func (s *Store) ListClusterTopics(clusterName string) []*models.ClusterTopic {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -72,11 +69,11 @@ func (s *ConfigStore) ListClusterTopics(clusterName string) []*models.ClusterTop
 }
 
 // DeleteClusterTopic deletes a cluster topic mapping (writes tombstone)
-func (s *ConfigStore) DeleteClusterTopic(ctx context.Context, clusterName, topicName string) error {
+func (s *Store) DeleteClusterTopic(ctx context.Context, clusterName, topicName string) error {
 	key := clusterName + ":" + topicName
 
 	// Write tombstone (nil value)
-	if err := s.writeMessage(ctx, s.clusterTopicsTopicName, []byte(key), nil); err != nil {
+	if err := s.writeMessage(ctx, s.storeConfig.TopicsClaimConfig.Topic, []byte(key), nil); err != nil {
 		return fmt.Errorf("failed to delete cluster topic: %w", err)
 	}
 

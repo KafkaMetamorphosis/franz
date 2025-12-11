@@ -5,30 +5,25 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/franz-kafka/server/core/config"
 	"github.com/franz-kafka/server/core/kafka"
+	"github.com/franz-kafka/server/core/store"
 )
 
-// Handler holds dependencies for HTTP handlers
 type Handler struct {
-	admin *kafka.Admin
+	admin  *kafka.Admin
+	config *config.Config
+	store  *store.Store
 }
 
-// NewHandler creates a new handler instance
-func NewHandler(admin *kafka.Admin) *Handler {
+func NewHandler(admin *kafka.Admin, store *store.Store, config *config.Config) *Handler {
 	return &Handler{
-		admin: admin,
+		admin:  admin,
+		config: config,
+		store:  store,
 	}
 }
 
-// HealthCheck handles health check requests
-func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{
-		"status": "healthy",
-	}
-	writeJSON(w, http.StatusOK, response)
-}
-
-// GetTopics handles requests to list all topics
 func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 	partitions, err := h.admin.GetTopics(r.Context())
 	if err != nil {
@@ -102,17 +97,6 @@ func (h *Handler) GetBrokers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, response)
-}
-
-// GetClusterMetadata handles requests to get cluster metadata
-func (h *Handler) GetClusterMetadata(w http.ResponseWriter, r *http.Request) {
-	metadata, err := h.admin.GetClusterMetadata(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to retrieve cluster metadata", err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, metadata)
 }
 
 // writeJSON writes a JSON response

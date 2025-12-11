@@ -10,24 +10,16 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// KafkaClient defines the interface for Kafka operations
-// This abstraction allows for easy mocking in tests and separates
-// the Kafka protocol from business logic
 type KafkaClient interface {
-	// WriteMessage writes a single message to a Kafka topic
 	WriteMessage(ctx context.Context, topic string, key, value []byte) error
 
-	// ReadMessages reads all messages from a topic partition
 	ReadMessages(ctx context.Context, topic string, partition int) ([]kafka.Message, error)
 
-	// CreateTopics creates topics with the given configuration
 	CreateTopics(topicConfigs ...kafka.TopicConfig) error
 
-	// Close closes the client and releases resources
 	Close() error
 }
 
-// RealKafkaClient implements KafkaClient using actual Kafka connections
 type RealKafkaClient struct {
 	brokers []string
 	conn    *kafka.Conn

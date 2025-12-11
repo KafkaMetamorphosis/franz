@@ -10,7 +10,7 @@ import (
 )
 
 // SaveTopicDefinition saves a topic definition/template
-func (s *ConfigStore) SaveTopicDefinition(ctx context.Context, def *models.TopicDefinition) error {
+func (s *Store) SaveTopicDefinition(ctx context.Context, def *models.TopicDefinition) error {
 	if err := def.Validate(); err != nil {
 		return err
 	}
@@ -29,7 +29,7 @@ func (s *ConfigStore) SaveTopicDefinition(ctx context.Context, def *models.Topic
 	}
 
 	// Write to Kafka
-	if err := s.writeMessage(ctx, s.definitionsTopicName, []byte(def.Name), data); err != nil {
+	if err := s.writeMessage(ctx, s.storeConfig.DefinitionsTopicConfig.Topic, []byte(def.Name), data); err != nil {
 		return fmt.Errorf("failed to write topic definition: %w", err)
 	}
 
@@ -42,7 +42,7 @@ func (s *ConfigStore) SaveTopicDefinition(ctx context.Context, def *models.Topic
 }
 
 // GetTopicDefinition retrieves a topic definition by name
-func (s *ConfigStore) GetTopicDefinition(name string) (*models.TopicDefinition, error) {
+func (s *Store) GetTopicDefinition(name string) (*models.TopicDefinition, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -55,7 +55,7 @@ func (s *ConfigStore) GetTopicDefinition(name string) (*models.TopicDefinition, 
 }
 
 // ListTopicDefinitions returns all topic definitions
-func (s *ConfigStore) ListTopicDefinitions() []*models.TopicDefinition {
+func (s *Store) ListTopicDefinitions() []*models.TopicDefinition {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -68,9 +68,9 @@ func (s *ConfigStore) ListTopicDefinitions() []*models.TopicDefinition {
 }
 
 // DeleteTopicDefinition deletes a topic definition (writes tombstone)
-func (s *ConfigStore) DeleteTopicDefinition(ctx context.Context, name string) error {
+func (s *Store) DeleteTopicDefinition(ctx context.Context, name string) error {
 	// Write tombstone (nil value)
-	if err := s.writeMessage(ctx, s.definitionsTopicName, []byte(name), nil); err != nil {
+	if err := s.writeMessage(ctx, s.storeConfig.DefinitionsTopicConfig.Topic, []byte(name), nil); err != nil {
 		return fmt.Errorf("failed to delete topic definition: %w", err)
 	}
 
