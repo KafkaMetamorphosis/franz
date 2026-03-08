@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/franz-kafka/server/core/config"
 	"github.com/franz-kafka/server/core/kafka"
@@ -46,54 +45,6 @@ func (h *Handler) GetTopics(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"topics": topicMap,
 		"count":  len(topicMap),
-	}
-
-	writeJSON(w, http.StatusOK, response)
-}
-
-// GetTopic handles requests to get a specific topic's metadata
-func (h *Handler) GetTopic(w http.ResponseWriter, r *http.Request) {
-	topic := strings.TrimPrefix(r.URL.Path, "/api/topics/")
-	if topic == "" {
-		writeError(w, http.StatusBadRequest, "Topic name is required", nil)
-		return
-	}
-
-	partition, err := h.admin.GetTopicMetadata(r.Context(), topic)
-	if err != nil {
-		writeError(w, http.StatusNotFound, "Topic not found", err)
-		return
-	}
-
-	response := map[string]interface{}{
-		"topic":     partition.Topic,
-		"partition": partition.ID,
-		"leader":    partition.Leader,
-	}
-
-	writeJSON(w, http.StatusOK, response)
-}
-
-// GetBrokers handles requests to get broker information
-func (h *Handler) GetBrokers(w http.ResponseWriter, r *http.Request) {
-	brokers, err := h.admin.GetBrokers(r.Context())
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, "Failed to retrieve brokers", err)
-		return
-	}
-
-	brokerList := make([]map[string]interface{}, 0, len(brokers))
-	for _, broker := range brokers {
-		brokerList = append(brokerList, map[string]interface{}{
-			"id":   broker.ID,
-			"host": broker.Host,
-			"port": broker.Port,
-		})
-	}
-
-	response := map[string]interface{}{
-		"brokers": brokerList,
-		"count":   len(brokerList),
 	}
 
 	writeJSON(w, http.StatusOK, response)

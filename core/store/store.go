@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -18,8 +17,6 @@ type Store struct {
 
 	// In-memory caches
 	clusterClaims map[string]*models.ClusterClaim
-	definitions   map[string]*models.TopicDefinition
-	clusterTopics map[string]*models.ClusterTopic
 
 	mu sync.RWMutex
 
@@ -37,8 +34,6 @@ func NewStore(storeConfig config.StoreConfig) (*Store, error) {
 	store := &Store{
 		storeConfig:   storeConfig,
 		clusterClaims: make(map[string]*models.ClusterClaim),
-		definitions:   make(map[string]*models.TopicDefinition),
-		clusterTopics: make(map[string]*models.ClusterTopic),
 	}
 
 	store.writer = &kafka.Writer{
@@ -56,8 +51,7 @@ func NewStore(storeConfig config.StoreConfig) (*Store, error) {
 		return nil, fmt.Errorf("failed to load existing data: %w", err)
 	}
 
-	log.Printf("[Store] Loaded %d clusters, %d topic definitions, %d cluster topics claims",
-		len(store.clusterClaims), len(store.definitions), len(store.clusterTopics))
+	log.Printf("[Store] Loaded %d clusters. ", len(store.clusterClaims))
 
 	return store, nil
 }
@@ -118,103 +112,6 @@ func (s *Store) loadData() error {
 
 	if err := s.loadClusterClaims(ctx); err != nil {
 		return fmt.Errorf("failed to load clusters: %w", err)
-	}
-
-	if err := s.loadDefinitions(ctx); err != nil {
-		return fmt.Errorf("failed to load definitions: %w", err)
-	}
-
-	if err := s.loadClusterTopics(ctx); err != nil {
-		return fmt.Errorf("failed to load cluster topics: %w", err)
-	}
-
-	return nil
-}
-
-func (s *Store) loadDefinitions(ctx context.Context) error {
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  s.storeConfig.BootstrapURLs,
-		Topic:    s.storeConfig.DefinitionsTopicConfig.Topic,
-		MinBytes: 1,
-		MaxBytes: 10e6,
-		MaxWait:  500 * time.Millisecond,
-	})
-	defer reader.Close()
-
-	if err := reader.SetOffset(0); err != nil {
-		return err
-	}
-
-	for {
-		msgCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		msg, err := reader.ReadMessage(msgCtx)
-		cancel()
-
-		if err != nil {
-			break
-		}
-
-		if msg.Value == nil {
-			// Tombstone - delete
-			s.mu.Lock()
-			delete(s.definitions, string(msg.Key))
-			s.mu.Unlock()
-			continue
-		}
-
-		var def models.TopicDefinition
-		if err := json.Unmarshal(msg.Value, &def); err != nil {
-			log.Printf("[Store] Failed to unmarshal topic definition: %v", err)
-			continue
-		}
-
-		s.mu.Lock()
-		s.definitions[def.Name] = &def
-		s.mu.Unlock()
-	}
-
-	return nil
-}
-
-func (s *Store) loadClusterTopics(ctx context.Context) error {
-	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers:  s.storeConfig.BootstrapURLs,
-		Topic:    s.storeConfig.TopicsClaimConfig.Topic,
-		MinBytes: 1,
-		MaxBytes: 10e6,
-		MaxWait:  500 * time.Millisecond,
-	})
-	defer reader.Close()
-
-	if err := reader.SetOffset(0); err != nil {
-		return err
-	}
-
-	for {
-		msgCtx, cancel := context.WithTimeout(ctx, 2*time.Second)
-		msg, err := reader.ReadMessage(msgCtx)
-		cancel()
-
-		if err != nil {
-			break
-		}
-
-		if msg.Value == nil {
-			s.mu.Lock()
-			delete(s.clusterTopics, string(msg.Key))
-			s.mu.Unlock()
-			continue
-		}
-
-		var ct models.ClusterTopic
-		if err := json.Unmarshal(msg.Value, &ct); err != nil {
-			log.Printf("[Store] Failed to unmarshal cluster topic: %v", err)
-			continue
-		}
-
-		s.mu.Lock()
-		s.clusterTopics[ct.Key()] = &ct
-		s.mu.Unlock()
 	}
 
 	return nil
