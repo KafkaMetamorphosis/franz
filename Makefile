@@ -12,8 +12,3 @@ dev-dep-stop:
 dev-dep-logs:
 	docker-compose -f docker-compose.yaml logs -f
 
-dev-start:
-	go run main.go
-
-test:
-	go test ./...
