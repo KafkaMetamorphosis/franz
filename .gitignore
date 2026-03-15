@@ -1,27 +1,16 @@
-# Binaries
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-server
-
-# Test binary, built with `go test -c`
-*.test
-
-# Output of the go coverage tool
-*.out
-
-# Dependency directories
-vendor/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# OS
+/target/
+/classes/
+/.lein-repl-history
+/.lein-failures
+/.nrepl-port
+/.cpcache/
 .DS_Store
-Thumbs.db
+
+/.lsp/*
+!/.lsp/config.edn
+
+.vscode/
+.clj-kondo/
+
+*.jar
+*.class

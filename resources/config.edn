@@ -1,0 +1,9 @@
+{:http       {:port #or [#env PORT 8080]}
+ :database   {:dbtype   "postgresql"
+              :host     #or [#env DB_HOST "localhost"]
+              :port     #or [#env DB_PORT 5432]
+              :dbname   #or [#env DB_NAME "franz"]
+              :user     #or [#env DB_USER "franz"]
+              :password #or [#env DB_PASSWORD "franz"]}
+ :kafka      {:bootstrap-servers #or [#env KAFKA_BOOTSTRAP "localhost:9094"]}
+ :reconciler {:interval-ms #or [#env RECONCILER_INTERVAL 10000]}}
