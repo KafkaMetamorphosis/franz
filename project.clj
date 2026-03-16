@@ -13,8 +13,7 @@
                  [aero "1.1.6"]
                  ;; ADR-001
                  [prismatic/schema "1.4.1"]
-                 [org.apache.kafka/kafka-clients "3.9.0"]
-                 [com.github.seancorfield/next.jdbc "1.3.955"]
+[com.github.seancorfield/next.jdbc "1.3.955"]
                  [org.postgresql/postgresql "42.7.4"]
 
                  [cheshire "5.13.0"]
@@ -44,4 +43,9 @@
    :uberjar {:aot :all
              :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}}
 
-  :aliases {"test-all" ["do" "clean" ["test"]]})
+  :test-selectors {:default     (constantly true)
+                   :franz.unit  (fn [m] (re-find #"^franz\.unit\." (str (:ns m))))
+                   :franz.integration (fn [m] (re-find #"^franz\.integration\." (str (:ns m))))}
+
+  :aliases {"test-all" ["do" "clean" ["test"]]
+            "seed"     ["with-profile" "dev" "run" "-m" "franz.dev.seed"]})

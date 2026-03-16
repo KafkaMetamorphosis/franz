@@ -2,8 +2,8 @@
   (:require [franz.ops.health :as health]
             [ring.util.response :as response]))
 
-(defn health-handler [health-checker _request]
-  (let [result (health/run-checks health-checker)
+(defn health-handler [ds _request]
+  (let [result (health/run-checks ds)
         status (if (= :healthy (:status result)) 200 503)]
     (-> (response/response result)
         (response/status status))))
@@ -11,8 +11,8 @@
 (defn liveness-handler [_request]
   (response/response {:status "alive"}))
 
-(defn readiness-handler [health-checker _request]
-  (if (health/ready? health-checker)
+(defn readiness-handler [_request]
+  (if (health/ready?)
     (response/response {:status "ready"})
     (-> (response/response {:status "not-ready"})
         (response/status 503))))

@@ -1,6 +1,15 @@
-(ns franz.wire.out
-  "Schemas for data sent to the wire (Kafka messages, HTTP responses).
-   Uses Plumatic Schema for validation (ADR-001)."
-  (:require [schema.core :as s]))
+(ns franz.wire.out)
 
-;; Define wire-out schemas here.
+(defn cluster->response [cluster]
+  {:id            (str (:id cluster))
+   :name          (:name cluster)
+   :bootstrap-url (:bootstrap-url cluster)
+   :labels        (:labels cluster)
+   :created-at    (str (:created-at cluster))
+   :updated-at    (str (:updated-at cluster))})
+
+(defn page-response [{:keys [items page size total]}]
+  {:items items
+   :page  page
+   :size  size
+   :total total})

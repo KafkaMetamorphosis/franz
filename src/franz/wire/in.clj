@@ -1,6 +1,15 @@
 (ns franz.wire.in
-  "Schemas for data received from the wire (Kafka messages, HTTP requests).
-   Uses Plumatic Schema for validation (ADR-001)."
   (:require [schema.core :as s]))
 
-;; Define wire-in schemas here.
+(s/defschema CreateClusterRequest
+  {:name                      s/Str
+   :bootstrap-url             s/Str
+   (s/optional-key :labels)   {s/Str s/Str}})
+
+(s/defschema UpdateClusterRequest
+  {(s/optional-key :bootstrap-url) s/Str
+   (s/optional-key :labels)        {s/Str s/Str}})
+
+(s/defschema PaginationParams
+  {(s/optional-key :page) s/Int
+   (s/optional-key :size) s/Int})

@@ -5,19 +5,20 @@
             [clojure.tools.logging :as log]
             [next.jdbc :as jdbc]))
 
+
 (defrecord Database [config datasource]
   component/Lifecycle
   (start [this]
-    (log/info "Starting Database component")
-    (let [ds (jdbc/get-datasource config)]
-      (log/info "Database component started")
+    (let [db-cfg (get-in config [:config :database])
+          ds     (jdbc/get-datasource db-cfg)]
+      (log/info "Database started")
       (assoc this :datasource ds)))
   (stop [this]
-    (log/info "Stopping Database component")
     (when (instance? java.io.Closeable datasource)
-      (.close ^java.io.Closeable datasource)
-      (log/info "Datasource closed"))
+      (.close ^java.io.Closeable datasource))
+    (log/info "Database stopped")
     (assoc this :datasource nil)))
 
-(defn new-database [config]
-  (map->Database {:config config}))
+
+(defn new-database []
+  (map->Database {}))

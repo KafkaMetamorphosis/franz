@@ -1,8 +1,8 @@
-SERVICES := postgres kafka-1 kafka-2 kafka-ui
+SERVICES := postgres
 
 FLYWAY := docker-compose run --rm flyway
 
-.PHONY: deps stop-deps migrate migrate-info migrate-repair unit integration test run
+.PHONY: deps stop-deps wait-for-db migrate migrate-info migrate-repair unit integration test run seed reset-db
 
 deps:
 	@all_running=true; \
@@ -23,7 +23,12 @@ deps:
 stop-deps:
 	docker-compose down
 
-migrate: deps
+wait-for-db: deps
+	@echo "Waiting for database to be ready..."; \
+	until docker-compose exec -T postgres pg_isready -U franz -d franz -q; do sleep 1; done; \
+	echo "Database is ready."
+
+migrate: wait-for-db
 	$(FLYWAY) migrate
 
 migrate-info: deps
@@ -33,13 +38,20 @@ migrate-repair: deps
 	$(FLYWAY) repair
 
 unit:
-	lein test :only grete-samsa.unit
+	lein test :franz.unit
 
-integration: deps migrate
-	lein test :only grete-samsa.integration
+integration: migrate
+	lein test :franz.integration
 
 test:
 	lein test
 
-run: deps
-	lein trampoline run
+seed: wait-for-db
+	lein seed
+
+reset-db: wait-for-db
+	$(FLYWAY) clean migrate
+
+
+run: wait-for-db
+	lein run

@@ -6,15 +6,13 @@
   </appender>
 
   <!-- App logging at INFO -->
-  <logger name="grete-samsa" level="INFO" />
+  <logger name="franz" level="DEBUG" />
 
   <!-- Quiet down noisy libraries -->
   <logger name="org.eclipse.jetty" level="WARN" />
-  <logger name="org.apache.kafka" level="WARN" />
-  <logger name="migratus" level="INFO" />
   <logger name="com.zaxxer.hikari" level="WARN" />
 
-  <root level="WARN">
+  <root level="DEBUG">
     <appender-ref ref="STDOUT" />
   </root>
 </configuration>
