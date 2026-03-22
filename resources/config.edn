@@ -1,0 +1,10 @@
+{:http       #profile {:default {:port #or [#env PORT 8080]}
+                       :test    {:port 0}}
+ :database   {:dbtype   "postgresql"
+              :host     #or [#env DB_HOST "localhost"]
+              :port     #or [#env DB_PORT 5432]
+              :dbname   #profile {:default #or [#env DB_NAME "franz"]
+                                  :test    #or [#env DB_NAME "franz_test"]}
+              :user     #or [#env DB_USER "franz"]
+              :password #or [#env DB_PASSWORD "franz"]}
+}
