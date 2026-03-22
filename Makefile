@@ -1,8 +1,9 @@
 SERVICES := postgres
 
-FLYWAY := docker-compose run --rm flyway
+FLYWAY      := docker-compose run --rm flyway
+FLYWAY_TEST := docker-compose run --rm flyway-test
 
-.PHONY: deps stop-deps wait-for-db migrate migrate-info migrate-repair unit integration test run seed reset-db
+.PHONY: deps stop-deps wait-for-db migrate migrate-info migrate-repair unit integration test run seed reset-db db-reset create-test-db migrate-test db-reset-test
 
 deps:
 	@all_running=true; \
@@ -40,17 +41,30 @@ migrate-repair: deps
 unit:
 	lein test :franz.unit
 
-integration: migrate
+create-test-db: wait-for-db
+	@docker-compose exec -T postgres psql -U franz -c "CREATE DATABASE franz_test;" 2>/dev/null || echo "franz_test already exists"
+
+migrate-test: create-test-db
+	$(FLYWAY_TEST) migrate
+
+db-reset-test: create-test-db
+	$(FLYWAY_TEST) clean migrate
+
+integration: migrate-test
 	lein test :franz.integration
 
-test:
-	lein test
+test: unit integration
 
 seed: wait-for-db
 	lein seed
 
 reset-db: wait-for-db
 	$(FLYWAY) clean migrate
+
+db-reset: wait-for-db
+	@docker-compose exec -T postgres psql -U franz -d franz -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
+	$(FLYWAY) migrate
+	lein seed
 
 
 run: wait-for-db

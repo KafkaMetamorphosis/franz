@@ -4,9 +4,10 @@
            [java.util UUID]))
 
 (s/defschema Cluster
-  {:id            UUID
-   :name          s/Str
-   :bootstrap-url s/Str
-   :labels        {s/Str s/Str}
-   :created-at    Instant
-   :updated-at    Instant})
+  {:id                             UUID
+   :name                           s/Str
+   :bootstrap-url                  s/Str
+   :default-topic-configuration-id UUID
+   :labels                         {s/Str s/Str}
+   :created-at                     Instant
+   :updated-at                     Instant})

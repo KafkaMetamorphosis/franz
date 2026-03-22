@@ -31,5 +31,21 @@ services:
     volumes:
       - ./resources/db/migrations:/flyway/sql
 
+  flyway-test:
+    image: flyway/flyway:latest
+    platform: linux/amd64
+    profiles:
+      - migration
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/franz_test
+      FLYWAY_USER: franz
+      FLYWAY_PASSWORD: franz
+      FLYWAY_CLEAN_DISABLED: "false"
+    volumes:
+      - ./resources/db/migrations:/flyway/sql
+
 volumes:
   postgres_data:

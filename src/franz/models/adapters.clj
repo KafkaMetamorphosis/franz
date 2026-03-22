@@ -23,17 +23,37 @@
 
 (defn db-row->cluster [row]
   (when row
-    {:id            (:clusters/id row)
-     :name          (:clusters/name row)
-     :bootstrap-url (:clusters/bootstrap_url row)
-     :labels        (parse-jsonb (:clusters/labels row))
-     :created-at    (timestamp->instant (:clusters/created_at row))
-     :updated-at    (timestamp->instant (:clusters/updated_at row))}))
+    {:id                             (:clusters/id row)
+     :name                           (:clusters/name row)
+     :bootstrap-url                  (:clusters/bootstrap_url row)
+     :default-topic-configuration-id (:clusters/default_topic_configuration_id row)
+     :labels                         (parse-jsonb (:clusters/labels row))
+     :created-at                     (timestamp->instant (:clusters/created_at row))
+     :updated-at                     (timestamp->instant (:clusters/updated_at row))}))
 
 (defn cluster->db-row [cluster]
-  {:name          (:name cluster)
-   :bootstrap_url (:bootstrap-url cluster)
-   :labels        (serialize-jsonb (:labels cluster))})
+  {:name                           (:name cluster)
+   :bootstrap_url                  (:bootstrap-url cluster)
+   :default_topic_configuration_id (:default-topic-configuration-id cluster)
+   :labels                         (serialize-jsonb (:labels cluster))})
+
+(defn db-row->cluster-with-topic-configuration [row]
+  (when row
+    {:id                          (:clusters/id row)
+     :name                        (:clusters/name row)
+     :bootstrap-url               (:clusters/bootstrap_url row)
+     :labels                      (parse-jsonb (:clusters/labels row))
+     :created-at                  (timestamp->instant (:clusters/created_at row))
+     :updated-at                  (timestamp->instant (:clusters/updated_at row))
+     :default-topic-configuration {:id                 (:topic_configurations/tc_id row)
+                                   :name               (:topic_configurations/tc_name row)
+                                   :partitions         (:topic_configurations/tc_partitions row)
+                                   :replication-factor (:topic_configurations/tc_replication_factor row)
+                                   :retention-ms       (:topic_configurations/tc_retention_ms row)
+                                   :configs            (parse-jsonb (:topic_configurations/tc_configs row))
+                                   :labels             (parse-jsonb (:topic_configurations/tc_labels row))
+                                   :created-at         (timestamp->instant (:topic_configurations/tc_created_at row))
+                                   :updated-at         (timestamp->instant (:topic_configurations/tc_updated_at row))}}))
 
 (defn db-row->topic-configuration [row]
   (when row
