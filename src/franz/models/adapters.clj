@@ -12,14 +12,14 @@
   (when inst
     (Timestamp/from inst)))
 
-(defn- parse-jsonb [v]
+(defn- parse-jsonb [value]
   (cond
-    (instance? PGobject v) (json/parse-string (.getValue v) true)
-    (string? v)            (json/parse-string v true)
-    :else                  (or v {})))
+    (instance? PGobject value) (json/parse-string (.getValue value) true)
+    (string? value)            (json/parse-string value true)
+    :else                      (or value {})))
 
-(defn- serialize-jsonb [m]
-  (json/generate-string (or m {})))
+(defn- serialize-jsonb [value]
+  (json/generate-string (or value {})))
 
 (defn db-row->cluster [row]
   (when row
@@ -34,4 +34,24 @@
   {:name          (:name cluster)
    :bootstrap_url (:bootstrap-url cluster)
    :labels        (serialize-jsonb (:labels cluster))})
+
+(defn db-row->topic-configuration [row]
+  (when row
+    {:id                 (:topic_configurations/id row)
+     :name               (:topic_configurations/name row)
+     :partitions         (:topic_configurations/partitions row)
+     :replication-factor (:topic_configurations/replication_factor row)
+     :retention-ms       (:topic_configurations/retention_ms row)
+     :configs            (parse-jsonb (:topic_configurations/configs row))
+     :labels             (parse-jsonb (:topic_configurations/labels row))
+     :created-at         (timestamp->instant (:topic_configurations/created_at row))
+     :updated-at         (timestamp->instant (:topic_configurations/updated_at row))}))
+
+(defn topic-configuration->db-row [topic-config]
+  {:name               (:name topic-config)
+   :partitions         (:partitions topic-config)
+   :replication_factor (:replication-factor topic-config)
+   :retention_ms       (:retention-ms topic-config)
+   :configs            (serialize-jsonb (:configs topic-config))
+   :labels             (serialize-jsonb (:labels topic-config))})
 

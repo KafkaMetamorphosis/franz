@@ -7,8 +7,8 @@
 (defrecord Api [database handler-fn]
   component/Lifecycle
   (start [this]
-    (let [ds      (:datasource database)
-          handler (-> (router/routes ds)
+    (let [db      (:datasource database)
+          handler (-> (router/routes db)
                       middleware/wrap-json-body
                       middleware/wrap-json-response
                       middleware/wrap-exception-handler)]

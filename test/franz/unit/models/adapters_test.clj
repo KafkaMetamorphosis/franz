@@ -35,3 +35,44 @@
       (is (= "prod" (:name row)))
       (is (= "broker:9092" (:bootstrap_url row)))
       (is (string? (:labels row))))))
+
+(deftest db-row->topic-configuration-test
+  (testing "converts a DB row to a topic configuration domain model"
+    (let [row {:topic_configurations/id                 id
+               :topic_configurations/name               "my-topic"
+               :topic_configurations/partitions         3
+               :topic_configurations/replication_factor 2
+               :topic_configurations/retention_ms       86400000
+               :topic_configurations/configs            "{\"cleanup.policy\": \"compact\"}"
+               :topic_configurations/labels             "{\"env\": \"prod\"}"
+               :topic_configurations/created_at         ts
+               :topic_configurations/updated_at         ts}
+          result (adapters/db-row->topic-configuration row)]
+      (is (= id (:id result)))
+      (is (= "my-topic" (:name result)))
+      (is (= 3 (:partitions result)))
+      (is (= 2 (:replication-factor result)))
+      (is (= 86400000 (:retention-ms result)))
+      (is (= {:cleanup.policy "compact"} (:configs result)))
+      (is (= {:env "prod"} (:labels result)))
+      (is (instance? Instant (:created-at result)))
+      (is (instance? Instant (:updated-at result)))))
+
+  (testing "returns nil for nil input"
+    (is (nil? (adapters/db-row->topic-configuration nil)))))
+
+(deftest topic-configuration->db-row-test
+  (testing "converts a topic configuration to a DB row"
+    (let [topic-config {:name "my-topic"
+                        :partitions 3
+                        :replication-factor 2
+                        :retention-ms 86400000
+                        :configs {"cleanup.policy" "compact"}
+                        :labels {"env" "prod"}}
+          row          (adapters/topic-configuration->db-row topic-config)]
+      (is (= "my-topic" (:name row)))
+      (is (= 3 (:partitions row)))
+      (is (= 2 (:replication_factor row)))
+      (is (= 86400000 (:retention_ms row)))
+      (is (string? (:configs row)))
+      (is (string? (:labels row))))))

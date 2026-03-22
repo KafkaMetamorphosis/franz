@@ -11,9 +11,10 @@
                  [ring/ring-json "0.5.1"]
                  [compojure "1.7.1"]
                  [aero "1.1.6"]
+                 
                  ;; ADR-001
                  [prismatic/schema "1.4.1"]
-[com.github.seancorfield/next.jdbc "1.3.955"]
+                 [com.github.seancorfield/next.jdbc "1.3.955"]
                  [org.postgresql/postgresql "42.7.4"]
 
                  [cheshire "5.13.0"]
