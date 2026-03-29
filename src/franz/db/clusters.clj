@@ -72,3 +72,7 @@
   (let [result (jdbc/execute-one! db
                  ["DELETE FROM clusters WHERE name = ?" cluster-name])]
     (pos? (or (:next.jdbc/update-count result) 0))))
+
+(defn list-all-clusters [db]
+  (->> (jdbc/execute! db ["SELECT * FROM clusters"])
+       (mapv adapters/db-row->cluster)))

@@ -3,6 +3,7 @@
             [franz.db.clusters :as db-clusters]
             [franz.db.topic-configurations :as db-topic-configs]
             [franz.logic.cluster :as logic]
+            [franz.ops.expansion :as expansion]
             [franz.wire.in :as wire-in]
             [franz.wire.out :as out]))
 
@@ -32,6 +33,10 @@
                                  :bootstrap-url                  (:bootstrap-url body)
                                  :default-topic-configuration-id (:default-topic-configuration-id body)
                                  :labels                         (or (:labels body) {})})]
+                  (try
+                    (expansion/mark-all-active-definitions-pending-expansion! db)
+                    (catch Exception exception
+                      (log/warn exception "failed to mark definitions pending expansion after cluster create")))
                   (log/info (str "cluster created name=" (:name body)))
                   {:status 201 :body (out/cluster->response cluster)}))))))))
 
@@ -63,6 +68,11 @@
                 (do (log/info (str "cluster not found name=" cluster-name))
                     {:status 404 :body {:error "not found"}})
                 (let [cluster (db-clusters/update-cluster! db cluster-name body)]
+                  (when (contains? body :labels)
+                    (try
+                      (expansion/mark-all-active-definitions-pending-expansion! db)
+                      (catch Exception exception
+                        (log/warn exception "failed to mark definitions pending expansion after cluster update"))))
                   (log/info (str "cluster updated name=" cluster-name))
                   {:status 200 :body (out/cluster->response cluster)}))))))))
 

@@ -5,7 +5,8 @@
    [franz.ops.handlers :as ops-handlers]
    [franz.controllers.clusters :as clusters]
    [franz.controllers.topic-configurations :as topic-configurations]
-   [franz.controllers.topic-definitions :as topic-definitions]))
+   [franz.controllers.topic-definitions :as topic-definitions]
+   [franz.controllers.expansion :as expansion]))
 
 (defmacro compojure-route [method path handler]
   (let [request-sym (gensym "request")]
@@ -34,7 +35,8 @@
    ["POST"   "/api/v0/topic_definitions"                            topic-definitions/create-topic-definition]
    ["GET"    "/api/v0/topic_definitions/:topic-definition-name"     topic-definitions/get-topic-definition]
    ["PUT"    "/api/v0/topic_definitions/:topic-definition-name"     topic-definitions/update-topic-definition]
-   ["DELETE" "/api/v0/topic_definitions/:topic-definition-name"     topic-definitions/delete-topic-definition]])
+   ["DELETE" "/api/v0/topic_definitions/:topic-definition-name"     topic-definitions/delete-topic-definition]
+   ["POST"   "/api/v0/topic_definitions_expansion"                  expansion/trigger-expansion]])
 
 (defn routes [components]
   (apply compojure/routes

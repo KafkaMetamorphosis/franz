@@ -86,3 +86,29 @@
      :created-at             (timestamp->instant (:topic_definitions/created_at row))
      :updated-at             (timestamp->instant (:topic_definitions/updated_at row))}))
 
+(defn db-row->topic-claim [row]
+  (when row
+    {:id                              (:topic_claims/id row)
+     :topic-definition-id             (:topic_claims/topic_definition_id row)
+     :cluster-id                      (:topic_claims/cluster_id row)
+     :topic-configuration-override-id (:topic_claims/topic_configuration_override_id row)
+     :status                          (:topic_claims/status row)
+     :labels                          (parse-jsonb (:topic_claims/labels row))
+     :error                           (:topic_claims/error row)
+     :created-at                      (timestamp->instant (:topic_claims/created_at row))
+     :updated-at                      (timestamp->instant (:topic_claims/updated_at row))}))
+
+(defn db-row->topic-revision [row]
+  (when row
+    {:id                       (:topic_revisions/id row)
+     :topic-claim-id           (:topic_revisions/topic_claim_id row)
+     :kafka-cluster-id         (:topic_revisions/kafka_cluster_id row)
+     :topic-configuration      (parse-jsonb (:topic_revisions/topic_configuration row))
+     :status                   (:topic_revisions/status row)
+     :last-topic-configuration (parse-jsonb (:topic_revisions/last_topic_configuration row))
+     :error                    (:topic_revisions/error row)
+     :attempts                 (:topic_revisions/attempts row)
+     :retry-of-revision-id     (:topic_revisions/retry_of_revision_id row)
+     :created-at               (timestamp->instant (:topic_revisions/created_at row))
+     :updated-at               (timestamp->instant (:topic_revisions/updated_at row))}))
+

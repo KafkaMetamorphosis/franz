@@ -27,7 +27,7 @@
              :body   {:topic-name             "my-topic"
                       :topic-configuration-id config-id
                       :status                 "Active"
-                      :expansion-status       "PendingExpansion"
+                      :expansion-status       "Expanded"
                       :labels                 {:env "test"}}}
             (http/POST "/api/v0/topic_definitions"
               {:topic-name             "my-topic"

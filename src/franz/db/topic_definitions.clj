@@ -64,3 +64,20 @@
          ["UPDATE topic_definitions SET status = 'Deleted', updated_at = now() WHERE topic_name = ? AND status != 'Deleted' RETURNING *"
           topic-name])
        adapters/db-row->topic-definition))
+
+(defn update-expansion-status! [db topic-definition-id expansion-status]
+  (->> (jdbc/execute-one! db
+         ["UPDATE topic_definitions SET expansion_status = ?, updated_at = now() WHERE id = ?::uuid RETURNING *"
+          expansion-status topic-definition-id])
+       adapters/db-row->topic-definition))
+
+(defn find-definitions-by-expansion-status [db expansion-status]
+  (->> (jdbc/execute! db
+         ["SELECT * FROM topic_definitions WHERE expansion_status = ? AND status = 'Active'"
+          expansion-status])
+       (mapv adapters/db-row->topic-definition)))
+
+(defn mark-all-active-definitions-pending-expansion! [db]
+  (let [result (jdbc/execute-one! db
+                 ["UPDATE topic_definitions SET expansion_status = 'PendingExpansion', updated_at = now() WHERE status = 'Active' AND expansion_status != 'PendingExpansion'"])]
+    (or (:next.jdbc/update-count result) 0)))

@@ -35,3 +35,7 @@
    :page  page
    :size  size
    :total total})
+
+(defn expansion-result->response [{:keys [expanded-count still-pending-count]}]
+  {:expanded-count      expanded-count
+   :still-pending-count still-pending-count})

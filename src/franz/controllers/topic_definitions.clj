@@ -3,6 +3,7 @@
             [franz.db.topic-definitions :as db-topic-definitions]
             [franz.db.topic-configurations :as db-topic-configs]
             [franz.logic.topic-definition :as logic]
+            [franz.ops.expansion :as expansion]
             [franz.wire.in :as wire-in]
             [franz.wire.out :as out]))
 
@@ -31,8 +32,14 @@
                                          {:topic-name             (:topic-name body)
                                           :topic-configuration-id (:topic-configuration-id body)
                                           :labels                 (or (:labels body) {})})]
-                  (log/info (str "topic-definition created topic-name=" (:topic-name body)))
-                  {:status 201 :body (out/topic-definition->response topic-definition)}))))))))
+                  (try
+                    (expansion/expand-topic-definition! db topic-definition)
+                    (let [refreshed (db-topic-definitions/find-topic-definition-by-name db (:topic-name topic-definition))]
+                      (log/info (str "topic-definition created and expanded topic-name=" (:topic-name body)))
+                      {:status 201 :body (out/topic-definition->response (or refreshed topic-definition))})
+                    (catch Exception exception
+                      (log/warn exception (str "topic-definition expansion failed topic-name=" (:topic-name body)))
+                      {:status 201 :body (out/topic-definition->response topic-definition)}))))))))))
 
 (defn get-topic-definition [{:keys [db]} request]
   (let [topic-name (get-in request [:params :topic-definition-name])]
@@ -64,15 +71,26 @@
               (or (when (contains? body :topic-configuration-id)
                     (validate-topic-configuration-reference db (:topic-configuration-id body)))
                   (let [topic-definition (db-topic-definitions/update-topic-definition! db topic-name body)]
-                    (log/info (str "topic-definition updated topic-name=" topic-name))
-                    {:status 200 :body (out/topic-definition->response topic-definition)}))))
+                    (when (or (contains? body :topic-configuration-id) (contains? body :labels))
+                      (try
+                        (expansion/expand-topic-definition! db topic-definition)
+                        (catch Exception exception
+                          (log/warn exception (str "topic-definition expansion failed on update topic-name=" topic-name)))))
+                    (let [refreshed (db-topic-definitions/find-topic-definition-by-name db topic-name)]
+                      (log/info (str "topic-definition updated topic-name=" topic-name))
+                      {:status 200 :body (out/topic-definition->response (or refreshed topic-definition))})))))
           (do (log/info (str "topic-definition not found topic-name=" topic-name))
               {:status 404 :body {:error "not found"}}))))))
 
 (defn delete-topic-definition [{:keys [db]} request]
   (let [topic-name (get-in request [:params :topic-definition-name])]
-    (if-let [_deleted (db-topic-definitions/soft-delete-topic-definition! db topic-name)]
-      (do (log/info (str "topic-definition deleted topic-name=" topic-name))
-          {:status 204 :body nil})
+    (if-let [deleted-definition (db-topic-definitions/soft-delete-topic-definition! db topic-name)]
+      (do
+        (try
+          (expansion/expand-deleted-definition! db deleted-definition)
+          (catch Exception exception
+            (log/warn exception (str "topic-definition deletion expansion failed topic-name=" topic-name))))
+        (log/info (str "topic-definition deleted topic-name=" topic-name))
+        {:status 204 :body nil})
       (do (log/info (str "topic-definition not found topic-name=" topic-name))
           {:status 404 :body {:error "not found"}}))))
