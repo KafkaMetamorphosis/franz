@@ -47,10 +47,11 @@ create-test-db: wait-for-db
 migrate-test: create-test-db
 	$(FLYWAY_TEST) migrate
 
-db-reset-test: create-test-db
-	$(FLYWAY_TEST) clean migrate
+db-reset-test:
+	@echo "deleting database franz_test"
+	@docker-compose exec -T postgres psql -U franz -c "DROP DATABASE franz_test;" 2>/dev/null || echo "franz_test already dropped"
 
-integration: migrate-test
+integration: db-reset-test migrate-test
 	lein test :franz.integration
 
 test: unit integration
