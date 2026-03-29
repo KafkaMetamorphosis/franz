@@ -6,11 +6,16 @@ Franz is the control plane of the **KafkaMetamorphosis** platform. It allows tea
 
 Managing Kafka at scale across multiple clusters is painful. Teams end up with ad-hoc scripts, tribal knowledge, and no single source of truth for what topics exist, how they are configured, and which clusters they belong to.
 
+The aim of Kafka Metamorphosis is to make Kafka administration as straightforward as managing HTTP services, by offering tools to keep Kafka clusters under governance.
+
 Franz solves this by providing:
 
-- A **central registry** for Kafka clusters and their topic configurations
-- A **declarative API** to define topics and their desired state
-- A **reconciliation model** — operators express intent, and the platform drives actual Kafka clusters toward that state
+- **A central registry** for Kafka clusters and their topic configurations, adding the hability to add labels to kafka resources that enable a sort of capabilities, eg.: ownership, cost allocation, grouping, automatic routines
+- **Traffic management** provide capabilities to easily defined where should topics live in and also facilitated migration tools.
+- **Governance** to define limits and actions to take in the limits of kafka clusters and topics.
+- **Resilience features** that take actions to avoid impacts for the customer because of a single noisy neighbor.
+- **Reduction of operation burden** by managing the fleet with defined rules automatically.
+- **Cost efficiency** set rules to have topics and cluster in the proper size, avoiding waste of money.
 
 ## 2. How It Works
 
@@ -79,7 +84,6 @@ The server starts on `http://localhost:8080` by default.
 
 Topic configurations define the default Kafka settings (partitions, replication factor, retention, etc.) that can be attached to clusters or topic definitions.
 
-
 | Method   | Path                                                   | Description                               |
 | -------- | ------------------------------------------------------ | ----------------------------------------- |
 | `GET`    | `/api/v0/topic_configurations`                         | List all topic configurations (paginated) |
@@ -88,8 +92,21 @@ Topic configurations define the default Kafka settings (partitions, replication 
 | `PUT`    | `/api/v0/topic_configurations/:topic-configuration-id` | Update a configuration                    |
 | `DELETE` | `/api/v0/topic_configurations/:topic-configuration-id` | Delete a configuration                    |
 
+### Topic Definitions
 
-All list endpoints accept `page` and `size` query parameters.
+Topic definitions are templates that describe a topic's desired state. When created, Franz expands them into topic claims — one per eligible Kafka cluster — which are then reconciled by Gregor Samsa.
+
+| Method   | Path                                                       | Description                              |
+| -------- | ---------------------------------------------------------- | ---------------------------------------- |
+| `GET`    | `/api/v0/topic_definitions`                                | List all topic definitions (paginated)   |
+| `POST`   | `/api/v0/topic_definitions`                                | Create a topic definition                |
+| `GET`    | `/api/v0/topic_definitions/:topic-definition-name`         | Get a specific topic definition          |
+| `PUT`    | `/api/v0/topic_definitions/:topic-definition-name`         | Update a topic definition                |
+| `DELETE` | `/api/v0/topic_definitions/:topic-definition-name`         | Soft delete a topic definition           |
+
+### Pagination and filtering
+
+All list endpoints accept `page` and `size` query parameters. The topic definitions list also accepts a `status` parameter (`Active`, `Paused`, `Error`, `Deleted`) to filter by lifecycle state.
 
 ## 5. How to Contribute
 
