@@ -36,7 +36,7 @@
    ["GET"    "/api/v0/topic_definitions/:topic-definition-name"     topic-definitions/get-topic-definition]
    ["PUT"    "/api/v0/topic_definitions/:topic-definition-name"     topic-definitions/update-topic-definition]
    ["DELETE" "/api/v0/topic_definitions/:topic-definition-name"     topic-definitions/delete-topic-definition]
-   ["POST"   "/api/v0/expand-topics-claims"                        expansion/trigger-expansion]])
+   ["POST"   "/api/v0/expand_topics_claims"                        expansion/trigger-expansion]])
 
 (defn routes [components]
   (apply compojure/routes
