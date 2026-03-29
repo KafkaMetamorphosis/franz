@@ -36,6 +36,25 @@
    :size  size
    :total total})
 
-(defn expansion-result->response [{:keys [expanded-count still-pending-count]}]
-  {:expanded-count      expanded-count
-   :still-pending-count still-pending-count})
+(defn- revision->response [revision]
+  {:id                       (str (:id revision))
+   :status                   (:status revision)
+   :topic-configuration      (:topic-configuration revision)
+   :created-at               (str (:created-at revision))})
+
+(defn- cluster-summary->response [cluster]
+  {:name          (:name cluster)
+   :bootstrap-url (:bootstrap-url cluster)
+   :labels        (:labels cluster)})
+
+(defn- expanded-claim->response [{:keys [claim cluster last-revision topic-definition-name]}]
+  {:id                    (str (:id claim))
+   :topic-definition-name topic-definition-name
+   :cluster               (cluster-summary->response cluster)
+   :status                (:status claim)
+   :labels                (:labels claim)
+   :last-revision         (revision->response last-revision)})
+
+(defn expansion-result->response [{:keys [claims not-expanded]}]
+  (cond-> {:claims (map expanded-claim->response claims)}
+    (seq not-expanded) (assoc :not-expanded not-expanded)))

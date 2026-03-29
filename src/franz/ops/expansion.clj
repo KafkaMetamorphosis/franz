@@ -26,15 +26,14 @@
         plan                     (logic/compute-expansion-plan topic-definition all-clusters
                                                                existing-claims revision-status-map)
         definition-config        (load-topic-configuration db (:topic-configuration-id topic-definition))
-        claims-created           (atom 0)
-        revisions-created        (atom 0)
-        drained                  (atom 0)
-        cluster-config-cache     (atom {})]
+        cluster-by-id        (into {} (map (juxt :id identity) all-clusters))
+        cluster-config-cache (atom {})
+        created-claims       (atom [])]
 
     (letfn [(cluster-default-config [cluster-id]
               (if-let [cached (get @cluster-config-cache cluster-id)]
                 cached
-                (let [cluster (some #(when (= (:id %) cluster-id) %) all-clusters)
+                (let [cluster (get cluster-by-id cluster-id)
                       config  (when cluster
                                 (load-topic-configuration db (:default-topic-configuration-id cluster)))]
                   (swap! cluster-config-cache assoc cluster-id config)
@@ -43,37 +42,44 @@
       (jdbc/with-transaction [transaction db]
         ;; Upsert claims and create revisions for new/reactivated claims
         (doseq [claim-plan (:claims-to-upsert plan)]
-          (let [upserted-claim (db-topic-claims/upsert-topic-claim! transaction
-                                 {:topic-definition-id (:id topic-definition)
-                                  :cluster-id          (:cluster-id claim-plan)
-                                  :status              (:status claim-plan)
-                                  :labels              (:labels claim-plan)})
-                cluster-config (cluster-default-config (:cluster-id claim-plan))
-                materialized   (logic/materialize-topic-configuration cluster-config definition-config nil)]
-            (db-topic-revisions/insert-topic-revision! transaction
-              {:topic-claim-id     (:id upserted-claim)
-               :kafka-cluster-id   (:cluster-id claim-plan)
-               :topic-configuration materialized
-               :status             "PendingReconciliation"})
-            (swap! claims-created inc)
-            (swap! revisions-created inc)))
+          (let [upserted-claim  (db-topic-claims/upsert-topic-claim! transaction
+                                  {:topic-definition-id (:id topic-definition)
+                                   :cluster-id          (:cluster-id claim-plan)
+                                   :status              (:status claim-plan)
+                                   :labels              (:labels claim-plan)})
+                cluster-config  (cluster-default-config (:cluster-id claim-plan))
+                materialized    (logic/materialize-topic-configuration cluster-config definition-config nil)
+                inserted-revision (db-topic-revisions/insert-topic-revision! transaction
+                                    {:topic-claim-id      (:id upserted-claim)
+                                     :kafka-cluster-id    (:cluster-id claim-plan)
+                                     :topic-configuration materialized
+                                     :status              "PendingReconciliation"})]
+            (swap! created-claims conj
+                   {:claim          upserted-claim
+                    :cluster        (get cluster-by-id (:cluster-id claim-plan))
+                    :last-revision  inserted-revision
+                    :topic-definition-name (:topic-name topic-definition)})))
 
         ;; Create revisions for existing claims that need updating
         (doseq [revision-plan (:revisions-to-create plan)
                 :when (:existing-claim-id revision-plan)]
           (when-not (some #(= (:cluster-id %) (:cluster-id revision-plan)) (:claims-to-upsert plan))
-            (let [cluster-config (cluster-default-config (:cluster-id revision-plan))
-                  existing-claim (some #(when (= (:id %) (:existing-claim-id revision-plan)) %)
-                                       existing-claims)
-                  override-config (when (:topic-configuration-override-id existing-claim)
-                                    (load-topic-configuration db (:topic-configuration-override-id existing-claim)))
-                  materialized   (logic/materialize-topic-configuration cluster-config definition-config override-config)]
-              (db-topic-revisions/insert-topic-revision! transaction
-                {:topic-claim-id      (:existing-claim-id revision-plan)
-                 :kafka-cluster-id    (:cluster-id revision-plan)
-                 :topic-configuration materialized
-                 :status              "PendingReconciliation"})
-              (swap! revisions-created inc))))
+            (let [cluster-config    (cluster-default-config (:cluster-id revision-plan))
+                  existing-claim    (some #(when (= (:id %) (:existing-claim-id revision-plan)) %)
+                                         existing-claims)
+                  override-config   (when (:topic-configuration-override-id existing-claim)
+                                      (load-topic-configuration db (:topic-configuration-override-id existing-claim)))
+                  materialized      (logic/materialize-topic-configuration cluster-config definition-config override-config)
+                  inserted-revision (db-topic-revisions/insert-topic-revision! transaction
+                                      {:topic-claim-id      (:existing-claim-id revision-plan)
+                                       :kafka-cluster-id    (:cluster-id revision-plan)
+                                       :topic-configuration materialized
+                                       :status              "PendingReconciliation"})]
+              (swap! created-claims conj
+                     {:claim          existing-claim
+                      :cluster        (get cluster-by-id (:cluster-id revision-plan))
+                      :last-revision  inserted-revision
+                      :topic-definition-name (:topic-name topic-definition)}))))
 
         ;; Process drains
         (doseq [drain-revision (:drain-revisions plan)]
@@ -82,16 +88,13 @@
              :kafka-cluster-id    (:cluster-id drain-revision)
              :topic-configuration {}
              :status              "PendingDelete"})
-          (db-topic-claims/update-claim-status! transaction (:claim-id drain-revision) "Deleted")
-          (swap! drained inc))
+          (db-topic-claims/update-claim-status! transaction (:claim-id drain-revision) "Deleted"))
 
         ;; Update expansion status
         (db-topic-definitions/update-expansion-status! transaction
           (:id topic-definition) (:expansion-status plan))))
 
-    {:claims-created   @claims-created
-     :revisions-created @revisions-created
-     :drained          @drained
+    {:claims           @created-claims
      :expansion-status (:expansion-status plan)}))
 
 (defn expand-deleted-definition! [db topic-definition]
@@ -112,19 +115,23 @@
 
 (defn expand-all-pending! [db]
   (let [pending-definitions (db-topic-definitions/find-definitions-by-expansion-status db "PendingExpansion")
-        expanded-count      (atom 0)
-        still-pending-count (atom 0)]
+        all-claims          (atom [])
+        not-expanded        (atom [])]
     (doseq [definition pending-definitions]
       (try
         (let [result (expand-topic-definition! db definition)]
-          (if (= "Expanded" (:expansion-status result))
-            (swap! expanded-count inc)
-            (swap! still-pending-count inc)))
+          (swap! all-claims into (:claims result))
+          (when (= "PendingExpansion" (:expansion-status result))
+            (swap! not-expanded conj {:topic-name    (:topic-name definition)
+                                      :expansion-status "PendingExpansion"
+                                      :reason        "stale-revision or shard-size not met"})))
         (catch Exception exception
           (log/error exception (str "expansion failed for topic-definition id=" (:id definition)))
-          (swap! still-pending-count inc))))
-    {:expanded-count      @expanded-count
-     :still-pending-count @still-pending-count}))
+          (swap! not-expanded conj {:topic-name    (:topic-name definition)
+                                    :expansion-status "PendingExpansion"
+                                    :reason        (.getMessage exception)}))))
+    {:claims       @all-claims
+     :not-expanded @not-expanded}))
 
 (defn mark-all-active-definitions-pending-expansion! [db]
   (db-topic-definitions/mark-all-active-definitions-pending-expansion! db))
