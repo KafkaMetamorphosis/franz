@@ -30,6 +30,16 @@
    (s/optional-key :configs)            {s/Keyword s/Str}
    (s/optional-key :labels)             {s/Keyword s/Str}})
 
+(s/defschema CreateTopicDefinitionRequest
+  {:topic-name                       s/Str
+   :topic-configuration-id           UUID
+   (s/optional-key :labels)          {s/Keyword s/Str}})
+
+(s/defschema UpdateTopicDefinitionRequest
+  {(s/optional-key :topic-configuration-id) UUID
+   (s/optional-key :labels)                 {s/Keyword s/Str}
+   (s/optional-key :status)                 s/Str})
+
 (s/defschema PaginationParams
   {(s/optional-key :page) s/Int
    (s/optional-key :size) s/Int})
@@ -64,3 +74,9 @@
 
 (defn coerce-update-topic-configuration-request [body]
   (coerce-request UpdateTopicConfigurationRequest body))
+
+(defn coerce-create-topic-definition-request [body]
+  (coerce-request CreateTopicDefinitionRequest body))
+
+(defn coerce-update-topic-definition-request [body]
+  (coerce-request UpdateTopicDefinitionRequest body))

@@ -75,3 +75,14 @@
    :configs            (serialize-jsonb (:configs topic-config))
    :labels             (serialize-jsonb (:labels topic-config))})
 
+(defn db-row->topic-definition [row]
+  (when row
+    {:id                     (:topic_definitions/id row)
+     :topic-name             (:topic_definitions/topic_name row)
+     :topic-configuration-id (:topic_definitions/topic_configuration_id row)
+     :status                 (:topic_definitions/status row)
+     :expansion-status       (:topic_definitions/expansion_status row)
+     :labels                 (parse-jsonb (:topic_definitions/labels row))
+     :created-at             (timestamp->instant (:topic_definitions/created_at row))
+     :updated-at             (timestamp->instant (:topic_definitions/updated_at row))}))
+

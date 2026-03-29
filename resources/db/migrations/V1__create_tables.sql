@@ -28,7 +28,7 @@ CREATE INDEX idx_clusters_name ON clusters (name);
 
 CREATE TABLE topic_definitions (
     id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    topic_name               TEXT NOT NULL,
+    topic_name               TEXT NOT NULL UNIQUE,
     topic_configuration_id   UUID NOT NULL REFERENCES topic_configurations(id),
     status                   TEXT NOT NULL DEFAULT 'Active'
                              CHECK (status IN ('Active', 'Paused', 'Error', 'Deleted')),
@@ -38,11 +38,6 @@ CREATE TABLE topic_definitions (
     created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at               TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-
--- Allow name reuse after soft deletion
-CREATE UNIQUE INDEX idx_topic_definitions_topic_name_active
-    ON topic_definitions (topic_name)
-    WHERE status != 'Deleted';
 
 CREATE INDEX idx_topic_definitions_status ON topic_definitions (status);
 

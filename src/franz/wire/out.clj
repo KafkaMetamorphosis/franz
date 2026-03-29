@@ -20,6 +20,16 @@
    :created-at                  (str (:created-at cluster))
    :updated-at                  (str (:updated-at cluster))})
 
+(defn topic-definition->response [topic-definition]
+  {:id                     (str (:id topic-definition))
+   :topic-name             (:topic-name topic-definition)
+   :topic-configuration-id (str (:topic-configuration-id topic-definition))
+   :status                 (:status topic-definition)
+   :expansion-status       (:expansion-status topic-definition)
+   :labels                 (:labels topic-definition)
+   :created-at             (str (:created-at topic-definition))
+   :updated-at             (str (:updated-at topic-definition))})
+
 (defn page-response [{:keys [items page size total]}]
   {:items items
    :page  page

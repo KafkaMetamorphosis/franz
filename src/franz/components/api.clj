@@ -1,6 +1,8 @@
 (ns franz.components.api
   (:require [clojure.tools.logging :as log]
             [com.stuartsierra.component :as component]
+            [ring.middleware.params :refer [wrap-params]]
+            [ring.middleware.keyword-params :refer [wrap-keyword-params]]
             [franz.controllers.router :as router]
             [franz.controllers.middleware :as middleware]))
 
@@ -13,6 +15,8 @@
                         middleware/wrap-not-found
                         middleware/wrap-json-body
                         middleware/wrap-json-response
+                        wrap-keyword-params
+                        wrap-params
                         middleware/wrap-exception-handler
                         middleware/wrap-request-logging)]
       (log/info "API handler ready")

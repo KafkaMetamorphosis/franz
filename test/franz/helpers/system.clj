@@ -9,4 +9,4 @@
 
 (defn clean-db! [system]
   (let [ds (get-in system [:database :datasource])]
-    (jdbc/execute! ds ["TRUNCATE topic_configurations, clusters CASCADE"])))
+    (jdbc/execute! ds ["TRUNCATE topic_configurations, clusters, topic_definitions CASCADE"])))
