@@ -74,6 +74,12 @@ console: webconsole/node_modules ## Run the web console dev server (proxies /v1 
 	@echo "→ web console: $(CONSOLE_URL)"
 	@$(NPM) run dev
 
+.PHONY: agent
+agent: ## Run the local-kafka-docker-agent. Requires TOKEN=<agent token from the console>
+	@test -n "$(TOKEN)" || { echo "usage: make agent TOKEN=frnat_… [NAME=<registered agent name>]"; exit 1; }
+	@FRANZ_ENDPOINT=localhost:9090 FRANZ_TOKEN=$(TOKEN) FRANZ_AGENT_NAME=$${NAME:-local-kafka-agent} \
+		go run ./cmd/local-kafka-agent
+
 .PHONY: dev
 dev: deps build-franz webconsole/node_modules ## Run control plane + console together (Ctrl-C stops both)
 	@echo "──────────────────────────────────────────────"
@@ -101,6 +107,14 @@ e2e: deps build-franz webconsole/node_modules ## Run the Playwright console smok
 	trap 'kill $$(cat .franz.pid) 2>/dev/null; rm -f .franz.pid' EXIT INT TERM; \
 	until curl -sf $(GATEWAY_URL)/healthz >/dev/null; do sleep 0.3; done; \
 	$(NPM) run e2e
+
+.PHONY: agent-e2e
+agent-e2e: deps build-franz ## Real-Docker agent smoke: broker up in Docker, client creates a topic, teardown
+	@command -v docker >/dev/null || { echo "docker required"; exit 1; }
+	@FRANZ_DB__HOST=localhost ./$(FRANZ_BIN) & echo $$! > .franz.pid; \
+	trap 'kill $$(cat .franz.pid) 2>/dev/null; rm -f .franz.pid' EXIT INT TERM; \
+	until curl -sf $(GATEWAY_URL)/healthz >/dev/null; do sleep 0.3; done; \
+	FRANZ_AGENT_E2E=1 go test -count=1 -timeout 8m -run TestLocalDockerEndToEnd ./pkg/localkafka/
 
 .PHONY: lint
 lint: ## gofmt + go vet + console lint/typecheck

@@ -7,6 +7,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **local-kafka-docker-agent** (impls_plan deliverable 07): `cmd/local-kafka-agent`
+  — the first Cluster Provider agent. It registers with Franz, watches
+  `WatchClusterAssignments` (reconnect + backoff, debounced into one reconcile),
+  renders the `local-docker` recipe (a single `apache/kafka` KRaft container per
+  cluster, `advertised.listeners` from the declared bootstrap URL,
+  allow-listed `cluster_configuration` → broker env, `franz.recipe-hash` label),
+  drives Docker via the Engine API SDK, and converges: create → recreate on hash
+  change (keeping the data volume) → stop on `PAUSED` → remove + volume on
+  `REMOVED` → drop orphans. Readiness is a `franz-go` `Ping`; a fresh broker is
+  retried so a normal boot goes `PROVISIONING → READY` without a transient
+  `DEGRADED`. Status is reported per state transition. `pkg/localkafka/{assign,
+  stream,recipe,docker,reconcile,probe}`. Fake-Docker unit tests in CI; a
+  real-Docker end-to-end (`make agent-e2e`, opt-in) verifies a client can
+  connect and create a topic against the provisioned broker. New Make targets
+  `agent` / `agent-e2e`. New deps: `github.com/twmb/franz-go`,
+  `github.com/docker/docker`.
 - **Web console bootstrap** (impls_plan deliverable 06): `webconsole/` — a
   Vite + React + TypeScript operator console (separate static build, not
   embedded). App shell ported from the `001-ux` prototype; Login stub; **Agents**

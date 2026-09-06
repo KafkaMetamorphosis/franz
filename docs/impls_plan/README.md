@@ -32,7 +32,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [04](./04-agent-registry.md) | Agent registry | 02 | ✅ |
 | [05](./05-agent-interaction-cluster-provider.md) | Agent interaction (Cluster Provider) | 02 · 03 · 04 | ✅ |
 | [06](./06-web-console-bootstrap.md) | Web console bootstrap | 03 · 04 · 05 | ✅ |
-| [07](./07-local-kafka-docker-agent.md) | local-kafka-docker-agent | 05 · 06 | ⬜ |
+| [07](./07-local-kafka-docker-agent.md) | local-kafka-docker-agent | 05 · 06 | ✅ |
 
 ## Rest of the control plane
 
@@ -85,6 +85,12 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-06 · **07** local-kafka-docker-agent · `cmd/local-kafka-agent` +
+  `pkg/localkafka/{assign,stream,recipe,docker,reconcile,probe}` — connects as a
+  CLUSTER_PROVIDER, watches assignments, renders the `local-docker` recipe,
+  brings up an apache/kafka KRaft container, converges + reports status.
+  franz-go readiness probe. Fake-driver unit tests + a real-Docker e2e
+  (`make agent-e2e`, opt-in). `make agent TOKEN=…`. Executed by claude.
 - 2026-09-06 · **06** Web console bootstrap · Vite/React/TS console
   (`webconsole/`) — shell, Login stub, Agents + Kafka Clusters screens; typed
   REST client generated from a `buf`-emitted OpenAPI spec; TanStack Query;

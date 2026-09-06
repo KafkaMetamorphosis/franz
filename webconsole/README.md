@@ -22,6 +22,12 @@ make dev     # Postgres + control plane (:8080) + console (:5173); Ctrl-C stops 
 Or run the pieces separately: `make run` (control plane only), `make console`
 (console only, expects the gateway on :8080). `make help` lists every target.
 
+To actually see a cluster reach `READY`: in the console register a
+`CLUSTER_PROVIDER` agent, copy its token, then `make agent TOKEN=<token>` (needs
+Docker). Register a Kafka Cluster with
+`franz.provisioning/deployment-type=local-docker` pointing at that agent — a
+broker comes up in Docker and the cluster detail page turns green.
+
 ## Scripts
 
 | Script | What |
