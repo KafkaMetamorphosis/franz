@@ -33,7 +33,7 @@ message ClusterAssignment {
 
   Change change = 1;
   string cluster_name = 2;
-  string cluster_orn = 3;
+  string cluster_frn = 3;
 
   // Desired-state inputs the agent's recipe consumes.
   repeated ConnectionString connection_strings = 4;

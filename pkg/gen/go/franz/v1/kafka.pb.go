@@ -217,7 +217,7 @@ func (x Consumption) Number() protoreflect.EnumNumber {
 type KafkaCluster struct {
 	state                           protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Name                 *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Orn                  *string                `protobuf:"bytes,2,opt,name=orn"`
+	xxx_hidden_Frn                  *string                `protobuf:"bytes,2,opt,name=frn"`
 	xxx_hidden_ConnectionStrings    *[]*ConnectionString   `protobuf:"bytes,3,rep,name=connection_strings,json=connectionStrings"`
 	xxx_hidden_Labels               map[string]string      `protobuf:"bytes,4,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_ClusterConfiguration map[string]string      `protobuf:"bytes,5,rep,name=cluster_configuration,json=clusterConfiguration" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -267,10 +267,10 @@ func (x *KafkaCluster) GetName() string {
 	return ""
 }
 
-func (x *KafkaCluster) GetOrn() string {
+func (x *KafkaCluster) GetFrn() string {
 	if x != nil {
-		if x.xxx_hidden_Orn != nil {
-			return *x.xxx_hidden_Orn
+		if x.xxx_hidden_Frn != nil {
+			return *x.xxx_hidden_Frn
 		}
 		return ""
 	}
@@ -345,8 +345,8 @@ func (x *KafkaCluster) SetName(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 10)
 }
 
-func (x *KafkaCluster) SetOrn(v string) {
-	x.xxx_hidden_Orn = &v
+func (x *KafkaCluster) SetFrn(v string) {
+	x.xxx_hidden_Frn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 10)
 }
 
@@ -391,7 +391,7 @@ func (x *KafkaCluster) HasName() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *KafkaCluster) HasOrn() bool {
+func (x *KafkaCluster) HasFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -438,9 +438,9 @@ func (x *KafkaCluster) ClearName() {
 	x.xxx_hidden_Name = nil
 }
 
-func (x *KafkaCluster) ClearOrn() {
+func (x *KafkaCluster) ClearFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_Orn = nil
+	x.xxx_hidden_Frn = nil
 }
 
 func (x *KafkaCluster) ClearClusterProviderAgent() {
@@ -471,7 +471,7 @@ type KafkaCluster_builder struct {
 	// Control-plane identifier, provided at registration. Immutable.
 	Name *string
 	// Assigned by Franz.
-	Orn *string
+	Frn *string
 	// How to reach the cluster's brokers. Repeated so additional connection
 	// types (each with their own auth) can be added without a breaking change.
 	ConnectionStrings []*ConnectionString
@@ -503,9 +503,9 @@ func (b0 KafkaCluster_builder) Build() *KafkaCluster {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 10)
 		x.xxx_hidden_Name = b.Name
 	}
-	if b.Orn != nil {
+	if b.Frn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 10)
-		x.xxx_hidden_Orn = b.Orn
+		x.xxx_hidden_Frn = b.Frn
 	}
 	x.xxx_hidden_ConnectionStrings = &b.ConnectionStrings
 	x.xxx_hidden_Labels = b.Labels
@@ -760,7 +760,7 @@ func (b0 ClusterProviderStatus_builder) Build() *ClusterProviderStatus {
 // One provider status report, retained as history.
 type ClusterProviderEvent struct {
 	state                     protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_ClusterOrn     *string                `protobuf:"bytes,1,opt,name=cluster_orn,json=clusterOrn"`
+	xxx_hidden_ClusterFrn     *string                `protobuf:"bytes,1,opt,name=cluster_frn,json=clusterFrn"`
 	xxx_hidden_Phase          ClusterProviderPhase   `protobuf:"varint,2,opt,name=phase,enum=franz.v1.ClusterProviderPhase"`
 	xxx_hidden_Reachable      bool                   `protobuf:"varint,3,opt,name=reachable"`
 	xxx_hidden_Message        *string                `protobuf:"bytes,4,opt,name=message"`
@@ -798,10 +798,10 @@ func (x *ClusterProviderEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *ClusterProviderEvent) GetClusterOrn() string {
+func (x *ClusterProviderEvent) GetClusterFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ClusterOrn != nil {
-			return *x.xxx_hidden_ClusterOrn
+		if x.xxx_hidden_ClusterFrn != nil {
+			return *x.xxx_hidden_ClusterFrn
 		}
 		return ""
 	}
@@ -861,8 +861,8 @@ func (x *ClusterProviderEvent) GetOccurredAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *ClusterProviderEvent) SetClusterOrn(v string) {
-	x.xxx_hidden_ClusterOrn = &v
+func (x *ClusterProviderEvent) SetClusterFrn(v string) {
+	x.xxx_hidden_ClusterFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 7)
 }
 
@@ -895,7 +895,7 @@ func (x *ClusterProviderEvent) SetOccurredAt(v *timestamppb.Timestamp) {
 	x.xxx_hidden_OccurredAt = v
 }
 
-func (x *ClusterProviderEvent) HasClusterOrn() bool {
+func (x *ClusterProviderEvent) HasClusterFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -944,9 +944,9 @@ func (x *ClusterProviderEvent) HasOccurredAt() bool {
 	return x.xxx_hidden_OccurredAt != nil
 }
 
-func (x *ClusterProviderEvent) ClearClusterOrn() {
+func (x *ClusterProviderEvent) ClearClusterFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
-	x.xxx_hidden_ClusterOrn = nil
+	x.xxx_hidden_ClusterFrn = nil
 }
 
 func (x *ClusterProviderEvent) ClearPhase() {
@@ -981,7 +981,7 @@ func (x *ClusterProviderEvent) ClearOccurredAt() {
 type ClusterProviderEvent_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	ClusterOrn     *string
+	ClusterFrn     *string
 	Phase          *ClusterProviderPhase
 	Reachable      *bool
 	Message        *string
@@ -994,9 +994,9 @@ func (b0 ClusterProviderEvent_builder) Build() *ClusterProviderEvent {
 	m0 := &ClusterProviderEvent{}
 	b, x := &b0, m0
 	_, _ = b, x
-	if b.ClusterOrn != nil {
+	if b.ClusterFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 7)
-		x.xxx_hidden_ClusterOrn = b.ClusterOrn
+		x.xxx_hidden_ClusterFrn = b.ClusterFrn
 	}
 	if b.Phase != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 7)
@@ -1115,7 +1115,7 @@ func (b0 ConnectionString_builder) Build() *ConnectionString {
 	return m0
 }
 
-// Only the client-settable fields of a KafkaCluster. Franz assigns the ORN and
+// Only the client-settable fields of a KafkaCluster. Franz assigns the FRN and
 // the timestamps.
 type CreateKafkaClusterRequest struct {
 	state                           protoimpl.MessageState `protogen:"opaque.v1"`
@@ -2530,7 +2530,7 @@ func (b0 ListClusterProviderEventsResponse_builder) Build() *ListClusterProvider
 type KafkaTopic struct {
 	state                         protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Name               *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Orn                *string                `protobuf:"bytes,2,opt,name=orn"`
+	xxx_hidden_Frn                *string                `protobuf:"bytes,2,opt,name=frn"`
 	xxx_hidden_AsyncChannel       *string                `protobuf:"bytes,3,opt,name=async_channel,json=asyncChannel"`
 	xxx_hidden_KafkaCluster       *string                `protobuf:"bytes,4,opt,name=kafka_cluster,json=kafkaCluster"`
 	xxx_hidden_State              KafkaTopicState        `protobuf:"varint,5,opt,name=state,enum=franz.v1.KafkaTopicState"`
@@ -2583,10 +2583,10 @@ func (x *KafkaTopic) GetName() string {
 	return ""
 }
 
-func (x *KafkaTopic) GetOrn() string {
+func (x *KafkaTopic) GetFrn() string {
 	if x != nil {
-		if x.xxx_hidden_Orn != nil {
-			return *x.xxx_hidden_Orn
+		if x.xxx_hidden_Frn != nil {
+			return *x.xxx_hidden_Frn
 		}
 		return ""
 	}
@@ -2685,8 +2685,8 @@ func (x *KafkaTopic) SetName(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 13)
 }
 
-func (x *KafkaTopic) SetOrn(v string) {
-	x.xxx_hidden_Orn = &v
+func (x *KafkaTopic) SetFrn(v string) {
+	x.xxx_hidden_Frn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 13)
 }
 
@@ -2748,7 +2748,7 @@ func (x *KafkaTopic) HasName() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *KafkaTopic) HasOrn() bool {
+func (x *KafkaTopic) HasFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -2830,9 +2830,9 @@ func (x *KafkaTopic) ClearName() {
 	x.xxx_hidden_Name = nil
 }
 
-func (x *KafkaTopic) ClearOrn() {
+func (x *KafkaTopic) ClearFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_Orn = nil
+	x.xxx_hidden_Frn = nil
 }
 
 func (x *KafkaTopic) ClearAsyncChannel() {
@@ -2887,7 +2887,7 @@ type KafkaTopic_builder struct {
 
 	// Franz-generated Kafka topic name (also the real name in the cluster).
 	Name *string
-	Orn  *string
+	Frn  *string
 	// Owning Async Channel.
 	AsyncChannel *string
 	// Cluster this topic is placed on.
@@ -2925,9 +2925,9 @@ func (b0 KafkaTopic_builder) Build() *KafkaTopic {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 13)
 		x.xxx_hidden_Name = b.Name
 	}
-	if b.Orn != nil {
+	if b.Frn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 13)
-		x.xxx_hidden_Orn = b.Orn
+		x.xxx_hidden_Frn = b.Frn
 	}
 	if b.AsyncChannel != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 13)
@@ -3626,7 +3626,7 @@ const file_franz_v1_kafka_proto_rawDesc = "" +
 	"\x14franz/v1/kafka.proto\x12\bfranz.v1\x1a\x1cgoogle/api/annotations.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15franz/v1/common.proto\"\xcf\x05\n" +
 	"\fKafkaCluster\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
-	"\x03orn\x18\x02 \x01(\tR\x03orn\x12I\n" +
+	"\x03frn\x18\x02 \x01(\tR\x03frn\x12I\n" +
 	"\x12connection_strings\x18\x03 \x03(\v2\x1a.franz.v1.ConnectionStringR\x11connectionStrings\x12:\n" +
 	"\x06labels\x18\x04 \x03(\v2\".franz.v1.KafkaCluster.LabelsEntryR\x06labels\x12e\n" +
 	"\x15cluster_configuration\x18\x05 \x03(\v20.franz.v1.KafkaCluster.ClusterConfigurationEntryR\x14clusterConfiguration\x124\n" +
@@ -3654,8 +3654,8 @@ const file_franz_v1_kafka_proto_rawDesc = "" +
 	"\vreported_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"reportedAt\"\xaa\x02\n" +
 	"\x14ClusterProviderEvent\x12\x1f\n" +
-	"\vcluster_orn\x18\x01 \x01(\tR\n" +
-	"clusterOrn\x124\n" +
+	"\vcluster_frn\x18\x01 \x01(\tR\n" +
+	"clusterFrn\x124\n" +
 	"\x05phase\x18\x02 \x01(\x0e2\x1e.franz.v1.ClusterProviderPhaseR\x05phase\x12\x1c\n" +
 	"\treachable\x18\x03 \x01(\bR\treachable\x12\x18\n" +
 	"\amessage\x18\x04 \x01(\tR\amessage\x12\x1d\n" +
@@ -3727,7 +3727,7 @@ const file_franz_v1_kafka_proto_rawDesc = "" +
 	"\n" +
 	"KafkaTopic\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
-	"\x03orn\x18\x02 \x01(\tR\x03orn\x12#\n" +
+	"\x03frn\x18\x02 \x01(\tR\x03frn\x12#\n" +
 	"\rasync_channel\x18\x03 \x01(\tR\fasyncChannel\x12#\n" +
 	"\rkafka_cluster\x18\x04 \x01(\tR\fkafkaCluster\x12/\n" +
 	"\x05state\x18\x05 \x01(\x0e2\x19.franz.v1.KafkaTopicStateR\x05state\x127\n" +

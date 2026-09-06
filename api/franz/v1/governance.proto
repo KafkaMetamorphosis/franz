@@ -13,7 +13,7 @@ import "franz/v1/common.proto";
 message Policy {
   string name = 1;
   // Assigned by Franz.
-  string orn = 2;
+  string frn = 2;
 
   // Indicator name published by a Telemetry Agent.
   string indicator = 3;
@@ -85,7 +85,7 @@ enum ActionKind {
 // One automated change a policy made.
 message PolicyAction {
   google.protobuf.Timestamp occurred_at = 1;
-  string resource_orn = 2;
+  string resource_frn = 2;
   string indicator_value = 3;
   Action action = 4;
   // Resulting revision or a note.
@@ -116,7 +116,7 @@ enum IndicatorHealth {
 // One stored indicator sample, returned by ListIndicatorSamples. The write-side
 // shape is telemetry.proto's IndicatorSample.
 message IndicatorSampleView {
-  string resource_orn = 1;
+  string resource_frn = 1;
   Entity resource_entity = 2;
   string value = 3;
   google.protobuf.Timestamp sample_at = 4;
@@ -186,7 +186,7 @@ message DryRunPolicyRequest {
 
 message DryRunPolicyResponse {
   message Match {
-    string resource_orn = 1;
+    string resource_frn = 1;
     string indicator_value = 2;
     bool would_trigger = 3;
   }
@@ -254,7 +254,7 @@ message DeleteIndicatorResponse {}
 message ListIndicatorSamplesRequest {
   string indicator = 1;
   // Optional: restrict to one resource.
-  string resource_orn = 2;
+  string resource_frn = 2;
   google.protobuf.Timestamp from = 3;
   google.protobuf.Timestamp to = 4;
   PageRequest page = 5;

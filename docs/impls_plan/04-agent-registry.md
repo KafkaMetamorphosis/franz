@@ -14,7 +14,7 @@ The Agent registry — a control-plane record and its lifecycle. No work protoco
 
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
-| 04.1 | `agent` table — `labels jsonb`, `type text` + CHECK, `status text` + CHECK, `orn` unique, `(realm_id, name)` unique | `003.12` | ⬜ | |
+| 04.1 | `agent` table — `labels jsonb`, `type text` + CHECK, `status text` + CHECK, `frn` unique, `(realm_id, name)` unique | `003.12` | ⬜ | |
 | 04.2 | Domain: `Agent`, `AgentType` (`CLUSTER_PROVIDER` / `RESOURCE_PROVIDER` / `TELEMETRY_AGENT` / `CUSTOM`), `AgentStatus` machine (`ACTIVE ↔ PAUSED → DELETED`); registration is inert (no connection, no work) | `003.9` | ⬜ | |
 | 04.3 | Repo + usecases: Create, Get, List (filter by `type`), Update (FieldMask; `type` mutability — treat as mutable for now), Delete (soft), Pause, Resume | `003.9` | ⬜ | |
 | 04.4 | `AgentService` handlers + REST `/v1/kafka/agents` (+ `:pause` / `:resume`) | proto | ⬜ | |

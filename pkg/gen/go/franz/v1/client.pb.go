@@ -29,7 +29,7 @@ const (
 type Client struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Orn         *string                `protobuf:"bytes,2,opt,name=orn"`
+	xxx_hidden_Frn         *string                `protobuf:"bytes,2,opt,name=frn"`
 	xxx_hidden_Labels      map[string]string      `protobuf:"bytes,3,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_CreatedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt"`
 	xxx_hidden_UpdatedAt   *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=updated_at,json=updatedAt"`
@@ -74,10 +74,10 @@ func (x *Client) GetName() string {
 	return ""
 }
 
-func (x *Client) GetOrn() string {
+func (x *Client) GetFrn() string {
 	if x != nil {
-		if x.xxx_hidden_Orn != nil {
-			return *x.xxx_hidden_Orn
+		if x.xxx_hidden_Frn != nil {
+			return *x.xxx_hidden_Frn
 		}
 		return ""
 	}
@@ -110,8 +110,8 @@ func (x *Client) SetName(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 5)
 }
 
-func (x *Client) SetOrn(v string) {
-	x.xxx_hidden_Orn = &v
+func (x *Client) SetFrn(v string) {
+	x.xxx_hidden_Frn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 5)
 }
 
@@ -134,7 +134,7 @@ func (x *Client) HasName() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *Client) HasOrn() bool {
+func (x *Client) HasFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -160,9 +160,9 @@ func (x *Client) ClearName() {
 	x.xxx_hidden_Name = nil
 }
 
-func (x *Client) ClearOrn() {
+func (x *Client) ClearFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_Orn = nil
+	x.xxx_hidden_Frn = nil
 }
 
 func (x *Client) ClearCreatedAt() {
@@ -179,7 +179,7 @@ type Client_builder struct {
 	// Globally unique, provided at registration. Also the default consumer-group prefix.
 	Name *string
 	// Assigned by Franz.
-	Orn *string
+	Frn *string
 	// At least org.com/owner. Channel access policies match against these.
 	Labels    map[string]string
 	CreatedAt *timestamppb.Timestamp
@@ -194,9 +194,9 @@ func (b0 Client_builder) Build() *Client {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 5)
 		x.xxx_hidden_Name = b.Name
 	}
-	if b.Orn != nil {
+	if b.Frn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 5)
-		x.xxx_hidden_Orn = b.Orn
+		x.xxx_hidden_Frn = b.Frn
 	}
 	x.xxx_hidden_Labels = b.Labels
 	x.xxx_hidden_CreatedAt = b.CreatedAt
@@ -1987,7 +1987,7 @@ const file_franz_v1_client_proto_rawDesc = "" +
 	"\x15franz/v1/client.proto\x12\bfranz.v1\x1a\x1cgoogle/api/annotations.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15franz/v1/common.proto\"\x95\x02\n" +
 	"\x06Client\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
-	"\x03orn\x18\x02 \x01(\tR\x03orn\x124\n" +
+	"\x03frn\x18\x02 \x01(\tR\x03frn\x124\n" +
 	"\x06labels\x18\x03 \x03(\v2\x1c.franz.v1.Client.LabelsEntryR\x06labels\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +

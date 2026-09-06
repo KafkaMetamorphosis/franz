@@ -4,6 +4,9 @@ http_port: 8080
 grpc_port: 9090
 log_level: info
 bootstrap_realm: default
+# FRN prefix (003.1). Default "frn"; must match ^[a-z][a-z0-9]*$ (2–16 chars).
+# Fixed at bootstrap — changing it does not rewrite stored identifiers.
+resource_prefix: frn
 
 db:
   host: localhost
@@ -12,3 +15,6 @@ db:
   user: franz
   password: franz
   sslmode: disable
+  # Run the embedded (Flyway-compatible) migrations on boot. Handy for local dev;
+  # set false where Flyway owns schema changes (003.12).
+  auto_migrate: true
