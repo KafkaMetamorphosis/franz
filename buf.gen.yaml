@@ -1,0 +1,30 @@
+version: v2
+# Run from franz/:  buf generate api
+managed:
+  enabled: true
+  disable:
+    # Leave googleapis' own go_package options intact — they already point at
+    # google.golang.org/genproto/googleapis/... . Without this, managed mode
+    # rewrites them under our prefix and the build can't resolve them.
+    - file_option: go_package
+      module: buf.build/googleapis/googleapis
+  override:
+    - file_option: go_package_prefix
+      value: github.com/KafkaMetamorphosis/franz/pkg/gen/go
+plugins:
+  # Versions pinned so `buf generate` is byte-reproducible (CI verifies the
+  # committed pkg/gen/go against a fresh run).
+  # edition 2024 -> protoc-gen-go emits the Opaque API (hidden fields + Get/Set
+  # accessors); protoc-gen-grpc-gateway must match with use_opaque_api=true,
+  # else it emits Open-Struct field access that won't compile.
+  - remote: buf.build/protocolbuffers/go:v1.36.12
+    out: pkg/gen/go
+    opt: paths=source_relative
+  - remote: buf.build/grpc/go:v1.6.2
+    out: pkg/gen/go
+    opt: paths=source_relative
+  - remote: buf.build/grpc-ecosystem/gateway:v2.30.0
+    out: pkg/gen/go
+    opt:
+      - paths=source_relative
+      - use_opaque_api=true

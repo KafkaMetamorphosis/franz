@@ -1,0 +1,323 @@
+edition = "2024";
+
+package franz.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "franz/v1/common.proto";
+
+// A governance policy watches one indicator and acts on the resources it
+// matches when a limit is crossed. Reactive only: actions change Franz's
+// declared state, which the normal reconciliation path realises.
+message Policy {
+  string name = 1;
+  // Assigned by Franz.
+  string orn = 2;
+
+  // Indicator name published by a Telemetry Agent.
+  string indicator = 3;
+
+  Matcher matcher = 4;
+  Limit limit = 5;
+  repeated Action actions = 6;
+
+  // Breaks ties when several policies act on the same resource. Higher wins.
+  int32 weight = 7;
+
+  bool enabled = 8;
+  google.protobuf.Timestamp last_fired_at = 9;
+
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+message Matcher {
+  Entity entity = 1;
+  // Label selector. Empty means every resource of the entity kind.
+  string selector = 2;
+}
+
+enum Entity {
+  ENTITY_UNSPECIFIED = 0;
+  ENTITY_ASYNC_CHANNEL = 1;
+  ENTITY_KAFKA_TOPIC = 2;
+  ENTITY_KAFKA_CLUSTER = 3;
+}
+
+message Limit {
+  Operator operator = 1;
+  // Compared against the latest indicator sample. Encoding follows the
+  // indicator's unit (e.g. "150Gi", "3", "90d").
+  string value = 2;
+}
+
+enum Operator {
+  OPERATOR_UNSPECIFIED = 0;
+  OPERATOR_LESS_THAN = 1;
+  OPERATOR_LESS_THAN_OR_EQUAL = 2;
+  OPERATOR_EQUAL = 3;
+  OPERATOR_NOT_EQUAL = 4;
+  OPERATOR_GREATER_THAN_OR_EQUAL = 5;
+  OPERATOR_GREATER_THAN = 6;
+}
+
+message Action {
+  ActionKind kind = 1;
+  // add_label      -> [key, value]
+  // remove_label   -> [key]
+  // set_status     -> [status]
+  // update_field   -> [field, value]
+  // increase_field_by / decrease_field_by -> [field, amount]
+  repeated string args = 2;
+}
+
+enum ActionKind {
+  ACTION_KIND_UNSPECIFIED = 0;
+  ACTION_KIND_ADD_LABEL = 1;
+  ACTION_KIND_SET_STATUS = 2;
+  ACTION_KIND_UPDATE_FIELD = 3;
+  ACTION_KIND_INCREASE_FIELD_BY = 4;
+  ACTION_KIND_DECREASE_FIELD_BY = 5;
+  ACTION_KIND_REMOVE_LABEL = 6;
+}
+
+// One automated change a policy made.
+message PolicyAction {
+  google.protobuf.Timestamp occurred_at = 1;
+  string resource_orn = 2;
+  string indicator_value = 3;
+  Action action = 4;
+  // Resulting revision or a note.
+  string result = 5;
+}
+
+// An indicator that Telemetry Agents publish samples for and policies read.
+// Admin-created (CreateIndicator); a sample or policy for an unknown indicator
+// is rejected. See 003.14-telemetry-ingest.md.
+message Indicator {
+  string name = 1;
+  // "bytes", "count", "duration", "boolean", ...
+  string unit = 2;
+  Entity applies_to = 3;
+  repeated string source_agents = 4;
+  IndicatorHealth health = 5;
+  google.protobuf.Timestamp last_sample_at = 6;
+  // Beyond this age the indicator is stale and policies reading it do not act.
+  string staleness_threshold = 7;
+}
+
+enum IndicatorHealth {
+  INDICATOR_HEALTH_UNSPECIFIED = 0;
+  INDICATOR_HEALTH_HEALTHY = 1;
+  INDICATOR_HEALTH_STALE = 2;
+}
+
+// One stored indicator sample, returned by ListIndicatorSamples. The write-side
+// shape is telemetry.proto's IndicatorSample.
+message IndicatorSampleView {
+  string resource_orn = 1;
+  Entity resource_entity = 2;
+  string value = 3;
+  google.protobuf.Timestamp sample_at = 4;
+}
+
+message CreatePolicyRequest {
+  string name = 1;
+  string indicator = 2;
+  Matcher matcher = 3;
+  Limit limit = 4;
+  repeated Action actions = 5;
+  int32 weight = 6;
+  bool enabled = 7;
+}
+
+message CreatePolicyResponse {
+  Policy policy = 1;
+}
+
+message GetPolicyRequest {
+  string name = 1;
+}
+
+message GetPolicyResponse {
+  Policy policy = 1;
+}
+
+message ListPoliciesRequest {
+  PageRequest page = 1;
+}
+
+message ListPoliciesResponse {
+  repeated Policy policies = 1;
+  PageResponse page = 2;
+}
+
+message UpdatePolicyRequest {
+  string name = 1;
+  string indicator = 2;
+  Matcher matcher = 3;
+  Limit limit = 4;
+  repeated Action actions = 5;
+  int32 weight = 6;
+  bool enabled = 7;
+  // Fields to update; unset fields are left unchanged.
+  google.protobuf.FieldMask update_mask = 8;
+}
+
+message UpdatePolicyResponse {
+  Policy policy = 1;
+}
+
+message DeletePolicyRequest {
+  string name = 1;
+}
+
+message DeletePolicyResponse {}
+
+message DryRunPolicyRequest {
+  // The policy definition to evaluate against the latest samples. `weight` and
+  // `enabled` do not affect a dry run and are omitted.
+  string indicator = 1;
+  Matcher matcher = 2;
+  Limit limit = 3;
+  repeated Action actions = 4;
+}
+
+message DryRunPolicyResponse {
+  message Match {
+    string resource_orn = 1;
+    string indicator_value = 2;
+    bool would_trigger = 3;
+  }
+  repeated Match matches = 1;
+}
+
+message ListPolicyActionsRequest {
+  string name = 1;
+  PageRequest page = 2;
+}
+
+message ListPolicyActionsResponse {
+  repeated PolicyAction actions = 1;
+  PageResponse page = 2;
+}
+
+message CreateIndicatorRequest {
+  string name = 1;
+  string unit = 2;
+  Entity applies_to = 3;
+  string staleness_threshold = 4;
+  repeated string source_agents = 5;
+}
+
+message CreateIndicatorResponse {
+  Indicator indicator = 1;
+}
+
+message GetIndicatorRequest {
+  string name = 1;
+}
+
+message GetIndicatorResponse {
+  Indicator indicator = 1;
+}
+
+message ListIndicatorsRequest {
+  PageRequest page = 1;
+}
+
+message ListIndicatorsResponse {
+  repeated Indicator indicators = 1;
+  PageResponse page = 2;
+}
+
+message UpdateIndicatorRequest {
+  string name = 1;
+  string unit = 2;
+  string staleness_threshold = 3;
+  repeated string source_agents = 4;
+  // Fields to update; unset fields are left unchanged. `applies_to` is immutable.
+  google.protobuf.FieldMask update_mask = 5;
+}
+
+message UpdateIndicatorResponse {
+  Indicator indicator = 1;
+}
+
+message DeleteIndicatorRequest {
+  string name = 1;
+}
+
+message DeleteIndicatorResponse {}
+
+message ListIndicatorSamplesRequest {
+  string indicator = 1;
+  // Optional: restrict to one resource.
+  string resource_orn = 2;
+  google.protobuf.Timestamp from = 3;
+  google.protobuf.Timestamp to = 4;
+  PageRequest page = 5;
+}
+
+message ListIndicatorSamplesResponse {
+  repeated IndicatorSampleView samples = 1;
+  PageResponse page = 2;
+}
+
+service GovernanceService {
+  rpc CreatePolicy(CreatePolicyRequest) returns (CreatePolicyResponse) {
+    option (google.api.http) = {
+      post: "/v1/governance/policies"
+      body: "*"
+    };
+  }
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse) {
+    option (google.api.http) = {get: "/v1/governance/policies/{name}"};
+  }
+  rpc ListPolicies(ListPoliciesRequest) returns (ListPoliciesResponse) {
+    option (google.api.http) = {get: "/v1/governance/policies"};
+  }
+  rpc UpdatePolicy(UpdatePolicyRequest) returns (UpdatePolicyResponse) {
+    option (google.api.http) = {
+      patch: "/v1/governance/policies/{name}"
+      body: "*"
+    };
+  }
+  rpc DeletePolicy(DeletePolicyRequest) returns (DeletePolicyResponse) {
+    option (google.api.http) = {delete: "/v1/governance/policies/{name}"};
+  }
+  rpc DryRunPolicy(DryRunPolicyRequest) returns (DryRunPolicyResponse) {
+    option (google.api.http) = {
+      post: "/v1/governance/policies:dryRun"
+      body: "*"
+    };
+  }
+  rpc ListPolicyActions(ListPolicyActionsRequest) returns (ListPolicyActionsResponse) {
+    option (google.api.http) = {get: "/v1/governance/policies/{name}/actions"};
+  }
+  rpc CreateIndicator(CreateIndicatorRequest) returns (CreateIndicatorResponse) {
+    option (google.api.http) = {
+      post: "/v1/governance/indicators"
+      body: "*"
+    };
+  }
+  rpc GetIndicator(GetIndicatorRequest) returns (GetIndicatorResponse) {
+    option (google.api.http) = {get: "/v1/governance/indicators/{name}"};
+  }
+  rpc ListIndicators(ListIndicatorsRequest) returns (ListIndicatorsResponse) {
+    option (google.api.http) = {get: "/v1/governance/indicators"};
+  }
+  rpc UpdateIndicator(UpdateIndicatorRequest) returns (UpdateIndicatorResponse) {
+    option (google.api.http) = {
+      patch: "/v1/governance/indicators/{name}"
+      body: "*"
+    };
+  }
+  rpc DeleteIndicator(DeleteIndicatorRequest) returns (DeleteIndicatorResponse) {
+    option (google.api.http) = {delete: "/v1/governance/indicators/{name}"};
+  }
+  rpc ListIndicatorSamples(ListIndicatorSamplesRequest) returns (ListIndicatorSamplesResponse) {
+    option (google.api.http) = {get: "/v1/governance/indicators/{indicator}/samples"};
+  }
+}

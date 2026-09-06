@@ -1,0 +1,10 @@
+-- V1__init.sql — Franz schema.
+--
+-- Single migration, edited in place while Franz is pre-production
+-- (ADR-API-005 / 003.12). Entities are added from deliverable 02 onward:
+--   deliverable 02 — realm (seed row)
+--   deliverable 03 — kafka_cluster
+--   deliverable 04 — agent
+--   ...
+--
+-- Intentionally empty at deliverable 01 (scaffolding only).

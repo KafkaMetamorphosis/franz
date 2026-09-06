@@ -1,0 +1,14 @@
+# Franz configuration — dev defaults.
+# Overlaid by FRANZ_-prefixed env vars (FRANZ_HTTP_PORT, FRANZ_DB__PASSWORD, …).
+http_port: 8080
+grpc_port: 9090
+log_level: info
+bootstrap_realm: default
+
+db:
+  host: localhost
+  port: 5432
+  name: franz
+  user: franz
+  password: franz
+  sslmode: disable

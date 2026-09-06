@@ -1,0 +1,54 @@
+edition = "2024";
+
+package franz.v1;
+
+import "google/protobuf/timestamp.proto";
+import "franz/v1/governance.proto";
+
+// The protocol Telemetry Agents use to publish fleet observations to Franz.
+// Agent-facing; not exposed through the REST gateway.
+service TelemetryService {
+  // Publish a batch of indicator samples.
+  rpc PublishIndicatorSamples(PublishIndicatorSamplesRequest) returns (PublishIndicatorSamplesResponse);
+  // Report consumer groups observed on the substrate, linking each to a client.
+  rpc ReportConsumerGroups(ReportConsumerGroupsRequest) returns (ReportConsumerGroupsResponse);
+}
+
+message PublishIndicatorSamplesRequest {
+  string agent = 1;
+  repeated IndicatorSample samples = 2;
+}
+
+message PublishIndicatorSamplesResponse {
+  int32 accepted = 1;
+}
+
+message IndicatorSample {
+  string indicator = 1;
+  // The resource the sample describes.
+  string resource_orn = 2;
+  Entity resource_entity = 3;
+  // Value encoded per the indicator's unit ("168Gi", "3200", "true", ...).
+  string value = 4;
+  google.protobuf.Timestamp sample_at = 5;
+}
+
+message ReportConsumerGroupsRequest {
+  string agent = 1;
+  repeated ConsumerGroupObservation observations = 2;
+}
+
+message ReportConsumerGroupsResponse {
+  int32 accepted = 1;
+}
+
+message ConsumerGroupObservation {
+  string group = 1;
+  // The client Franz should attribute this group to (resolved from the group
+  // name or from metadata the client set).
+  string client_orn = 2;
+  string owner = 3;
+  string async_channel = 4;
+  string kafka_topic = 5;
+  google.protobuf.Timestamp observed_at = 6;
+}
