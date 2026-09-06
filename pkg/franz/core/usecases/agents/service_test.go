@@ -38,6 +38,16 @@ func (m *memRepo) Get(_ context.Context, _ uuid.UUID, name string) (*agent.Agent
 	return &cp, nil
 }
 
+func (m *memRepo) GetByTokenHash(_ context.Context, hash string) (*agent.Agent, error) {
+	for _, a := range m.rows {
+		if a.TokenHash == hash {
+			cp := *a
+			return &cp, nil
+		}
+	}
+	return nil, errs.NotFoundf("no agent for token")
+}
+
 func (m *memRepo) List(_ context.Context, q out.AgentQuery) (out.AgentPage, error) {
 	var names []string
 	for n := range m.rows {

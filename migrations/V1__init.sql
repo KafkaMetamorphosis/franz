@@ -72,3 +72,24 @@ CREATE TABLE IF NOT EXISTS agent (
 );
 
 CREATE INDEX IF NOT EXISTS agent_labels_gin ON agent USING gin (labels);
+
+-- Cluster Provider status reports — append-only (004 ADR §4). "Current provider
+-- status" for a cluster is the newest row. Pruned nightly at 30 days.
+CREATE TABLE IF NOT EXISTS cluster_provider_event (
+    id              uuid        PRIMARY KEY,
+    realm_id        uuid        NOT NULL REFERENCES realm (id),
+    kafka_cluster_id uuid       NOT NULL REFERENCES kafka_cluster (id),
+    cluster_frn     text        NOT NULL,
+    phase           text        NOT NULL
+                        CHECK (phase IN ('PROVISIONING', 'READY', 'DEGRADED',
+                                         'ERROR', 'STOPPED', 'REMOVED')),
+    reachable       boolean     NOT NULL,
+    message         text        NOT NULL DEFAULT '',
+    reporting_agent text        NOT NULL,
+    recipe_ref      text        NOT NULL DEFAULT '',
+    occurred_at     timestamptz NOT NULL DEFAULT now(),
+    received_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS cluster_provider_event_cluster_time
+    ON cluster_provider_event (kafka_cluster_id, occurred_at DESC, id DESC);

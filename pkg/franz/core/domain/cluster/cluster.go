@@ -11,6 +11,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/frn"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/naming"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
 )
 
@@ -61,6 +62,11 @@ type Cluster struct {
 	State             State
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
+
+	// ProviderStatus is a read-only projection — the latest cluster_provider_event
+	// (004 ADR §4). Populated by the read path, never persisted on this row, nil
+	// when there is no provider or no report yet.
+	ProviderStatus *provider.Status
 }
 
 // New builds a Cluster in state ACTIVE, validating the name and connection
@@ -177,3 +183,28 @@ func nonNil(m map[string]string) map[string]string {
 // ValidateName is exposed so the handler can reject a bad name before touching
 // the store.
 func ValidateName(name string) error { return naming.Validate(name) }
+
+// ToAssignment maps the cluster to the provider Assignment its owning agent
+// reconciles against (004 ADR). State maps ACTIVE/… → SET, PAUSED → PAUSED,
+// DELETED → REMOVED.
+func (c *Cluster) ToAssignment() provider.Assignment {
+	change := provider.ChangeSet
+	switch c.State {
+	case StatePaused:
+		change = provider.ChangePaused
+	case StateDeleted:
+		change = provider.ChangeRemoved
+	}
+	conns := make([]provider.ConnectionString, len(c.ConnectionStrings))
+	for i, cs := range c.ConnectionStrings {
+		conns[i] = provider.ConnectionString{BootstrapURLs: cs.BootstrapURLs, Type: string(cs.Type)}
+	}
+	return provider.Assignment{
+		Change:            change,
+		ClusterName:       c.Name,
+		ClusterFRN:        c.FRN,
+		ConnectionStrings: conns,
+		Configuration:     c.Configuration,
+		Provisioning:      provider.ProvisioningLabels(c.Labels),
+	}
+}

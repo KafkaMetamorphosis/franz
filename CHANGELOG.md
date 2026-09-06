@@ -7,6 +7,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Agent interaction — Cluster Provider** (impls_plan deliverable 05): the
+  Franz side of the `004-local-kafka-docker-agent` contract.
+  `core/domain/provider` (phase / status / assignment value objects,
+  `franz.provisioning/*` label filter); an agent-auth gRPC interceptor
+  (`adapters/in/grpcgateway/agentauth.go`, `WithAgentAuth`) that resolves
+  `authorization: Bearer <token>` to the agent for `ClusterProviderService`
+  calls only; an in-memory connected-agent stream registry
+  (`adapters/streamhub`); `core/usecases/provider` (initial assignments,
+  ownership-checked status intake, history); `clusters.Service` now publishes an
+  assignment delta to the owning agent on every cluster create/update/pause/
+  resume/delete; the `ClusterProviderService` handler
+  (`WatchClusterAssignments` server-stream — full set on open then deltas — and
+  `ReportClusterStatus`); a `cluster_provider_event` append table
+  (`adapters/out/postgres/provider.go`) with a nightly 30-day prune; and
+  `KafkaCluster.provider_status` + `ListClusterProviderEvents` on the console
+  API. `pkg/internal/dbtest` serialises the DB integration tests.
 - **Agent registry** (impls_plan deliverable 04): `core/domain/agent` (entity,
   `AgentType` organisational filter, `ACTIVE ↔ PAUSED → DELETED` status machine),
   `core/ports/{in,out}` + `core/usecases/agents`, a hand-written pgx adapter
