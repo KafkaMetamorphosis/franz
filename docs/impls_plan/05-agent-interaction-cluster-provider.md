@@ -17,12 +17,12 @@ surface for that reported status.
 |---|---|---|---|---|
 | 05.1 | `agent.proto`: `token` (string) in `CreateAgentResponse`; new `RotateAgentToken` RPC + messages. `agent` table gains `token_hash text`. Token format `frz_agt_<random>`, stored hashed (argon2/bcrypt or SHA-256+salt) | ADR §2 | ⬜ | |
 | 05.2 | Agent-auth interceptor — resolve `authorization: Bearer` metadata → agent identity in context; reject unknown / rotated tokens `UNAUTHENTICATED` | ADR §2 | ⬜ | |
-| 05.3 | `agent_cluster_provider.proto` — `ClusterProviderService.WatchClusterAssignments` (server-stream of `WatchClusterAssignmentsResponse` → `ClusterAssignment`) + `ReportClusterStatus` (unary); `ClusterAssignment` = cluster_name / cluster_orn, `change` enum (`CHANGE_SET`/`CHANGE_PAUSED`/`CHANGE_REMOVED`), connection_strings, cluster_configuration, `franz.provisioning/*` labels; buf lint clean | ADR §New proto | ⬜ | |
+| 05.3 | `agent_cluster_provider.proto` — `ClusterProviderService.WatchClusterAssignments` (server-stream of `WatchClusterAssignmentsResponse` → `ClusterAssignment`) + `ReportClusterStatus` (unary); `ClusterAssignment` = cluster_name / cluster_frn, `change` enum (`CHANGE_SET`/`CHANGE_PAUSED`/`CHANGE_REMOVED`), connection_strings, cluster_configuration, `franz.provisioning/*` labels; buf lint clean | ADR §New proto | ⬜ | |
 | 05.4 | Connected-agent registry (in-memory) — track open streams per agent; fan out assignment changes | ADR §1 | ⬜ | |
 | 05.5 | `WatchClusterAssignments` handler — on open, send the full current set for `cluster_provider_agent == me` (all `CHANGE_SET`); then push deltas on cluster create/update/pause/resume/delete affecting that agent | ADR §1 | ⬜ | |
-| 05.6 | `cluster_provider_event` append table (`cluster_orn`, `phase`, `reachable`, `message`, `reporting_agent`, `recipe_ref`, `occurred_at`); nightly prune (30d) | ADR §4 | ⬜ | |
+| 05.6 | `cluster_provider_event` append table (`cluster_frn`, `phase`, `reachable`, `message`, `reporting_agent`, `recipe_ref`, `occurred_at`); nightly prune (30d) | ADR §4 | ⬜ | |
 | 05.7 | `ReportClusterStatus` handler — validate the agent owns the cluster (`PERMISSION_DENIED` otherwise), append an event | ADR §4 | ⬜ | |
-| 05.8 | Surface current provider status — latest event per `cluster_orn` — on `GetKafkaCluster` (a `provider_status` field) and a `ListClusterProviderEvents` history RPC | ADR §4 | ⬜ | |
+| 05.8 | Surface current provider status — latest event per `cluster_frn` — on `GetKafkaCluster` (a `provider_status` field) and a `ListClusterProviderEvents` history RPC | ADR §4 | ⬜ | |
 | 05.9 | Integration tests — token auth + rotation, ownership check, stream gets full set then a delta on cluster edit, event history | — | ⬜ | |
 
 ## Done when

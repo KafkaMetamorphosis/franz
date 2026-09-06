@@ -27,7 +27,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | # | Deliverable | Depends on | Status |
 |---|---|---|---|
 | [01](./01-project-scaffolding.md) | Project scaffolding | — | ✅ |
-| [02](./02-domain-foundations.md) | Domain foundations (`003.1`) | 01 | ⬜ |
+| [02](./02-domain-foundations.md) | Domain foundations (`003.1`) | 01 | ✅ |
 | [03](./03-kafka-cluster.md) | Kafka Cluster | 02 | ⬜ |
 | [04](./04-agent-registry.md) | Agent registry | 02 | ⬜ |
 | [05](./05-agent-interaction-cluster-provider.md) | Agent interaction (Cluster Provider) | 02 · 03 · 04 | ⬜ |
@@ -85,4 +85,9 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
-- _pending_
+- 2026-09-06 · **02** Domain foundations · FRN / naming / selector+glob / errs /
+  pagetoken / errmap / fieldmask / postgres plumbing + boot migrations / realm +
+  context / allow-all auth interceptor. Unit tests green; pg integration tests
+  self-skip without `FRANZ_TEST_DB_DSN`. Executed by claude (codex over quota).
+- 2026-09-06 · **01** Project scaffolding · Go module at `franz/`, buf codegen
+  (edition 2024 + `use_opaque_api`), `fx` boot, `/healthz`, CI. `81cdaca` / `342f44e`.

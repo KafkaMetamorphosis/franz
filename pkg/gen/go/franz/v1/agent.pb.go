@@ -131,7 +131,7 @@ func (x AgentStatus) Number() protoreflect.EnumNumber {
 type Agent struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Orn         *string                `protobuf:"bytes,2,opt,name=orn"`
+	xxx_hidden_Frn         *string                `protobuf:"bytes,2,opt,name=frn"`
 	xxx_hidden_Type        AgentType              `protobuf:"varint,3,opt,name=type,enum=franz.v1.AgentType"`
 	xxx_hidden_Labels      map[string]string      `protobuf:"bytes,4,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_Status      AgentStatus            `protobuf:"varint,5,opt,name=status,enum=franz.v1.AgentStatus"`
@@ -178,10 +178,10 @@ func (x *Agent) GetName() string {
 	return ""
 }
 
-func (x *Agent) GetOrn() string {
+func (x *Agent) GetFrn() string {
 	if x != nil {
-		if x.xxx_hidden_Orn != nil {
-			return *x.xxx_hidden_Orn
+		if x.xxx_hidden_Frn != nil {
+			return *x.xxx_hidden_Frn
 		}
 		return ""
 	}
@@ -232,8 +232,8 @@ func (x *Agent) SetName(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 7)
 }
 
-func (x *Agent) SetOrn(v string) {
-	x.xxx_hidden_Orn = &v
+func (x *Agent) SetFrn(v string) {
+	x.xxx_hidden_Frn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 7)
 }
 
@@ -266,7 +266,7 @@ func (x *Agent) HasName() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *Agent) HasOrn() bool {
+func (x *Agent) HasFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -306,9 +306,9 @@ func (x *Agent) ClearName() {
 	x.xxx_hidden_Name = nil
 }
 
-func (x *Agent) ClearOrn() {
+func (x *Agent) ClearFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_Orn = nil
+	x.xxx_hidden_Frn = nil
 }
 
 func (x *Agent) ClearType() {
@@ -334,7 +334,7 @@ type Agent_builder struct {
 
 	Name *string
 	// Assigned by Franz.
-	Orn *string
+	Frn *string
 	// Organisational filter only; does not change how the agent connects.
 	Type *AgentType
 	// Arbitrary metadata labels — for information and as an extension point
@@ -356,9 +356,9 @@ func (b0 Agent_builder) Build() *Agent {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 7)
 		x.xxx_hidden_Name = b.Name
 	}
-	if b.Orn != nil {
+	if b.Frn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 7)
-		x.xxx_hidden_Orn = b.Orn
+		x.xxx_hidden_Frn = b.Frn
 	}
 	if b.Type != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 7)
@@ -1732,7 +1732,7 @@ const file_franz_v1_agent_proto_rawDesc = "" +
 	"\x14franz/v1/agent.proto\x12\bfranz.v1\x1a\x1cgoogle/api/annotations.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15franz/v1/common.proto\"\xeb\x02\n" +
 	"\x05Agent\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
-	"\x03orn\x18\x02 \x01(\tR\x03orn\x12'\n" +
+	"\x03frn\x18\x02 \x01(\tR\x03frn\x12'\n" +
 	"\x04type\x18\x03 \x01(\x0e2\x13.franz.v1.AgentTypeR\x04type\x123\n" +
 	"\x06labels\x18\x04 \x03(\v2\x1b.franz.v1.Agent.LabelsEntryR\x06labels\x12-\n" +
 	"\x06status\x18\x05 \x01(\x0e2\x15.franz.v1.AgentStatusR\x06status\x129\n" +

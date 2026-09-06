@@ -164,7 +164,7 @@ func (x Effect) Number() protoreflect.EnumNumber {
 type AsyncChannel struct {
 	state                        protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Name              *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Orn               *string                `protobuf:"bytes,2,opt,name=orn"`
+	xxx_hidden_Frn               *string                `protobuf:"bytes,2,opt,name=frn"`
 	xxx_hidden_Type              ChannelType            `protobuf:"varint,3,opt,name=type,enum=franz.v1.ChannelType"`
 	xxx_hidden_ChannelPartitions int32                  `protobuf:"varint,4,opt,name=channel_partitions,json=channelPartitions"`
 	xxx_hidden_Labels            map[string]string      `protobuf:"bytes,5,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -213,10 +213,10 @@ func (x *AsyncChannel) GetName() string {
 	return ""
 }
 
-func (x *AsyncChannel) GetOrn() string {
+func (x *AsyncChannel) GetFrn() string {
 	if x != nil {
-		if x.xxx_hidden_Orn != nil {
-			return *x.xxx_hidden_Orn
+		if x.xxx_hidden_Frn != nil {
+			return *x.xxx_hidden_Frn
 		}
 		return ""
 	}
@@ -281,8 +281,8 @@ func (x *AsyncChannel) SetName(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 9)
 }
 
-func (x *AsyncChannel) SetOrn(v string) {
-	x.xxx_hidden_Orn = &v
+func (x *AsyncChannel) SetFrn(v string) {
+	x.xxx_hidden_Frn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 9)
 }
 
@@ -324,7 +324,7 @@ func (x *AsyncChannel) HasName() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *AsyncChannel) HasOrn() bool {
+func (x *AsyncChannel) HasFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -378,9 +378,9 @@ func (x *AsyncChannel) ClearName() {
 	x.xxx_hidden_Name = nil
 }
 
-func (x *AsyncChannel) ClearOrn() {
+func (x *AsyncChannel) ClearFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_Orn = nil
+	x.xxx_hidden_Frn = nil
 }
 
 func (x *AsyncChannel) ClearType() {
@@ -417,7 +417,7 @@ type AsyncChannel_builder struct {
 	// generate Kafka topic names.
 	Name *string
 	// Assigned by Franz.
-	Orn  *string
+	Frn  *string
 	Type *ChannelType
 	// Shard count: Franz splits the channel into this many Kafka Topics, named
 	// "<name>-<index>" (index 0..channel_partitions-1). Changing it is a staged
@@ -441,9 +441,9 @@ func (b0 AsyncChannel_builder) Build() *AsyncChannel {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 9)
 		x.xxx_hidden_Name = b.Name
 	}
-	if b.Orn != nil {
+	if b.Frn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 9)
-		x.xxx_hidden_Orn = b.Orn
+		x.xxx_hidden_Frn = b.Frn
 	}
 	if b.Type != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 9)
@@ -645,12 +645,12 @@ func (b0 AccessPolicyStatement_builder) Build() *AccessPolicyStatement {
 	return m0
 }
 
-// A statement matches a client when its ORN matches client_orn (if set) OR its
+// A statement matches a client when its FRN matches client_frn (if set) OR its
 // labels satisfy the selector (if set); at least one must be set. Both
-// client_orn and the label-selector values accept `*` as a wildcard.
+// client_frn and the label-selector values accept `*` as a wildcard.
 type Principal struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_ClientOrn   *string                `protobuf:"bytes,1,opt,name=client_orn,json=clientOrn"`
+	xxx_hidden_ClientFrn   *string                `protobuf:"bytes,1,opt,name=client_frn,json=clientFrn"`
 	xxx_hidden_Labels      *string                `protobuf:"bytes,2,opt,name=labels"`
 	XXX_raceDetectHookData protoimpl.RaceDetectHookData
 	XXX_presence           [1]uint32
@@ -683,10 +683,10 @@ func (x *Principal) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *Principal) GetClientOrn() string {
+func (x *Principal) GetClientFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ClientOrn != nil {
-			return *x.xxx_hidden_ClientOrn
+		if x.xxx_hidden_ClientFrn != nil {
+			return *x.xxx_hidden_ClientFrn
 		}
 		return ""
 	}
@@ -703,8 +703,8 @@ func (x *Principal) GetLabels() string {
 	return ""
 }
 
-func (x *Principal) SetClientOrn(v string) {
-	x.xxx_hidden_ClientOrn = &v
+func (x *Principal) SetClientFrn(v string) {
+	x.xxx_hidden_ClientFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 2)
 }
 
@@ -713,7 +713,7 @@ func (x *Principal) SetLabels(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 2)
 }
 
-func (x *Principal) HasClientOrn() bool {
+func (x *Principal) HasClientFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -727,9 +727,9 @@ func (x *Principal) HasLabels() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
 }
 
-func (x *Principal) ClearClientOrn() {
+func (x *Principal) ClearClientFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
-	x.xxx_hidden_ClientOrn = nil
+	x.xxx_hidden_ClientFrn = nil
 }
 
 func (x *Principal) ClearLabels() {
@@ -740,7 +740,7 @@ func (x *Principal) ClearLabels() {
 type Principal_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	ClientOrn *string
+	ClientFrn *string
 	Labels    *string
 }
 
@@ -748,9 +748,9 @@ func (b0 Principal_builder) Build() *Principal {
 	m0 := &Principal{}
 	b, x := &b0, m0
 	_, _ = b, x
-	if b.ClientOrn != nil {
+	if b.ClientFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 2)
-		x.xxx_hidden_ClientOrn = b.ClientOrn
+		x.xxx_hidden_ClientFrn = b.ClientFrn
 	}
 	if b.Labels != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 2)
@@ -762,7 +762,7 @@ func (b0 Principal_builder) Build() *Principal {
 // The permission a specific client has on a channel, after evaluating the policy.
 type ChannelClientAccess struct {
 	state                   protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_ClientOrn    *string                `protobuf:"bytes,1,opt,name=client_orn,json=clientOrn"`
+	xxx_hidden_ClientFrn    *string                `protobuf:"bytes,1,opt,name=client_frn,json=clientFrn"`
 	xxx_hidden_ClientLabels map[string]string      `protobuf:"bytes,2,rep,name=client_labels,json=clientLabels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_Effective    []Permission           `protobuf:"varint,3,rep,packed,name=effective,enum=franz.v1.Permission"`
 	xxx_hidden_MatchedBy    *string                `protobuf:"bytes,4,opt,name=matched_by,json=matchedBy"`
@@ -797,10 +797,10 @@ func (x *ChannelClientAccess) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *ChannelClientAccess) GetClientOrn() string {
+func (x *ChannelClientAccess) GetClientFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ClientOrn != nil {
-			return *x.xxx_hidden_ClientOrn
+		if x.xxx_hidden_ClientFrn != nil {
+			return *x.xxx_hidden_ClientFrn
 		}
 		return ""
 	}
@@ -831,8 +831,8 @@ func (x *ChannelClientAccess) GetMatchedBy() string {
 	return ""
 }
 
-func (x *ChannelClientAccess) SetClientOrn(v string) {
-	x.xxx_hidden_ClientOrn = &v
+func (x *ChannelClientAccess) SetClientFrn(v string) {
+	x.xxx_hidden_ClientFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 4)
 }
 
@@ -849,7 +849,7 @@ func (x *ChannelClientAccess) SetMatchedBy(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 4)
 }
 
-func (x *ChannelClientAccess) HasClientOrn() bool {
+func (x *ChannelClientAccess) HasClientFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -863,9 +863,9 @@ func (x *ChannelClientAccess) HasMatchedBy() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 3)
 }
 
-func (x *ChannelClientAccess) ClearClientOrn() {
+func (x *ChannelClientAccess) ClearClientFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
-	x.xxx_hidden_ClientOrn = nil
+	x.xxx_hidden_ClientFrn = nil
 }
 
 func (x *ChannelClientAccess) ClearMatchedBy() {
@@ -876,7 +876,7 @@ func (x *ChannelClientAccess) ClearMatchedBy() {
 type ChannelClientAccess_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	ClientOrn    *string
+	ClientFrn    *string
 	ClientLabels map[string]string
 	Effective    []Permission
 	// Human-readable note on which statement matched.
@@ -887,9 +887,9 @@ func (b0 ChannelClientAccess_builder) Build() *ChannelClientAccess {
 	m0 := &ChannelClientAccess{}
 	b, x := &b0, m0
 	_, _ = b, x
-	if b.ClientOrn != nil {
+	if b.ClientFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 4)
-		x.xxx_hidden_ClientOrn = b.ClientOrn
+		x.xxx_hidden_ClientFrn = b.ClientFrn
 	}
 	x.xxx_hidden_ClientLabels = b.ClientLabels
 	x.xxx_hidden_Effective = b.Effective
@@ -2446,7 +2446,7 @@ const file_franz_v1_async_channel_proto_rawDesc = "" +
 	"\x1cfranz/v1/async_channel.proto\x12\bfranz.v1\x1a\x1cgoogle/api/annotations.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15franz/v1/common.proto\"\xe6\x03\n" +
 	"\fAsyncChannel\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
-	"\x03orn\x18\x02 \x01(\tR\x03orn\x12)\n" +
+	"\x03frn\x18\x02 \x01(\tR\x03frn\x12)\n" +
 	"\x04type\x18\x03 \x01(\x0e2\x15.franz.v1.ChannelTypeR\x04type\x12-\n" +
 	"\x12channel_partitions\x18\x04 \x01(\x05R\x11channelPartitions\x12:\n" +
 	"\x06labels\x18\x05 \x03(\v2\".franz.v1.AsyncChannel.LabelsEntryR\x06labels\x12,\n" +
@@ -2469,11 +2469,11 @@ const file_franz_v1_async_channel_proto_rawDesc = "" +
 	"\vpermissions\x18\x03 \x03(\x0e2\x14.franz.v1.PermissionR\vpermissions\"B\n" +
 	"\tPrincipal\x12\x1d\n" +
 	"\n" +
-	"client_orn\x18\x01 \x01(\tR\tclientOrn\x12\x16\n" +
+	"client_frn\x18\x01 \x01(\tR\tclientFrn\x12\x16\n" +
 	"\x06labels\x18\x02 \x01(\tR\x06labels\"\x9e\x02\n" +
 	"\x13ChannelClientAccess\x12\x1d\n" +
 	"\n" +
-	"client_orn\x18\x01 \x01(\tR\tclientOrn\x12T\n" +
+	"client_frn\x18\x01 \x01(\tR\tclientFrn\x12T\n" +
 	"\rclient_labels\x18\x02 \x03(\v2/.franz.v1.ChannelClientAccess.ClientLabelsEntryR\fclientLabels\x122\n" +
 	"\teffective\x18\x03 \x03(\x0e2\x14.franz.v1.PermissionR\teffective\x12\x1d\n" +
 	"\n" +

@@ -15,9 +15,9 @@ Build and unit-test it standalone now.
 
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
-| 08.1 | Domain types: `AccessPolicy`, `Statement`, `Effect` (`ALLOW` / `DENY`), `Principal` (`client_orn`, `labels` selector), `Permission` (`READ` / `WRITE`) | `003.5`, proto | ⬜ | |
-| 08.2 | Validation: `effect != UNSPECIFIED`, `permissions` non-empty, `principal` has ≥1 of `client_orn` / `labels` | `003.5` | ⬜ | |
-| 08.3 | Principal match — `client_orn` glob (02.4) **OR** label selector (02.3) over the client's labels; a `client_orn` that resolves to no Client is valid (matches nothing) | `003.5`, `003.1` | ⬜ | |
+| 08.1 | Domain types: `AccessPolicy`, `Statement`, `Effect` (`ALLOW` / `DENY`), `Principal` (`client_frn`, `labels` selector), `Permission` (`READ` / `WRITE`) | `003.5`, proto | ⬜ | |
+| 08.2 | Validation: `effect != UNSPECIFIED`, `permissions` non-empty, `principal` has ≥1 of `client_frn` / `labels` | `003.5` | ⬜ | |
+| 08.3 | Principal match — `client_frn` glob (02.4) **OR** label selector (02.3) over the client's labels; a `client_frn` that resolves to no Client is valid (matches nothing) | `003.5`, `003.1` | ⬜ | |
 | 08.4 | Evaluation `(client, action)` → gather statements matching principal AND covering the action → any `DENY` ⇒ deny → else any `ALLOW` ⇒ allow → else deny (zero trust). Order-independent; `READ` / `WRITE` evaluated separately | `003.5` | ⬜ | |
 | 08.5 | Resolved views: `effective(client, policy)` → permission set + `matched_by`; used by both `ListChannelClients` and `ListClientChannelAccess` | `003.5` | ⬜ | |
 | 08.6 | Table-driven unit tests — includes the `003.5` worked wildcard example (`xpto-*` allow + `xpto-blah` deny), zero-trust default, `READ`/`WRITE` independence | `003.5` | ⬜ | |

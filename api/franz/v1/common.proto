@@ -4,9 +4,9 @@ package franz.v1;
 
 // Shared types used across the Franz API.
 //
-// ORNs are plain strings of the form:
-//   orn:<realm>:<resource-type>:<name>
-// e.g. orn:acme-platform:async-channel:billing-events
+// FRNs are plain strings of the form:
+//   frn:<realm>:<resource-type>:<name>
+// e.g. frn:acme-platform:async-channel:billing-events
 //
 // Label selectors are plain strings using the grammar defined in the
 // UX/domain specs, supporting equality and set membership:

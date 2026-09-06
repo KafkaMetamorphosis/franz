@@ -14,7 +14,7 @@ message Client {
   // Globally unique, provided at registration. Also the default consumer-group prefix.
   string name = 1;
   // Assigned by Franz.
-  string orn = 2;
+  string frn = 2;
 
   // At least org.com/owner. Channel access policies match against these.
   map<string, string> labels = 3;

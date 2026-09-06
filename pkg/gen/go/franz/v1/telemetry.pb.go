@@ -193,7 +193,7 @@ func (b0 PublishIndicatorSamplesResponse_builder) Build() *PublishIndicatorSampl
 type IndicatorSample struct {
 	state                     protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Indicator      *string                `protobuf:"bytes,1,opt,name=indicator"`
-	xxx_hidden_ResourceOrn    *string                `protobuf:"bytes,2,opt,name=resource_orn,json=resourceOrn"`
+	xxx_hidden_ResourceFrn    *string                `protobuf:"bytes,2,opt,name=resource_frn,json=resourceFrn"`
 	xxx_hidden_ResourceEntity Entity                 `protobuf:"varint,3,opt,name=resource_entity,json=resourceEntity,enum=franz.v1.Entity"`
 	xxx_hidden_Value          *string                `protobuf:"bytes,4,opt,name=value"`
 	xxx_hidden_SampleAt       *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=sample_at,json=sampleAt"`
@@ -238,10 +238,10 @@ func (x *IndicatorSample) GetIndicator() string {
 	return ""
 }
 
-func (x *IndicatorSample) GetResourceOrn() string {
+func (x *IndicatorSample) GetResourceFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ResourceOrn != nil {
-			return *x.xxx_hidden_ResourceOrn
+		if x.xxx_hidden_ResourceFrn != nil {
+			return *x.xxx_hidden_ResourceFrn
 		}
 		return ""
 	}
@@ -279,8 +279,8 @@ func (x *IndicatorSample) SetIndicator(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 5)
 }
 
-func (x *IndicatorSample) SetResourceOrn(v string) {
-	x.xxx_hidden_ResourceOrn = &v
+func (x *IndicatorSample) SetResourceFrn(v string) {
+	x.xxx_hidden_ResourceFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 5)
 }
 
@@ -305,7 +305,7 @@ func (x *IndicatorSample) HasIndicator() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *IndicatorSample) HasResourceOrn() bool {
+func (x *IndicatorSample) HasResourceFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -338,9 +338,9 @@ func (x *IndicatorSample) ClearIndicator() {
 	x.xxx_hidden_Indicator = nil
 }
 
-func (x *IndicatorSample) ClearResourceOrn() {
+func (x *IndicatorSample) ClearResourceFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_ResourceOrn = nil
+	x.xxx_hidden_ResourceFrn = nil
 }
 
 func (x *IndicatorSample) ClearResourceEntity() {
@@ -362,7 +362,7 @@ type IndicatorSample_builder struct {
 
 	Indicator *string
 	// The resource the sample describes.
-	ResourceOrn    *string
+	ResourceFrn    *string
 	ResourceEntity *Entity
 	// Value encoded per the indicator's unit ("168Gi", "3200", "true", ...).
 	Value    *string
@@ -377,9 +377,9 @@ func (b0 IndicatorSample_builder) Build() *IndicatorSample {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 5)
 		x.xxx_hidden_Indicator = b.Indicator
 	}
-	if b.ResourceOrn != nil {
+	if b.ResourceFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 5)
-		x.xxx_hidden_ResourceOrn = b.ResourceOrn
+		x.xxx_hidden_ResourceFrn = b.ResourceFrn
 	}
 	if b.ResourceEntity != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 5)
@@ -565,7 +565,7 @@ func (b0 ReportConsumerGroupsResponse_builder) Build() *ReportConsumerGroupsResp
 type ConsumerGroupObservation struct {
 	state                   protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Group        *string                `protobuf:"bytes,1,opt,name=group"`
-	xxx_hidden_ClientOrn    *string                `protobuf:"bytes,2,opt,name=client_orn,json=clientOrn"`
+	xxx_hidden_ClientFrn    *string                `protobuf:"bytes,2,opt,name=client_frn,json=clientFrn"`
 	xxx_hidden_Owner        *string                `protobuf:"bytes,3,opt,name=owner"`
 	xxx_hidden_AsyncChannel *string                `protobuf:"bytes,4,opt,name=async_channel,json=asyncChannel"`
 	xxx_hidden_KafkaTopic   *string                `protobuf:"bytes,5,opt,name=kafka_topic,json=kafkaTopic"`
@@ -611,10 +611,10 @@ func (x *ConsumerGroupObservation) GetGroup() string {
 	return ""
 }
 
-func (x *ConsumerGroupObservation) GetClientOrn() string {
+func (x *ConsumerGroupObservation) GetClientFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ClientOrn != nil {
-			return *x.xxx_hidden_ClientOrn
+		if x.xxx_hidden_ClientFrn != nil {
+			return *x.xxx_hidden_ClientFrn
 		}
 		return ""
 	}
@@ -663,8 +663,8 @@ func (x *ConsumerGroupObservation) SetGroup(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 6)
 }
 
-func (x *ConsumerGroupObservation) SetClientOrn(v string) {
-	x.xxx_hidden_ClientOrn = &v
+func (x *ConsumerGroupObservation) SetClientFrn(v string) {
+	x.xxx_hidden_ClientFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 6)
 }
 
@@ -694,7 +694,7 @@ func (x *ConsumerGroupObservation) HasGroup() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *ConsumerGroupObservation) HasClientOrn() bool {
+func (x *ConsumerGroupObservation) HasClientFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -734,9 +734,9 @@ func (x *ConsumerGroupObservation) ClearGroup() {
 	x.xxx_hidden_Group = nil
 }
 
-func (x *ConsumerGroupObservation) ClearClientOrn() {
+func (x *ConsumerGroupObservation) ClearClientFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_ClientOrn = nil
+	x.xxx_hidden_ClientFrn = nil
 }
 
 func (x *ConsumerGroupObservation) ClearOwner() {
@@ -764,7 +764,7 @@ type ConsumerGroupObservation_builder struct {
 	Group *string
 	// The client Franz should attribute this group to (resolved from the group
 	// name or from metadata the client set).
-	ClientOrn    *string
+	ClientFrn    *string
 	Owner        *string
 	AsyncChannel *string
 	KafkaTopic   *string
@@ -779,9 +779,9 @@ func (b0 ConsumerGroupObservation_builder) Build() *ConsumerGroupObservation {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 6)
 		x.xxx_hidden_Group = b.Group
 	}
-	if b.ClientOrn != nil {
+	if b.ClientFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 6)
-		x.xxx_hidden_ClientOrn = b.ClientOrn
+		x.xxx_hidden_ClientFrn = b.ClientFrn
 	}
 	if b.Owner != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 6)
@@ -811,7 +811,7 @@ const file_franz_v1_telemetry_proto_rawDesc = "" +
 	"\baccepted\x18\x01 \x01(\x05R\baccepted\"\xdc\x01\n" +
 	"\x0fIndicatorSample\x12\x1c\n" +
 	"\tindicator\x18\x01 \x01(\tR\tindicator\x12!\n" +
-	"\fresource_orn\x18\x02 \x01(\tR\vresourceOrn\x129\n" +
+	"\fresource_frn\x18\x02 \x01(\tR\vresourceFrn\x129\n" +
 	"\x0fresource_entity\x18\x03 \x01(\x0e2\x10.franz.v1.EntityR\x0eresourceEntity\x12\x14\n" +
 	"\x05value\x18\x04 \x01(\tR\x05value\x127\n" +
 	"\tsample_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bsampleAt\"{\n" +
@@ -823,7 +823,7 @@ const file_franz_v1_telemetry_proto_rawDesc = "" +
 	"\x18ConsumerGroupObservation\x12\x14\n" +
 	"\x05group\x18\x01 \x01(\tR\x05group\x12\x1d\n" +
 	"\n" +
-	"client_orn\x18\x02 \x01(\tR\tclientOrn\x12\x14\n" +
+	"client_frn\x18\x02 \x01(\tR\tclientFrn\x12\x14\n" +
 	"\x05owner\x18\x03 \x01(\tR\x05owner\x12#\n" +
 	"\rasync_channel\x18\x04 \x01(\tR\fasyncChannel\x12\x1f\n" +
 	"\vkafka_topic\x18\x05 \x01(\tR\n" +

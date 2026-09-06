@@ -15,7 +15,7 @@ message AsyncChannel {
   // generate Kafka topic names.
   string name = 1;
   // Assigned by Franz.
-  string orn = 2;
+  string frn = 2;
 
   ChannelType type = 3;
 
@@ -74,17 +74,17 @@ enum Effect {
   EFFECT_DENY = 2;
 }
 
-// A statement matches a client when its ORN matches client_orn (if set) OR its
+// A statement matches a client when its FRN matches client_frn (if set) OR its
 // labels satisfy the selector (if set); at least one must be set. Both
-// client_orn and the label-selector values accept `*` as a wildcard.
+// client_frn and the label-selector values accept `*` as a wildcard.
 message Principal {
-  string client_orn = 1;
+  string client_frn = 1;
   string labels = 2;
 }
 
 // The permission a specific client has on a channel, after evaluating the policy.
 message ChannelClientAccess {
-  string client_orn = 1;
+  string client_frn = 1;
   map<string, string> client_labels = 2;
   repeated Permission effective = 3;
   // Human-readable note on which statement matched.
