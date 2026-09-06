@@ -35,6 +35,14 @@ type Agent struct {
 
 // NewAgent dials Franz and connects to Docker.
 func NewAgent(cfg Config, log *slog.Logger) (*Agent, error) {
+	if cfg.Register && cfg.Token == "" {
+		token, err := selfRegister(cfg, log)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Token = token
+	}
+
 	conn, err := grpc.NewClient(
 		cfg.Endpoint,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
@@ -64,6 +72,31 @@ func NewAgent(cfg Config, log *slog.Logger) (*Agent, error) {
 		client: franzv1.NewClusterProviderServiceClient(conn),
 		driver: drv,
 	}, nil
+}
+
+// selfRegister opens a short-lived unauthenticated connection to Franz's
+// AgentService, seeds (or reuses) this agent's registration, and returns a
+// usable bearer token. Local-dev only — gated on FRANZ_REGISTER=1.
+func selfRegister(cfg Config, log *slog.Logger) (string, error) {
+	conn, err := grpc.NewClient(cfg.Endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return "", fmt.Errorf("dial franz %s for self-register: %w", cfg.Endpoint, err)
+	}
+	defer conn.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	token, created, err := EnsureRegistered(ctx, conn, cfg.AgentName)
+	if err != nil {
+		return "", err
+	}
+	if created {
+		log.Info("registered agent with Franz", "agent", cfg.AgentName)
+	} else {
+		log.Info("reusing agent registration (token rotated)", "agent", cfg.AgentName)
+	}
+	return token, nil
 }
 
 // Close releases the gRPC and Docker connections.

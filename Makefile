@@ -74,10 +74,12 @@ console: webconsole/node_modules ## Run the web console dev server (proxies /v1 
 	@echo "→ web console: $(CONSOLE_URL)"
 	@$(NPM) run dev
 
+AGENT_NAME ?= local-kafka-agent
+
 .PHONY: agent
-agent: ## Run the local-kafka-docker-agent. Requires TOKEN=<agent token from the console>
-	@test -n "$(TOKEN)" || { echo "usage: make agent TOKEN=frnat_… [NAME=<registered agent name>]"; exit 1; }
-	@FRANZ_ENDPOINT=localhost:9090 FRANZ_TOKEN=$(TOKEN) FRANZ_AGENT_NAME=$${NAME:-local-kafka-agent} \
+agent: ## Run the local-kafka-docker-agent (self-registers with Franz; override with TOKEN=/NAME=)
+	@FRANZ_ENDPOINT=localhost:9090 FRANZ_AGENT_NAME=$(AGENT_NAME) \
+		$(if $(TOKEN),FRANZ_TOKEN=$(TOKEN),FRANZ_REGISTER=1) \
 		go run ./cmd/local-kafka-agent
 
 .PHONY: dev

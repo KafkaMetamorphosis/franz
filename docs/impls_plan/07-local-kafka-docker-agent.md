@@ -17,7 +17,7 @@ status. Go, in the Franz module, Docker Engine API SDK, stateless.
 
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
-| 07.1 | Binary skeleton + config (`FRANZ_ENDPOINT`, `FRANZ_TOKEN`, `DOCKER_HOST`) + structured logging; gRPC client from `pkg/gen/go` with the Bearer-token interceptor | ADR §6 | ✅ | 2026-09-06 |
+| 07.1 | Binary skeleton + config (`FRANZ_ENDPOINT`, `FRANZ_TOKEN`, `FRANZ_REGISTER`, `DOCKER_HOST`) + structured logging; gRPC client from `pkg/gen/go` with the Bearer-token interceptor | ADR §6 | ✅ | 2026-09-06 |
 | 07.2 | Stream loop — `WatchClusterAssignments` with reconnect + backoff; on (re)connect treat the incoming full set as the world; maintain an in-memory desired map | ADR §1, §6 | ✅ | 2026-09-06 |
 | 07.3 | Recipe engine (`pkg/localkafka/recipe`) — `local-docker`: intent + `connection_strings` + selected `cluster_configuration` → a container spec (`apache/kafka:<version>`, KRaft combined, `advertised.listeners` from the bootstrap URL); compute `franz.recipe-hash` | ADR §5 | ✅ | 2026-09-06 |
 | 07.4 | Docker driver (`pkg/localkafka/docker`) — Engine API SDK: create/start/stop/remove, `ContainerInspect` for state, `ContainerList` by `franz.managed-by=<agent>` label; manage the data volume | ADR §6 | ✅ | 2026-09-06 |
@@ -52,8 +52,11 @@ status. Go, in the Franz module, Docker Engine API SDK, stateless.
    `recipe` / `reconcile` / `stream` are unit-tested against an in-memory fake
    Docker driver (in CI). `pkg/localkafka/e2e_test.go` is the real-Docker
    end-to-end (`make agent-e2e`, opt-in `FRANZ_AGENT_E2E=1`) — **not** in CI.
-3. **Local dev — `make agent TOKEN=…`** (run after registering an agent in the
-   console). `make dev` unchanged; `make agent-e2e` runs the real smoke.
+3. **Local dev — `make agent`** self-registers with Franz (no `TOKEN=` needed):
+   `FRANZ_REGISTER=1` → `GetAgent` → `CreateAgent` (absent) or `RotateAgentToken`
+   (exists) → use that token. `TOKEN=`/`AGENT_NAME=` override. Local-dev only
+   (Franz `AgentService` is unauthenticated there). `make dev` unchanged;
+   `make agent-e2e` runs the real smoke (now via the self-register path).
 
 ### What landed
 
@@ -61,6 +64,7 @@ status. Go, in the Franz module, Docker Engine API SDK, stateless.
 |---|---|
 | Binary | `cmd/local-kafka-agent/main.go` |
 | Config + orchestrator + Bearer creds | `pkg/localkafka/{config.go,agent.go}` |
+| Self-register (`FRANZ_REGISTER=1`) | `pkg/localkafka/register.go` |
 | Assignment value type | `pkg/localkafka/assign` |
 | Stream loop (reconnect + backoff + debounce + resync) | `pkg/localkafka/stream` |
 | `local-docker` recipe + hash + allow-list | `pkg/localkafka/recipe` |

@@ -23,6 +23,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   connect and create a topic against the provisioned broker. New Make targets
   `agent` / `agent-e2e`. New deps: `github.com/twmb/franz-go`,
   `github.com/docker/docker`.
+- **`make agent` self-registration** (local dev): with no `TOKEN=`, `make agent`
+  sets `FRANZ_REGISTER=1` and the agent seeds (or reuses) its own registration
+  with Franz on startup — `GetAgent` → `CreateAgent` if absent, else
+  `RotateAgentToken` — and uses the returned bearer token. Removes the manual
+  "register in the console, copy the token, pass `TOKEN=`" step.
+  `TOKEN=` / `AGENT_NAME=` still override. Local-dev only (`AgentService` is
+  unauthenticated there). `pkg/localkafka/register.go`.
 - **Web console bootstrap** (impls_plan deliverable 06): `webconsole/` — a
   Vite + React + TypeScript operator console (separate static build, not
   embedded). App shell ported from the `001-ux` prototype; Login stub; **Agents**
