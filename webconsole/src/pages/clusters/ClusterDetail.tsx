@@ -46,6 +46,9 @@ export function ClusterDetail() {
         actions={
           cluster && !deleted ? (
             <>
+              <Link className="button" to={`/kafka/clusters/${name}/edit`}>
+                Edit
+              </Link>
               {cluster.state === "KAFKA_CLUSTER_STATE_PAUSED" ? (
                 <button className="button" onClick={() => resume.mutate()} disabled={resume.isPending}>
                   Resume

@@ -30,6 +30,9 @@ export function AgentDetail() {
         actions={
           agent && !deleted ? (
             <>
+              <Link className="button" to={`/agents/${name}/edit`}>
+                Edit
+              </Link>
               {agent.status === "AGENT_STATUS_PAUSED" ? (
                 <button className="button" onClick={() => resume.mutate()} disabled={resume.isPending}>
                   Resume
