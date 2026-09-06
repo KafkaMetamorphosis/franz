@@ -7,6 +7,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Web console bootstrap** (impls_plan deliverable 06): `webconsole/` — a
+  Vite + React + TypeScript operator console (separate static build, not
+  embedded). App shell ported from the `001-ux` prototype; Login stub; **Agents**
+  screens (list, register with one-time token reveal, detail with pause / resume
+  / delete / rotate-token); **Kafka Clusters** screens (list, register with a
+  provider-agent picker + `franz.provisioning/*` fields, detail showing intent
+  state + live provider status + the event timeline, polled every 4s). The
+  typed REST client is generated from the protos: `buf generate api` now also
+  emits `api/openapi/franz.swagger.json`, which `webconsole` turns into
+  `src/api/schema.d.ts` (`openapi-typescript` + `openapi-fetch`, wrapped by
+  TanStack Query). Vitest component tests + a scoped-down Playwright smoke.
+  Two new CI jobs (`webconsole`, `console-e2e`).
 - **Agent interaction — Cluster Provider** (impls_plan deliverable 05): the
   Franz side of the `004-local-kafka-docker-agent` contract.
   `core/domain/provider` (phase / status / assignment value objects,

@@ -1,0 +1,3397 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "title": "franz/v1/common.proto",
+    "version": "version not set"
+  },
+  "tags": [
+    {
+      "name": "AgentService"
+    },
+    {
+      "name": "KafkaClusterService"
+    },
+    {
+      "name": "KafkaTopicService"
+    },
+    {
+      "name": "ClusterProviderService"
+    },
+    {
+      "name": "AsyncChannelService"
+    },
+    {
+      "name": "ClientService"
+    },
+    {
+      "name": "GovernanceService"
+    },
+    {
+      "name": "TelemetryService",
+      "description": "The protocol Telemetry Agents use to publish fleet observations to Franz.\nAgent-facing; not exposed through the REST gateway."
+    }
+  ],
+  "consumes": [
+    "application/json"
+  ],
+  "produces": [
+    "application/json"
+  ],
+  "paths": {
+    "/v1/async-channels": {
+      "get": {
+        "operationId": "AsyncChannelService_ListAsyncChannels",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListAsyncChannelsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "selector",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AsyncChannelService"
+        ]
+      },
+      "post": {
+        "operationId": "AsyncChannelService_CreateAsyncChannel",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateAsyncChannelResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateAsyncChannelRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AsyncChannelService"
+        ]
+      }
+    },
+    "/v1/async-channels/{name}": {
+      "get": {
+        "operationId": "AsyncChannelService_GetAsyncChannel",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetAsyncChannelResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AsyncChannelService"
+        ]
+      },
+      "delete": {
+        "operationId": "AsyncChannelService_DeleteAsyncChannel",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteAsyncChannelResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AsyncChannelService"
+        ]
+      },
+      "patch": {
+        "operationId": "AsyncChannelService_UpdateAsyncChannel",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UpdateAsyncChannelResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AsyncChannelServiceUpdateAsyncChannelBody"
+            }
+          }
+        ],
+        "tags": [
+          "AsyncChannelService"
+        ]
+      }
+    },
+    "/v1/async-channels/{name}/access-policy": {
+      "put": {
+        "operationId": "AsyncChannelService_SetAccessPolicy",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SetAccessPolicyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "accessPolicy",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1AccessPolicy"
+            }
+          }
+        ],
+        "tags": [
+          "AsyncChannelService"
+        ]
+      }
+    },
+    "/v1/async-channels/{name}/clients": {
+      "get": {
+        "operationId": "AsyncChannelService_ListChannelClients",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListChannelClientsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AsyncChannelService"
+        ]
+      }
+    },
+    "/v1/async-channels/{name}:pause": {
+      "post": {
+        "operationId": "AsyncChannelService_PauseAsyncChannel",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PauseAsyncChannelResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AsyncChannelService"
+        ]
+      }
+    },
+    "/v1/async-channels/{name}:resume": {
+      "post": {
+        "operationId": "AsyncChannelService_ResumeAsyncChannel",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ResumeAsyncChannelResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AsyncChannelService"
+        ]
+      }
+    },
+    "/v1/clients": {
+      "get": {
+        "operationId": "ClientService_ListClients",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListClientsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "selector",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClientService"
+        ]
+      },
+      "post": {
+        "operationId": "ClientService_CreateClient",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateClientResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateClientRequest"
+            }
+          }
+        ],
+        "tags": [
+          "ClientService"
+        ]
+      }
+    },
+    "/v1/clients/{name}": {
+      "get": {
+        "operationId": "ClientService_GetClient",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetClientResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClientService"
+        ]
+      },
+      "delete": {
+        "operationId": "ClientService_DeleteClient",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteClientResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClientService"
+        ]
+      },
+      "patch": {
+        "operationId": "ClientService_UpdateClient",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UpdateClientResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ClientServiceUpdateClientBody"
+            }
+          }
+        ],
+        "tags": [
+          "ClientService"
+        ]
+      }
+    },
+    "/v1/clients/{name}/channel-access": {
+      "get": {
+        "operationId": "ClientService_ListClientChannelAccess",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListClientChannelAccessResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClientService"
+        ]
+      }
+    },
+    "/v1/clients/{name}/consumer-group-observations": {
+      "get": {
+        "operationId": "ClientService_ListConsumerGroupObservations",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListConsumerGroupObservationsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClientService"
+        ]
+      }
+    },
+    "/v1/clients/{name}/consumer-groups": {
+      "get": {
+        "operationId": "ClientService_ListObservedConsumerGroups",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListObservedConsumerGroupsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "ClientService"
+        ]
+      }
+    },
+    "/v1/governance/indicators": {
+      "get": {
+        "operationId": "GovernanceService_ListIndicators",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListIndicatorsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      },
+      "post": {
+        "operationId": "GovernanceService_CreateIndicator",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateIndicatorResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateIndicatorRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      }
+    },
+    "/v1/governance/indicators/{indicator}/samples": {
+      "get": {
+        "operationId": "GovernanceService_ListIndicatorSamples",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListIndicatorSamplesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "indicator",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "resourceFrn",
+            "description": "Optional: restrict to one resource.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "format": "date-time"
+          },
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      }
+    },
+    "/v1/governance/indicators/{name}": {
+      "get": {
+        "operationId": "GovernanceService_GetIndicator",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetIndicatorResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      },
+      "delete": {
+        "operationId": "GovernanceService_DeleteIndicator",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteIndicatorResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      },
+      "patch": {
+        "operationId": "GovernanceService_UpdateIndicator",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UpdateIndicatorResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/GovernanceServiceUpdateIndicatorBody"
+            }
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      }
+    },
+    "/v1/governance/policies": {
+      "get": {
+        "operationId": "GovernanceService_ListPolicies",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListPoliciesResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      },
+      "post": {
+        "operationId": "GovernanceService_CreatePolicy",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreatePolicyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreatePolicyRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      }
+    },
+    "/v1/governance/policies/{name}": {
+      "get": {
+        "operationId": "GovernanceService_GetPolicy",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetPolicyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      },
+      "delete": {
+        "operationId": "GovernanceService_DeletePolicy",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeletePolicyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      },
+      "patch": {
+        "operationId": "GovernanceService_UpdatePolicy",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UpdatePolicyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/GovernanceServiceUpdatePolicyBody"
+            }
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      }
+    },
+    "/v1/governance/policies/{name}/actions": {
+      "get": {
+        "operationId": "GovernanceService_ListPolicyActions",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListPolicyActionsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      }
+    },
+    "/v1/governance/policies:dryRun": {
+      "post": {
+        "operationId": "GovernanceService_DryRunPolicy",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DryRunPolicyResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1DryRunPolicyRequest"
+            }
+          }
+        ],
+        "tags": [
+          "GovernanceService"
+        ]
+      }
+    },
+    "/v1/kafka/agents": {
+      "get": {
+        "operationId": "AgentService_ListAgents",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListAgentsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "type",
+            "description": "Optional filter by type.\n\n - AGENT_TYPE_CLUSTER_PROVIDER: Deploys and maintains a substrate (Kafka cluster, RabbitMQ, ...).\n - AGENT_TYPE_RESOURCE_PROVIDER: Realises individual resources (Kafka topics, queues). Gregor Samsa is one.\n - AGENT_TYPE_TELEMETRY_AGENT: Publishes indicator and consumer-group telemetry. Odradek is one.",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "AGENT_TYPE_UNSPECIFIED",
+              "AGENT_TYPE_CLUSTER_PROVIDER",
+              "AGENT_TYPE_RESOURCE_PROVIDER",
+              "AGENT_TYPE_TELEMETRY_AGENT",
+              "AGENT_TYPE_CUSTOM"
+            ],
+            "default": "AGENT_TYPE_UNSPECIFIED"
+          }
+        ],
+        "tags": [
+          "AgentService"
+        ]
+      },
+      "post": {
+        "operationId": "AgentService_CreateAgent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateAgentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateAgentRequest"
+            }
+          }
+        ],
+        "tags": [
+          "AgentService"
+        ]
+      }
+    },
+    "/v1/kafka/agents/{name}": {
+      "get": {
+        "operationId": "AgentService_GetAgent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetAgentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentService"
+        ]
+      },
+      "delete": {
+        "operationId": "AgentService_DeleteAgent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteAgentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentService"
+        ]
+      },
+      "patch": {
+        "operationId": "AgentService_UpdateAgent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UpdateAgentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AgentServiceUpdateAgentBody"
+            }
+          }
+        ],
+        "tags": [
+          "AgentService"
+        ]
+      }
+    },
+    "/v1/kafka/agents/{name}:pause": {
+      "post": {
+        "operationId": "AgentService_PauseAgent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PauseAgentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentService"
+        ]
+      }
+    },
+    "/v1/kafka/agents/{name}:resume": {
+      "post": {
+        "operationId": "AgentService_ResumeAgent",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ResumeAgentResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentService"
+        ]
+      }
+    },
+    "/v1/kafka/agents/{name}:rotateToken": {
+      "post": {
+        "operationId": "AgentService_RotateAgentToken",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1RotateAgentTokenResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "AgentService"
+        ]
+      }
+    },
+    "/v1/kafka/clusters": {
+      "get": {
+        "operationId": "KafkaClusterService_ListKafkaClusters",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListKafkaClustersResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "selector",
+            "description": "Optional label selector to filter the result.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "KafkaClusterService"
+        ]
+      },
+      "post": {
+        "operationId": "KafkaClusterService_CreateKafkaCluster",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1CreateKafkaClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "body",
+            "description": "Only the client-settable fields of a KafkaCluster. Franz assigns the FRN and\nthe timestamps.",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/v1CreateKafkaClusterRequest"
+            }
+          }
+        ],
+        "tags": [
+          "KafkaClusterService"
+        ]
+      }
+    },
+    "/v1/kafka/clusters/{name}": {
+      "get": {
+        "operationId": "KafkaClusterService_GetKafkaCluster",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetKafkaClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "KafkaClusterService"
+        ]
+      },
+      "delete": {
+        "operationId": "KafkaClusterService_DeleteKafkaCluster",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1DeleteKafkaClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "KafkaClusterService"
+        ]
+      },
+      "patch": {
+        "operationId": "KafkaClusterService_UpdateKafkaCluster",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1UpdateKafkaClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/KafkaClusterServiceUpdateKafkaClusterBody"
+            }
+          }
+        ],
+        "tags": [
+          "KafkaClusterService"
+        ]
+      }
+    },
+    "/v1/kafka/clusters/{name}/provider-events": {
+      "get": {
+        "operationId": "KafkaClusterService_ListClusterProviderEvents",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListClusterProviderEventsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "KafkaClusterService"
+        ]
+      }
+    },
+    "/v1/kafka/clusters/{name}:pause": {
+      "post": {
+        "operationId": "KafkaClusterService_PauseKafkaCluster",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1PauseKafkaClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "KafkaClusterService"
+        ]
+      }
+    },
+    "/v1/kafka/clusters/{name}:resume": {
+      "post": {
+        "operationId": "KafkaClusterService_ResumeKafkaCluster",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ResumeKafkaClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "KafkaClusterService"
+        ]
+      }
+    },
+    "/v1/kafka/topics": {
+      "get": {
+        "operationId": "KafkaTopicService_ListKafkaTopics",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListKafkaTopicsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "asyncChannel",
+            "description": "Filter to one channel. Optional.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "kafkaCluster",
+            "description": "Filter to one cluster. Optional.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "KafkaTopicService"
+        ]
+      }
+    },
+    "/v1/kafka/topics/{name}": {
+      "get": {
+        "operationId": "KafkaTopicService_GetKafkaTopic",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetKafkaTopicResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "KafkaTopicService"
+        ]
+      }
+    },
+    "/v1/kafka/topics/{name}:setConsumption": {
+      "post": {
+        "operationId": "KafkaTopicService_SetConsumption",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1SetConsumptionResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/KafkaTopicServiceSetConsumptionBody"
+            }
+          }
+        ],
+        "tags": [
+          "KafkaTopicService"
+        ]
+      }
+    }
+  },
+  "definitions": {
+    "AgentServiceUpdateAgentBody": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "$ref": "#/definitions/v1AgentType"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "updateMask": {
+          "type": "string",
+          "description": "Fields to update; unset fields are left unchanged."
+        }
+      }
+    },
+    "AsyncChannelServiceUpdateAsyncChannelBody": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "updateMask": {
+          "type": "string",
+          "description": "Fields to update; unset fields are left unchanged. `type` is immutable, the\naccess policy is changed via SetAccessPolicy, and `channel_partitions` is\nchanged via the staged re-shard flow (003.11) — none may appear in the mask."
+        }
+      }
+    },
+    "ClientServiceUpdateClientBody": {
+      "type": "object",
+      "properties": {
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "updateMask": {
+          "type": "string",
+          "description": "Fields to update; unset fields are left unchanged."
+        }
+      }
+    },
+    "DryRunPolicyResponseMatch": {
+      "type": "object",
+      "properties": {
+        "resourceFrn": {
+          "type": "string"
+        },
+        "indicatorValue": {
+          "type": "string"
+        },
+        "wouldTrigger": {
+          "type": "boolean"
+        }
+      }
+    },
+    "GovernanceServiceUpdateIndicatorBody": {
+      "type": "object",
+      "properties": {
+        "unit": {
+          "type": "string"
+        },
+        "stalenessThreshold": {
+          "type": "string"
+        },
+        "sourceAgents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "updateMask": {
+          "type": "string",
+          "description": "Fields to update; unset fields are left unchanged. `applies_to` is immutable."
+        }
+      }
+    },
+    "GovernanceServiceUpdatePolicyBody": {
+      "type": "object",
+      "properties": {
+        "indicator": {
+          "type": "string"
+        },
+        "matcher": {
+          "$ref": "#/definitions/v1Matcher"
+        },
+        "limit": {
+          "$ref": "#/definitions/v1Limit"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Action"
+          }
+        },
+        "weight": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "updateMask": {
+          "type": "string",
+          "description": "Fields to update; unset fields are left unchanged."
+        }
+      }
+    },
+    "KafkaClusterServiceUpdateKafkaClusterBody": {
+      "type": "object",
+      "properties": {
+        "connectionStrings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ConnectionString"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "clusterConfiguration": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "clusterProviderAgent": {
+          "type": "string"
+        },
+        "updateMask": {
+          "type": "string",
+          "description": "Fields to update; unset fields are left unchanged."
+        }
+      }
+    },
+    "KafkaTopicServiceSetConsumptionBody": {
+      "type": "object",
+      "properties": {
+        "consumption": {
+          "$ref": "#/definitions/v1Consumption"
+        }
+      }
+    },
+    "protobufAny": {
+      "type": "object",
+      "properties": {
+        "@type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": {}
+    },
+    "rpcStatus": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "message": {
+          "type": "string"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/protobufAny"
+          }
+        }
+      }
+    },
+    "v1AccessPolicy": {
+      "type": "object",
+      "properties": {
+        "statements": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1AccessPolicyStatement"
+          }
+        }
+      },
+      "description": "One access-policy document per channel. Evaluation for a (client, action):\ntake the statements whose principal matches the client and whose permissions\ninclude the action; if any is EFFECT_DENY the action is denied; otherwise if\nany is EFFECT_ALLOW it is allowed; otherwise denied (zero trust)."
+    },
+    "v1AccessPolicyStatement": {
+      "type": "object",
+      "properties": {
+        "effect": {
+          "$ref": "#/definitions/v1Effect",
+          "description": "Required. EFFECT_UNSPECIFIED is rejected."
+        },
+        "principal": {
+          "$ref": "#/definitions/v1Principal"
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Permission"
+          },
+          "description": "One or more of PERMISSION_READ / PERMISSION_WRITE. Must be non-empty."
+        }
+      }
+    },
+    "v1Action": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "$ref": "#/definitions/v1ActionKind"
+        },
+        "args": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "title": "add_label      -\u003e [key, value]\nremove_label   -\u003e [key]\nset_status     -\u003e [status]\nupdate_field   -\u003e [field, value]\nincrease_field_by / decrease_field_by -\u003e [field, amount]"
+        }
+      }
+    },
+    "v1ActionKind": {
+      "type": "string",
+      "enum": [
+        "ACTION_KIND_UNSPECIFIED",
+        "ACTION_KIND_ADD_LABEL",
+        "ACTION_KIND_SET_STATUS",
+        "ACTION_KIND_UPDATE_FIELD",
+        "ACTION_KIND_INCREASE_FIELD_BY",
+        "ACTION_KIND_DECREASE_FIELD_BY",
+        "ACTION_KIND_REMOVE_LABEL"
+      ],
+      "default": "ACTION_KIND_UNSPECIFIED"
+    },
+    "v1Agent": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "frn": {
+          "type": "string",
+          "description": "Assigned by Franz."
+        },
+        "type": {
+          "$ref": "#/definitions/v1AgentType",
+          "description": "Organisational filter only; does not change how the agent connects."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Arbitrary metadata labels — for information and as an extension point\n(owner, team, environment, future scoping rules, …)."
+        },
+        "status": {
+          "$ref": "#/definitions/v1AgentStatus",
+          "description": "Lifecycle state. Franz sets ACTIVE at registration; PAUSED/DELETED are\nreached through PauseAgent / ResumeAgent / DeleteAgent. Liveness/health\n(last contact, connected vs stale) is not modelled yet — see 003.9."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "An agent is a program registered with Franz that connects to the fleet API\nover gRPC, pulls work, and reports results. Franz never calls an agent."
+    },
+    "v1AgentStatus": {
+      "type": "string",
+      "enum": [
+        "AGENT_STATUS_UNSPECIFIED",
+        "AGENT_STATUS_ACTIVE",
+        "AGENT_STATUS_PAUSED",
+        "AGENT_STATUS_DELETED"
+      ],
+      "default": "AGENT_STATUS_UNSPECIFIED",
+      "description": " - AGENT_STATUS_ACTIVE: Registered and eligible to receive work.\n - AGENT_STATUS_PAUSED: Registered but Franz hands it no work.\n - AGENT_STATUS_DELETED: Soft-deleted. Terminal; the record is retained for audit."
+    },
+    "v1AgentType": {
+      "type": "string",
+      "enum": [
+        "AGENT_TYPE_UNSPECIFIED",
+        "AGENT_TYPE_CLUSTER_PROVIDER",
+        "AGENT_TYPE_RESOURCE_PROVIDER",
+        "AGENT_TYPE_TELEMETRY_AGENT",
+        "AGENT_TYPE_CUSTOM"
+      ],
+      "default": "AGENT_TYPE_UNSPECIFIED",
+      "description": " - AGENT_TYPE_CLUSTER_PROVIDER: Deploys and maintains a substrate (Kafka cluster, RabbitMQ, ...).\n - AGENT_TYPE_RESOURCE_PROVIDER: Realises individual resources (Kafka topics, queues). Gregor Samsa is one.\n - AGENT_TYPE_TELEMETRY_AGENT: Publishes indicator and consumer-group telemetry. Odradek is one."
+    },
+    "v1AsyncChannel": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique name, provided at creation. Also the base name Franz uses to\ngenerate Kafka topic names."
+        },
+        "frn": {
+          "type": "string",
+          "description": "Assigned by Franz."
+        },
+        "type": {
+          "$ref": "#/definitions/v1ChannelType"
+        },
+        "channelPartitions": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Shard count: Franz splits the channel into this many Kafka Topics, named\n\"\u003cname\u003e-\u003cindex\u003e\" (index 0..channel_partitions-1). Changing it is a staged\nre-shard operation (003.4 / 003.11), not a plain field write."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Arbitrary metadata labels for this channel."
+        },
+        "state": {
+          "$ref": "#/definitions/v1ChannelState"
+        },
+        "accessPolicy": {
+          "$ref": "#/definitions/v1AccessPolicy",
+          "description": "Who may use this channel. One document, zero trust: a client with no\nmatching statement has no access."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "An Async Channel is the customer-facing boundary of asynchronous\ncommunication. Creating one causes Franz to generate one or more linked\nKafka Topics (see kafka.proto). Formerly \"Topic Definition\"."
+    },
+    "v1ChannelClientAccess": {
+      "type": "object",
+      "properties": {
+        "clientFrn": {
+          "type": "string"
+        },
+        "clientLabels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "effective": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Permission"
+          }
+        },
+        "matchedBy": {
+          "type": "string",
+          "description": "Human-readable note on which statement matched."
+        }
+      },
+      "description": "The permission a specific client has on a channel, after evaluating the policy."
+    },
+    "v1ChannelState": {
+      "type": "string",
+      "enum": [
+        "CHANNEL_STATE_UNSPECIFIED",
+        "CHANNEL_STATE_ACTIVE",
+        "CHANNEL_STATE_PAUSED",
+        "CHANNEL_STATE_DELETED"
+      ],
+      "default": "CHANNEL_STATE_UNSPECIFIED",
+      "description": " - CHANNEL_STATE_ACTIVE: Franz maintains the channel and its shards automatically.\n - CHANNEL_STATE_PAUSED: Recorded, but Franz has stopped reconciling the channel's shards.\n - CHANNEL_STATE_DELETED: Soft-deleted; agents remove the real-world resources."
+    },
+    "v1ChannelType": {
+      "type": "string",
+      "enum": [
+        "CHANNEL_TYPE_UNSPECIFIED",
+        "CHANNEL_TYPE_KAFKA_TOPIC"
+      ],
+      "default": "CHANNEL_TYPE_UNSPECIFIED"
+    },
+    "v1Client": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Globally unique, provided at registration. Also the default consumer-group prefix."
+        },
+        "frn": {
+          "type": "string",
+          "description": "Assigned by Franz."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "At least org.com/owner. Channel access policies match against these."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "A fleet-wide identity that reads from or writes to Async Channels through the\nFranz SDK. A client has no Read/Write role of its own; every permission comes\nfrom the access policy of the channel it connects to."
+    },
+    "v1ClientChannelAccess": {
+      "type": "object",
+      "properties": {
+        "asyncChannel": {
+          "type": "string"
+        },
+        "effective": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1Permission"
+          }
+        },
+        "matchedBy": {
+          "type": "string"
+        }
+      },
+      "description": "A channel this client may use, and the permission granted. Derived from\nevery channel access policy whose statements match the client."
+    },
+    "v1ClusterProviderEvent": {
+      "type": "object",
+      "properties": {
+        "clusterFrn": {
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/definitions/v1ClusterProviderPhase"
+        },
+        "reachable": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "recipeRef": {
+          "type": "string"
+        },
+        "reportingAgent": {
+          "type": "string"
+        },
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "One provider status report, retained as history."
+    },
+    "v1ClusterProviderPhase": {
+      "type": "string",
+      "enum": [
+        "CLUSTER_PROVIDER_PHASE_UNSPECIFIED",
+        "CLUSTER_PROVIDER_PHASE_PROVISIONING",
+        "CLUSTER_PROVIDER_PHASE_READY",
+        "CLUSTER_PROVIDER_PHASE_DEGRADED",
+        "CLUSTER_PROVIDER_PHASE_ERROR",
+        "CLUSTER_PROVIDER_PHASE_STOPPED",
+        "CLUSTER_PROVIDER_PHASE_REMOVED"
+      ],
+      "default": "CLUSTER_PROVIDER_PHASE_UNSPECIFIED",
+      "description": "What a Cluster Provider agent reports about a cluster it provisions.\nThis is agent-observed reality — distinct from KafkaClusterState (operator\nintent). See 004-local-kafka-docker-agent."
+    },
+    "v1ClusterProviderStatus": {
+      "type": "object",
+      "properties": {
+        "phase": {
+          "$ref": "#/definitions/v1ClusterProviderPhase"
+        },
+        "reachable": {
+          "type": "boolean"
+        },
+        "message": {
+          "type": "string"
+        },
+        "recipeRef": {
+          "type": "string"
+        },
+        "reportingAgent": {
+          "type": "string"
+        },
+        "reportedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "Current provider-reported status for a cluster: the latest\ncluster_provider_event. See 004-local-kafka-docker-agent."
+    },
+    "v1ConnectionString": {
+      "type": "object",
+      "properties": {
+        "bootstrapUrls": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "type": {
+          "$ref": "#/definitions/v1ConnectionType"
+        }
+      },
+      "description": "A way to reach a cluster's brokers. Today only PLAINTEXT is supported; the\nmessage exists so authenticated connection types can be added later."
+    },
+    "v1ConnectionType": {
+      "type": "string",
+      "enum": [
+        "CONNECTION_TYPE_UNSPECIFIED",
+        "CONNECTION_TYPE_PLAINTEXT"
+      ],
+      "default": "CONNECTION_TYPE_UNSPECIFIED"
+    },
+    "v1Consumption": {
+      "type": "string",
+      "enum": [
+        "CONSUMPTION_UNSPECIFIED",
+        "CONSUMPTION_ENABLED",
+        "CONSUMPTION_DISABLED"
+      ],
+      "default": "CONSUMPTION_UNSPECIFIED"
+    },
+    "v1CreateAgentRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/v1AgentType"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1CreateAgentResponse": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "#/definitions/v1Agent"
+        },
+        "token": {
+          "type": "string",
+          "description": "Bearer token the agent presents to authenticate (gRPC `authorization`\nmetadata). Returned once, on creation; Franz stores only its hash.\nSee 004-local-kafka-docker-agent."
+        }
+      }
+    },
+    "v1CreateAsyncChannelRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/v1ChannelType"
+        },
+        "channelPartitions": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "accessPolicy": {
+          "$ref": "#/definitions/v1AccessPolicy"
+        }
+      }
+    },
+    "v1CreateAsyncChannelResponse": {
+      "type": "object",
+      "properties": {
+        "asyncChannel": {
+          "$ref": "#/definitions/v1AsyncChannel"
+        }
+      }
+    },
+    "v1CreateClientRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1CreateClientResponse": {
+      "type": "object",
+      "properties": {
+        "client": {
+          "$ref": "#/definitions/v1Client"
+        }
+      }
+    },
+    "v1CreateIndicatorRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string"
+        },
+        "appliesTo": {
+          "$ref": "#/definitions/v1Entity"
+        },
+        "stalenessThreshold": {
+          "type": "string"
+        },
+        "sourceAgents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1CreateIndicatorResponse": {
+      "type": "object",
+      "properties": {
+        "indicator": {
+          "$ref": "#/definitions/v1Indicator"
+        }
+      }
+    },
+    "v1CreateKafkaClusterRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "connectionStrings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ConnectionString"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "clusterConfiguration": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "clusterProviderAgent": {
+          "type": "string"
+        }
+      },
+      "description": "Only the client-settable fields of a KafkaCluster. Franz assigns the FRN and\nthe timestamps."
+    },
+    "v1CreateKafkaClusterResponse": {
+      "type": "object",
+      "properties": {
+        "kafkaCluster": {
+          "$ref": "#/definitions/v1KafkaCluster"
+        }
+      }
+    },
+    "v1CreatePolicyRequest": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "indicator": {
+          "type": "string"
+        },
+        "matcher": {
+          "$ref": "#/definitions/v1Matcher"
+        },
+        "limit": {
+          "$ref": "#/definitions/v1Limit"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Action"
+          }
+        },
+        "weight": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "enabled": {
+          "type": "boolean"
+        }
+      }
+    },
+    "v1CreatePolicyResponse": {
+      "type": "object",
+      "properties": {
+        "policy": {
+          "$ref": "#/definitions/v1Policy"
+        }
+      }
+    },
+    "v1DeleteAgentResponse": {
+      "type": "object"
+    },
+    "v1DeleteAsyncChannelResponse": {
+      "type": "object"
+    },
+    "v1DeleteClientResponse": {
+      "type": "object"
+    },
+    "v1DeleteIndicatorResponse": {
+      "type": "object"
+    },
+    "v1DeleteKafkaClusterResponse": {
+      "type": "object"
+    },
+    "v1DeletePolicyResponse": {
+      "type": "object"
+    },
+    "v1DryRunPolicyRequest": {
+      "type": "object",
+      "properties": {
+        "indicator": {
+          "type": "string",
+          "description": "The policy definition to evaluate against the latest samples. `weight` and\n`enabled` do not affect a dry run and are omitted."
+        },
+        "matcher": {
+          "$ref": "#/definitions/v1Matcher"
+        },
+        "limit": {
+          "$ref": "#/definitions/v1Limit"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Action"
+          }
+        }
+      }
+    },
+    "v1DryRunPolicyResponse": {
+      "type": "object",
+      "properties": {
+        "matches": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/DryRunPolicyResponseMatch"
+          }
+        }
+      }
+    },
+    "v1Effect": {
+      "type": "string",
+      "enum": [
+        "EFFECT_UNSPECIFIED",
+        "EFFECT_ALLOW",
+        "EFFECT_DENY"
+      ],
+      "default": "EFFECT_UNSPECIFIED"
+    },
+    "v1Entity": {
+      "type": "string",
+      "enum": [
+        "ENTITY_UNSPECIFIED",
+        "ENTITY_ASYNC_CHANNEL",
+        "ENTITY_KAFKA_TOPIC",
+        "ENTITY_KAFKA_CLUSTER"
+      ],
+      "default": "ENTITY_UNSPECIFIED"
+    },
+    "v1GetAgentResponse": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "#/definitions/v1Agent"
+        }
+      }
+    },
+    "v1GetAsyncChannelResponse": {
+      "type": "object",
+      "properties": {
+        "asyncChannel": {
+          "$ref": "#/definitions/v1AsyncChannel"
+        }
+      }
+    },
+    "v1GetClientResponse": {
+      "type": "object",
+      "properties": {
+        "client": {
+          "$ref": "#/definitions/v1Client"
+        }
+      }
+    },
+    "v1GetIndicatorResponse": {
+      "type": "object",
+      "properties": {
+        "indicator": {
+          "$ref": "#/definitions/v1Indicator"
+        }
+      }
+    },
+    "v1GetKafkaClusterResponse": {
+      "type": "object",
+      "properties": {
+        "kafkaCluster": {
+          "$ref": "#/definitions/v1KafkaCluster"
+        }
+      }
+    },
+    "v1GetKafkaTopicResponse": {
+      "type": "object",
+      "properties": {
+        "kafkaTopic": {
+          "$ref": "#/definitions/v1KafkaTopic"
+        }
+      }
+    },
+    "v1GetPolicyResponse": {
+      "type": "object",
+      "properties": {
+        "policy": {
+          "$ref": "#/definitions/v1Policy"
+        }
+      }
+    },
+    "v1Indicator": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "unit": {
+          "type": "string",
+          "description": "\"bytes\", \"count\", \"duration\", \"boolean\", ..."
+        },
+        "appliesTo": {
+          "$ref": "#/definitions/v1Entity"
+        },
+        "sourceAgents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "health": {
+          "$ref": "#/definitions/v1IndicatorHealth"
+        },
+        "lastSampleAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "stalenessThreshold": {
+          "type": "string",
+          "description": "Beyond this age the indicator is stale and policies reading it do not act."
+        }
+      },
+      "description": "An indicator that Telemetry Agents publish samples for and policies read.\nAdmin-created (CreateIndicator); a sample or policy for an unknown indicator\nis rejected. See 003.14-telemetry-ingest.md."
+    },
+    "v1IndicatorHealth": {
+      "type": "string",
+      "enum": [
+        "INDICATOR_HEALTH_UNSPECIFIED",
+        "INDICATOR_HEALTH_HEALTHY",
+        "INDICATOR_HEALTH_STALE"
+      ],
+      "default": "INDICATOR_HEALTH_UNSPECIFIED"
+    },
+    "v1IndicatorSampleView": {
+      "type": "object",
+      "properties": {
+        "resourceFrn": {
+          "type": "string"
+        },
+        "resourceEntity": {
+          "$ref": "#/definitions/v1Entity"
+        },
+        "value": {
+          "type": "string"
+        },
+        "sampleAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "One stored indicator sample, returned by ListIndicatorSamples. The write-side\nshape is telemetry.proto's IndicatorSample."
+    },
+    "v1KafkaCluster": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Control-plane identifier, provided at registration. Immutable."
+        },
+        "frn": {
+          "type": "string",
+          "description": "Assigned by Franz."
+        },
+        "connectionStrings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ConnectionString"
+          },
+          "description": "How to reach the cluster's brokers. Repeated so additional connection\ntypes (each with their own auth) can be added without a breaking change."
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Fleet context. Source of truth for placement matching."
+        },
+        "clusterConfiguration": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Default Kafka configuration applied to topics on this cluster when nothing\nmore specific is declared (e.g. \"default.replication.factor\" -\u003e \"3\")."
+        },
+        "clusterProviderAgent": {
+          "type": "string",
+          "description": "Optional name of the Cluster Provider agent that deploys and maintains this\ncluster's substrate. Empty means the infrastructure is managed outside Franz."
+        },
+        "state": {
+          "$ref": "#/definitions/v1KafkaClusterState",
+          "description": "Lifecycle state. Franz sets ACTIVE at registration; PAUSED/DELETED are\nreached through PauseKafkaCluster / ResumeKafkaCluster / DeleteKafkaCluster.\nSee 003.3-kafka-cluster.md for the state machine."
+        },
+        "providerStatus": {
+          "$ref": "#/definitions/v1ClusterProviderStatus",
+          "description": "What the Cluster Provider agent last reported (agent-observed reality,\ndistinct from `state`). Absent when there is no provider or no report yet.\nDerived from the latest cluster_provider_event."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "A Kafka Cluster registration. Franz records where a cluster lives and its\nfleet context; it never connects to the cluster. Real-world work is done by\nthe linked Cluster Provider agent (if any) and by Resource Provider agents."
+    },
+    "v1KafkaClusterState": {
+      "type": "string",
+      "enum": [
+        "KAFKA_CLUSTER_STATE_UNSPECIFIED",
+        "KAFKA_CLUSTER_STATE_ACTIVE",
+        "KAFKA_CLUSTER_STATE_PAUSED",
+        "KAFKA_CLUSTER_STATE_DELETED"
+      ],
+      "default": "KAFKA_CLUSTER_STATE_UNSPECIFIED",
+      "description": " - KAFKA_CLUSTER_STATE_ACTIVE: Registered and eligible for placement.\n - KAFKA_CLUSTER_STATE_PAUSED: Registered but excluded from new placement; existing topics are untouched.\n - KAFKA_CLUSTER_STATE_DELETED: Soft-deleted. Terminal; the record is retained for audit."
+    },
+    "v1KafkaTopic": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Franz-generated Kafka topic name (also the real name in the cluster)."
+        },
+        "frn": {
+          "type": "string"
+        },
+        "asyncChannel": {
+          "type": "string",
+          "description": "Owning Async Channel."
+        },
+        "kafkaCluster": {
+          "type": "string",
+          "description": "Cluster this topic is placed on."
+        },
+        "state": {
+          "$ref": "#/definitions/v1KafkaTopicState"
+        },
+        "consumption": {
+          "$ref": "#/definitions/v1Consumption",
+          "description": "Whether consumers may read this topic. When DISABLED the topic is drained:\nproducers stop writing to it and its traffic share drops to zero, while the\ntopic and its data are retained."
+        },
+        "topicConfiguration": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Per-topic Kafka configuration (retention, cleanup policy, ...). Keys set here\nwin over the cluster configuration in the merge. Does NOT carry partition\ncount or replication factor — those are the dedicated fields below."
+        },
+        "partitions": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Desired Kafka partition count for the real topic. May only increase."
+        },
+        "replicationFactor": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Desired replication factor for the real topic."
+        },
+        "trafficShare": {
+          "$ref": "#/definitions/v1TrafficShare",
+          "description": "Intended share of channel traffic routed to this shard. Franz defaults to an\nequal split across the shards whose consumption is ENABLED; a drained shard\nis zero. Producers weight their routing by this value. It is an intention,\nnot a measurement."
+        },
+        "generation": {
+          "type": "string",
+          "format": "int64",
+          "description": "Bumped whenever Franz changes this topic's desired state. Agents echo it\nwhen reporting work so Franz can reject stale reports."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "A Kafka Topic is one generated topic of an Async Channel, placed on one\nKafka Cluster. It tracks reconciliation with the real topic. Formerly\n\"Topic Claim\". Franz creates and deletes these; clients do not — every field\nhere is set by Franz. Consumption is changed through SetConsumption."
+    },
+    "v1KafkaTopicState": {
+      "type": "string",
+      "enum": [
+        "KAFKA_TOPIC_STATE_UNSPECIFIED",
+        "KAFKA_TOPIC_STATE_PENDING",
+        "KAFKA_TOPIC_STATE_READY",
+        "KAFKA_TOPIC_STATE_PAUSED",
+        "KAFKA_TOPIC_STATE_ERROR",
+        "KAFKA_TOPIC_STATE_DELETED"
+      ],
+      "default": "KAFKA_TOPIC_STATE_UNSPECIFIED"
+    },
+    "v1Limit": {
+      "type": "object",
+      "properties": {
+        "operator": {
+          "$ref": "#/definitions/v1Operator"
+        },
+        "value": {
+          "type": "string",
+          "description": "Compared against the latest indicator sample. Encoding follows the\nindicator's unit (e.g. \"150Gi\", \"3\", \"90d\")."
+        }
+      }
+    },
+    "v1ListAgentsResponse": {
+      "type": "object",
+      "properties": {
+        "agents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Agent"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListAsyncChannelsResponse": {
+      "type": "object",
+      "properties": {
+        "asyncChannels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1AsyncChannel"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListChannelClientsResponse": {
+      "type": "object",
+      "properties": {
+        "clients": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ChannelClientAccess"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListClientChannelAccessResponse": {
+      "type": "object",
+      "properties": {
+        "access": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ClientChannelAccess"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListClientsResponse": {
+      "type": "object",
+      "properties": {
+        "clients": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Client"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListClusterProviderEventsResponse": {
+      "type": "object",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ClusterProviderEvent"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListConsumerGroupObservationsResponse": {
+      "type": "object",
+      "properties": {
+        "observations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ObservedConsumerGroup"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListIndicatorSamplesResponse": {
+      "type": "object",
+      "properties": {
+        "samples": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1IndicatorSampleView"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListIndicatorsResponse": {
+      "type": "object",
+      "properties": {
+        "indicators": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Indicator"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListKafkaClustersResponse": {
+      "type": "object",
+      "properties": {
+        "kafkaClusters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1KafkaCluster"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListKafkaTopicsResponse": {
+      "type": "object",
+      "properties": {
+        "kafkaTopics": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1KafkaTopic"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListObservedConsumerGroupsResponse": {
+      "type": "object",
+      "properties": {
+        "groups": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ObservedConsumerGroup"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListPoliciesResponse": {
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Policy"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1ListPolicyActionsResponse": {
+      "type": "object",
+      "properties": {
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1PolicyAction"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
+    "v1Matcher": {
+      "type": "object",
+      "properties": {
+        "entity": {
+          "$ref": "#/definitions/v1Entity"
+        },
+        "selector": {
+          "type": "string",
+          "description": "Label selector. Empty means every resource of the entity kind."
+        }
+      }
+    },
+    "v1ObservedConsumerGroup": {
+      "type": "object",
+      "properties": {
+        "group": {
+          "type": "string"
+        },
+        "asyncChannel": {
+          "type": "string"
+        },
+        "kafkaTopic": {
+          "type": "string"
+        },
+        "custom": {
+          "type": "boolean",
+          "description": "true when the group name is not the default \u003cclient\u003e.\u003ctopic\u003e form."
+        },
+        "reportedByAgent": {
+          "type": "string"
+        },
+        "lastSeenAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Current view: most recent sighting. History view: the sighting's time."
+        }
+      },
+      "description": "A consumer group observed for this client, reported by a Telemetry Agent.\nNot registered in Franz. ListObservedConsumerGroups returns the current view\n(one row per (group, topic), latest sighting); ListConsumerGroupObservations\nreturns the raw sightings within a time range. See 003.14-telemetry-ingest.md."
+    },
+    "v1Operator": {
+      "type": "string",
+      "enum": [
+        "OPERATOR_UNSPECIFIED",
+        "OPERATOR_LESS_THAN",
+        "OPERATOR_LESS_THAN_OR_EQUAL",
+        "OPERATOR_EQUAL",
+        "OPERATOR_NOT_EQUAL",
+        "OPERATOR_GREATER_THAN_OR_EQUAL",
+        "OPERATOR_GREATER_THAN"
+      ],
+      "default": "OPERATOR_UNSPECIFIED"
+    },
+    "v1PageRequest": {
+      "type": "object",
+      "properties": {
+        "pageSize": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Maximum number of items to return. The server may return fewer."
+        },
+        "pageToken": {
+          "type": "string",
+          "description": "Opaque token from a previous response's next_page_token. Empty for the first page."
+        }
+      },
+      "description": "Standard pagination request fields. Embed in every List request."
+    },
+    "v1PageResponse": {
+      "type": "object",
+      "properties": {
+        "nextPageToken": {
+          "type": "string",
+          "description": "Pass as PageRequest.page_token to fetch the next page. Empty when there are no more."
+        },
+        "totalSize": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Total number of items across all pages, when the server can compute it cheaply."
+        }
+      },
+      "description": "Standard pagination response fields. Embed in every List response."
+    },
+    "v1PauseAgentResponse": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "#/definitions/v1Agent"
+        }
+      }
+    },
+    "v1PauseAsyncChannelResponse": {
+      "type": "object",
+      "properties": {
+        "asyncChannel": {
+          "$ref": "#/definitions/v1AsyncChannel"
+        }
+      }
+    },
+    "v1PauseKafkaClusterResponse": {
+      "type": "object",
+      "properties": {
+        "kafkaCluster": {
+          "$ref": "#/definitions/v1KafkaCluster"
+        }
+      }
+    },
+    "v1Permission": {
+      "type": "string",
+      "enum": [
+        "PERMISSION_UNSPECIFIED",
+        "PERMISSION_READ",
+        "PERMISSION_WRITE"
+      ],
+      "default": "PERMISSION_UNSPECIFIED",
+      "description": "A permission that a channel access policy statement grants to a client."
+    },
+    "v1Policy": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "frn": {
+          "type": "string",
+          "description": "Assigned by Franz."
+        },
+        "indicator": {
+          "type": "string",
+          "description": "Indicator name published by a Telemetry Agent."
+        },
+        "matcher": {
+          "$ref": "#/definitions/v1Matcher"
+        },
+        "limit": {
+          "$ref": "#/definitions/v1Limit"
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1Action"
+          }
+        },
+        "weight": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Breaks ties when several policies act on the same resource. Higher wins."
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "lastFiredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "description": "A governance policy watches one indicator and acts on the resources it\nmatches when a limit is crossed. Reactive only: actions change Franz's\ndeclared state, which the normal reconciliation path realises."
+    },
+    "v1PolicyAction": {
+      "type": "object",
+      "properties": {
+        "occurredAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "resourceFrn": {
+          "type": "string"
+        },
+        "indicatorValue": {
+          "type": "string"
+        },
+        "action": {
+          "$ref": "#/definitions/v1Action"
+        },
+        "result": {
+          "type": "string",
+          "description": "Resulting revision or a note."
+        }
+      },
+      "description": "One automated change a policy made."
+    },
+    "v1Principal": {
+      "type": "object",
+      "properties": {
+        "clientFrn": {
+          "type": "string"
+        },
+        "labels": {
+          "type": "string"
+        }
+      },
+      "description": "A statement matches a client when its FRN matches client_frn (if set) OR its\nlabels satisfy the selector (if set); at least one must be set. Both\nclient_frn and the label-selector values accept `*` as a wildcard."
+    },
+    "v1ResumeAgentResponse": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "#/definitions/v1Agent"
+        }
+      }
+    },
+    "v1ResumeAsyncChannelResponse": {
+      "type": "object",
+      "properties": {
+        "asyncChannel": {
+          "$ref": "#/definitions/v1AsyncChannel"
+        }
+      }
+    },
+    "v1ResumeKafkaClusterResponse": {
+      "type": "object",
+      "properties": {
+        "kafkaCluster": {
+          "$ref": "#/definitions/v1KafkaCluster"
+        }
+      }
+    },
+    "v1RotateAgentTokenResponse": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string",
+          "description": "The new bearer token. The previous token is invalidated immediately."
+        }
+      }
+    },
+    "v1SetAccessPolicyResponse": {
+      "type": "object",
+      "properties": {
+        "asyncChannel": {
+          "$ref": "#/definitions/v1AsyncChannel"
+        }
+      }
+    },
+    "v1SetConsumptionResponse": {
+      "type": "object",
+      "properties": {
+        "kafkaTopic": {
+          "$ref": "#/definitions/v1KafkaTopic"
+        }
+      }
+    },
+    "v1TrafficShare": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "type": "number",
+          "format": "double"
+        },
+        "unit": {
+          "type": "string"
+        }
+      },
+      "description": "A proportion of channel traffic, e.g. value 45, unit \"percent\"."
+    },
+    "v1UpdateAgentResponse": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "#/definitions/v1Agent"
+        }
+      }
+    },
+    "v1UpdateAsyncChannelResponse": {
+      "type": "object",
+      "properties": {
+        "asyncChannel": {
+          "$ref": "#/definitions/v1AsyncChannel"
+        }
+      }
+    },
+    "v1UpdateClientResponse": {
+      "type": "object",
+      "properties": {
+        "client": {
+          "$ref": "#/definitions/v1Client"
+        }
+      }
+    },
+    "v1UpdateIndicatorResponse": {
+      "type": "object",
+      "properties": {
+        "indicator": {
+          "$ref": "#/definitions/v1Indicator"
+        }
+      }
+    },
+    "v1UpdateKafkaClusterResponse": {
+      "type": "object",
+      "properties": {
+        "kafkaCluster": {
+          "$ref": "#/definitions/v1KafkaCluster"
+        }
+      }
+    },
+    "v1UpdatePolicyResponse": {
+      "type": "object",
+      "properties": {
+        "policy": {
+          "$ref": "#/definitions/v1Policy"
+        }
+      }
+    }
+  }
+}

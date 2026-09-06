@@ -57,7 +57,7 @@ jobs:
       - name: generated code is current
         run: |
           buf generate api
-          git diff --exit-code -- pkg/gen/go
+          git diff --exit-code -- pkg/gen/go api/openapi
       - run: go vet ./...
       - run: go build ./...
       - name: go test
@@ -66,3 +66,77 @@ jobs:
           # Enables the postgres adapter integration tests (they self-skip when unset).
           FRANZ_TEST_DB_DSN: postgres://franz:franz@localhost:5432/franz?sslmode=disable
         run: go test ./...
+
+  webconsole:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: webconsole
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.72.0
+          github_token: ${{ github.token }}
+      - name: regenerate the OpenAPI contract
+        working-directory: .
+        run: buf generate api
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: webconsole/package-lock.json
+      - run: npm ci
+      - name: generated api client is current
+        run: |
+          npm run gen:api
+          git diff --exit-code -- src/api/schema.d.ts
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+  console-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: franz
+          POSTGRES_USER: franz
+          POSTGRES_PASSWORD: franz
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U franz -d franz"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: go.sum
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          version: 1.72.0
+          github_token: ${{ github.token }}
+      - run: buf generate api
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: webconsole/package-lock.json
+      - name: build + run franz
+        env:
+          FRANZ_DB__HOST: localhost
+        run: |
+          go build -o /tmp/franz ./cmd/franz
+          /tmp/franz &
+          for i in $(seq 1 40); do
+            curl -sf localhost:8080/healthz && break || sleep 1
+          done
+      - name: console e2e
+        working-directory: webconsole
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          npm run e2e

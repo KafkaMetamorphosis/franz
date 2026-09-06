@@ -1,0 +1,14 @@
+node_modules
+dist
+dist-ssr
+*.local
+
+# playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# vite / editors
+*.log
+.DS_Store
