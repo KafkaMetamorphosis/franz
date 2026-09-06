@@ -7,6 +7,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`README.md`** — project overview + local-dev quickstart.
 - **Resource management & agent provisioning schema** (impls_plan deliverable 08):
   - `Agent.provisioning_labels` — a new `ProvisioningLabelSpec` (`key`,
     `description`, `allowed_values`, `default_value`, `required`) carried on
