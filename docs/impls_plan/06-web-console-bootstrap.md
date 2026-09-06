@@ -66,3 +66,4 @@ Login, and the **Agents** and **Kafka Clusters** screens. Nothing beyond that.
 | Tests | Vitest component tests + `webconsole/e2e/console.spec.ts` (Playwright) |
 | CI | `.github/workflows/ci.yml` — `webconsole` job (gen check, lint, typecheck, test, build) + `console-e2e` job (Postgres + Franz + Playwright) |
 | Contract | `franz/api/openapi/franz.swagger.json` (generated, committed) |
+| Local dev | `franz/Makefile` — `make dev` runs Postgres + control plane + console together (Ctrl-C stops all); `make run` / `make console` / `make gen` / `make test` / `make e2e` / `make lint` |

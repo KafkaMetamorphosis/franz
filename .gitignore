@@ -1,6 +1,8 @@
 # Go
 /franz
 /franz-bin
+/bin/
+.franz.pid
 *.exe
 *.test
 *.out

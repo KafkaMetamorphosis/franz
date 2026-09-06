@@ -15,12 +15,12 @@ a Kafka cluster up from the browser. Deliverable
 ## Develop
 
 ```sh
-# 1. backend
-cd .. && docker compose up -d postgres && go run ./cmd/franz
-
-# 2. console
-cd webconsole && npm install && npm run dev      # http://localhost:5173
+cd ..        # franz/ (module root)
+make dev     # Postgres + control plane (:8080) + console (:5173); Ctrl-C stops all
 ```
+
+Or run the pieces separately: `make run` (control plane only), `make console`
+(console only, expects the gateway on :8080). `make help` lists every target.
 
 ## Scripts
 

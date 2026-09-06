@@ -19,6 +19,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `src/api/schema.d.ts` (`openapi-typescript` + `openapi-fetch`, wrapped by
   TanStack Query). Vitest component tests + a scoped-down Playwright smoke.
   Two new CI jobs (`webconsole`, `console-e2e`).
+- **`Makefile`** for local development: `make dev` starts Postgres, the control
+  plane, and the console together (Ctrl-C stops all); plus `make run`,
+  `make console`, `make gen`, `make test`, `make e2e`, `make lint`.
 - **Agent interaction — Cluster Provider** (impls_plan deliverable 05): the
   Franz side of the `004-local-kafka-docker-agent` contract.
   `core/domain/provider` (phase / status / assignment value objects,
