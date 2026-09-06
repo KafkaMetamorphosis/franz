@@ -49,3 +49,26 @@ CREATE TABLE IF NOT EXISTS kafka_cluster (
 
 CREATE INDEX IF NOT EXISTS kafka_cluster_labels_gin
     ON kafka_cluster USING gin (labels);
+
+-- Agent — Franz's record of an external program that connects to Franz (003.9).
+-- Registration is inert. `type` is an organisational filter only. `token_hash`
+-- is the sha256 of the one-time bearer token (the plaintext is never stored).
+CREATE TABLE IF NOT EXISTS agent (
+    id         uuid        PRIMARY KEY,
+    realm_id   uuid        NOT NULL REFERENCES realm (id),
+    name       text        NOT NULL,
+    frn        text        NOT NULL,
+    type       text        NOT NULL
+                   CHECK (type IN ('CLUSTER_PROVIDER', 'RESOURCE_PROVIDER',
+                                   'TELEMETRY_AGENT', 'CUSTOM')),
+    labels     jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    status     text        NOT NULL DEFAULT 'ACTIVE'
+                   CHECK (status IN ('ACTIVE', 'PAUSED', 'DELETED')),
+    token_hash text        NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (realm_id, name),
+    UNIQUE (frn)
+);
+
+CREATE INDEX IF NOT EXISTS agent_labels_gin ON agent USING gin (labels);
