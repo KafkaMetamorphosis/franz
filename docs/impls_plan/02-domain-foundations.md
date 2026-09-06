@@ -37,8 +37,8 @@ helper, the `realm` bootstrap, and the Postgres plumbing. Pure `pkg/shared` /
 
 ## Notes
 
-- The selector matcher is reused verbatim by 08 (access policy), 11 (placement),
-  13 (governance matchers). Get it right here.
+- The selector matcher is reused verbatim by 09 (access policy), 12 (placement),
+  14 (governance matchers). Get it right here.
 - SQL push-down vs. Go-side filtering of the selector is `003.12` OQ2 — start
   Go-side, optimise later.
 
