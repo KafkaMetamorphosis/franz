@@ -44,9 +44,21 @@ func TestLocalDockerEndToEnd(t *testing.T) {
 	defer cancel()
 	t.Cleanup(func() { _, _ = httpDo(http.MethodDelete, rest+"/v1/kafka/agents/"+agentName, nil) })
 
-	// 1+2. start the agent — it self-registers with Franz (the `make agent` path)
+	// 1. register the agent via REST and grab its token (the seed covers the
+	//    standard `make agent` case; the e2e uses a throwaway name).
+	var created struct {
+		Token string `json:"token"`
+	}
+	post(t, rest+"/v1/kafka/agents", map[string]any{
+		"name": agentName, "type": "AGENT_TYPE_CLUSTER_PROVIDER",
+	}, &created)
+	if created.Token == "" {
+		t.Fatal("no token returned from agent registration")
+	}
+
+	// 2. start the agent
 	t.Setenv("FRANZ_ENDPOINT", grpcEndpoint)
-	t.Setenv("FRANZ_REGISTER", "1")
+	t.Setenv("FRANZ_TOKEN", created.Token)
 	t.Setenv("FRANZ_AGENT_NAME", agentName)
 	cfg, err := localkafka.LoadConfig()
 	if err != nil {

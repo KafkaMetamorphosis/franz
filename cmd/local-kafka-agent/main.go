@@ -3,11 +3,14 @@
 // apache/kafka KRaft broker up in Docker on the local machine per the
 // local-docker recipe (ADR 004-local-kafka-docker-agent).
 //
-//	FRANZ_ENDPOINT   Franz gRPC address           (default localhost:9090)
-//	FRANZ_TOKEN      bearer token from CreateAgent (required)
-//	FRANZ_AGENT_NAME registered agent name         (default local-kafka-agent)
-//	FRANZ_KAFKA_VERSION  apache/kafka tag default  (default 3.7.0)
-//	DOCKER_HOST      Docker Engine socket          (default: SDK/platform default)
+// The agent's registration is expected to already exist — seeded (see
+// franz/local/seed/) or created in the console. FRANZ_TOKEN is its bearer token.
+//
+//	FRANZ_ENDPOINT      Franz gRPC address          (default localhost:9090)
+//	FRANZ_TOKEN         the agent's bearer token     (required)
+//	FRANZ_AGENT_NAME    registered agent name        (default local-kafka-agent)
+//	FRANZ_KAFKA_VERSION apache/kafka tag default     (default 3.7.0)
+//	DOCKER_HOST         Docker Engine socket         (default: SDK/platform default)
 package main
 
 import (

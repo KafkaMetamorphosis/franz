@@ -26,9 +26,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     the common local-docker keys when the agent advertises no schema).
   - `local-docker` recipe: `franz.provisioning/kafka-image` sets a full
     apache/kafka-compatible image ref (tag, digest, or registry mirror),
-    precedence over `kafka-version`, feeding the recipe hash. The
-    local-kafka-docker-agent self-declares its `deployment-type` /
-    `kafka-version` / `kafka-image` schema when it registers.
+    precedence over `kafka-version`, feeding the recipe hash.
+  - **`franz/local/`** — local-dev infrastructure: `docker-compose.yml`
+    (Postgres + a `seed` one-shot) and `seed/*.sql`. `make deps` now applies the
+    schema and seeds the `local-kafka-agent` registration (with its provisioning
+    schema and a fixed public dev token) **before Franz starts**, so `make agent`
+    connects with no console step. Replaces the `FRANZ_REGISTER=1` self-register
+    path from deliverable 07 — `pkg/localkafka/register.go` and the `Register`
+    config field are removed; the agent takes `FRANZ_TOKEN` only.
 
 - **local-kafka-docker-agent** (impls_plan deliverable 07): `cmd/local-kafka-agent`
   — the first Cluster Provider agent. It registers with Franz, watches
@@ -45,14 +50,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   real-Docker end-to-end (`make agent-e2e`, opt-in) verifies a client can
   connect and create a topic against the provisioned broker. New Make targets
   `agent` / `agent-e2e`. New deps: `github.com/twmb/franz-go`,
-  `github.com/docker/docker`.
-- **`make agent` self-registration** (local dev): with no `TOKEN=`, `make agent`
-  sets `FRANZ_REGISTER=1` and the agent seeds (or reuses) its own registration
-  with Franz on startup — `GetAgent` → `CreateAgent` if absent, else
-  `RotateAgentToken` — and uses the returned bearer token. Removes the manual
-  "register in the console, copy the token, pass `TOKEN=`" step.
-  `TOKEN=` / `AGENT_NAME=` still override. Local-dev only (`AgentService` is
-  unauthenticated there). `pkg/localkafka/register.go`.
+  `github.com/docker/docker`. Local dev: `make agent` uses the seeded dev token
+  (see `franz/local/` above) — no console step.
 - **Web console bootstrap** (impls_plan deliverable 06): `webconsole/` — a
   Vite + React + TypeScript operator console (separate static build, not
   embedded). App shell ported from the `001-ux` prototype; Login stub; **Agents**

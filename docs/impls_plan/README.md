@@ -91,8 +91,11 @@ _(newest first — date · deliverable/task · note · commit)_
   deliverable-04 backend → console. Console edit pages for Agent + Kafka Cluster
   (`/…/edit`), schema-driven provisioning fields on the cluster forms,
   re-assignment confirm gate, 409 reload-and-re-apply. `local-docker` recipe
-  gains `franz.provisioning/kafka-image`; the local agent self-declares its
-  schema on registration. codex out of quota → claude implemented it all.
+  gains `franz.provisioning/kafka-image`. **`franz/local/`** added — a
+  docker-compose + DB seed that installs the `local-kafka-agent` registration
+  (schema + fixed dev token) before Franz starts, replacing the `FRANZ_REGISTER`
+  self-register path from 07 (`pkg/localkafka/register.go` removed). codex out of
+  quota → claude implemented it all.
 - 2026-09-06 · **plan** · inserted deliverable **08 — resource management in the
   console**; renumbered the former 08–15 to **09–16**. All cross-references and
   `Depends on` columns updated. No code or shipped deliverable (01–07) affected.

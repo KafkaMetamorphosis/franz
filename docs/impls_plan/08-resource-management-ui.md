@@ -69,16 +69,21 @@ Precedence: `kafka-image` wins; else `apache/kafka:<kafka-version>`. The resolve
 ref already feeds `recipe.Spec.Image` and the hash, so a change recreates the
 container (volume kept).
 
-### Local agent self-declared schema
+### Local agent provisioning schema
 
-`EnsureRegistered` (07) sends `provisioning_labels` on `CreateAgent` and refreshes
-them via `UpdateAgent` on the reuse path:
+The `local-kafka-agent` row is installed by the **DB seed**
+(`franz/local/seed/01-local-agent.sql`, applied by `make deps`), including its
+`provisioning_labels`:
 
 | key | allowed_values | default | required |
 |---|---|---|---|
 | `franz.provisioning/deployment-type` | `["local-docker"]` | `local-docker` | yes |
 | `franz.provisioning/kafka-version` | — | `3.7.0` | no |
 | `franz.provisioning/kafka-image` | — | — | no |
+
+_(An earlier version had the agent self-declare this via `EnsureRegistered` on
+startup; that path was removed with `register.go` — see deliverable 07's
+"Later change" note.)_
 
 ## Tasks
 
@@ -95,7 +100,7 @@ them via `UpdateAgent` on the reuse path:
 | 08.9 | **Re-assignment confirm** — changing (or clearing) `cluster_provider_agent` on a cluster that already has one shows an inline caution and requires an explicit confirm before Save. Wording only — the hand-off is 05's behaviour | `003.3`, 05 | ✅ | 2026-09-06 |
 | 08.10 | **Client-side guards** — cluster `connection_strings` keeps ≥1 non-empty bootstrap URL; agent `type` not settable to `UNSPECIFIED`; required provisioning labels must be filled; a no-op Save is disabled; a 409 refetches and asks the operator to re-apply (no silent overwrite) | `003.3`, `003.9`, ADR-API-005 | ✅ | 2026-09-06 |
 | 08.11 | **`local-docker` recipe** — `franz.provisioning/kafka-image` (precedence over `kafka-version`); recipe tests for both paths and the hash change; ADR-004 label table updated in code comments/docs pointers | `004` | ✅ | 2026-09-06 |
-| 08.12 | **Local agent self-declares its schema** — `EnsureRegistered` sends `provisioning_labels` on create and refreshes on the reuse path; unit test against the bufconn stub | `004`, 07 | ✅ | 2026-09-06 |
+| 08.12 | **Local agent schema seeded** — `franz/local/seed/01-local-agent.sql` installs the `local-kafka-agent` row with its `provisioning_labels` + a fixed dev token, applied by `make deps` before Franz starts. _(Superseded the startup self-declare in `register.go`, now removed.)_ | `004`, 07 | ✅ | 2026-09-06 |
 | 08.13 | **Tests** — vitest: mask holds only changed fields, immutable fields absent, `type=UNSPECIFIED` blocked, schema field rendering (select vs text, defaults, required), re-assignment gate, 409 refetch. Playwright (extends 06.7): register agent with a provisioning schema → register cluster, provisioning fields pre-filled from the agent → edit cluster config + labels → reload, persisted → edit agent type → reload, persisted | — | ✅ | 2026-09-06 |
 
 ## Done when
