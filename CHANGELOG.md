@@ -29,7 +29,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     apache/kafka-compatible image ref (tag, digest, or registry mirror),
     precedence over `kafka-version`, feeding the recipe hash.
   - **`franz/local/`** — local-dev infrastructure: `docker-compose.yml`
-    (Postgres + a `seed` one-shot) and `seed/*.sql`. `make deps` now applies the
+    (Postgres + a `seed` one-shot + **pgAdmin** at `http://localhost:5050`, with
+    the Franz DB pre-registered) and `seed/*.sql`. `make deps` now applies the
     schema and seeds the `local-kafka-agent` registration (with its provisioning
     schema and a fixed public dev token) **before Franz starts**, so `make agent`
     connects with no console step. Replaces the `FRANZ_REGISTER=1` self-register

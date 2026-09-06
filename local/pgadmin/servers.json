@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Franz (local)",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "franz",
+      "Username": "franz",
+      "SSLMode": "prefer",
+      "Comment": "Local-dev Franz database. Password is 'franz'."
+    }
+  }
+}

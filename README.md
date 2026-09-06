@@ -49,6 +49,7 @@ That brings up, wired together (Ctrl-C stops all):
 | | |
 |---|---|
 | Postgres | `localhost:5432` — started, migrated, and **seeded** (see `local/`) |
+| pgAdmin | `http://localhost:5050` — browse the schema (Franz DB pre-registered) |
 | Control plane | REST `http://localhost:8080` · gRPC `:9090` |
 | Web console | `http://localhost:5173` |
 
@@ -104,7 +105,7 @@ pkg/shared/         cross-cutting helpers (frn, token, pagetoken, fieldmask, …
 pkg/gen/go/         generated protobuf Go (do not edit)
 migrations/         SQL schema (idempotent; applied on boot)
 webconsole/         React operator console
-local/              local-dev docker-compose + DB seed
+local/              local-dev docker-compose (Postgres + seed + pgAdmin)
 docs/impls_plan/    the deliverable-by-deliverable build plan
 docs/impls_tracker/ per-deliverable decision + verification records
 ```

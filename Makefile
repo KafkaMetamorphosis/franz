@@ -29,10 +29,11 @@ help: ## Show this help
 # --- dependencies -----------------------------------------------------------
 
 .PHONY: deps
-deps: ## Start Postgres, apply migrations, seed local-dev fixtures
+deps: ## Start Postgres + pgAdmin, apply migrations, seed local-dev fixtures
 	@$(COMPOSE) up -d --wait postgres
-	@$(COMPOSE) run --rm --quiet-pull seed >/dev/null
-	@echo "Postgres ready + migrated + seeded on localhost:5432"
+	@$(COMPOSE) run --rm --quiet-pull seed >/dev/null 2>&1
+	@$(COMPOSE) up -d --quiet-pull pgadmin >/dev/null 2>&1
+	@echo "Postgres ready + migrated + seeded on localhost:5432 · pgAdmin on http://localhost:5050"
 
 .PHONY: seed
 seed: ## Re-run the local/seed/*.sql scripts (idempotent)
@@ -90,6 +91,7 @@ dev: deps build-franz webconsole/node_modules ## Run control plane + console tog
 	@echo " control plane : $(GATEWAY_URL)  (gRPC :9090)"
 	@echo " web console   : $(CONSOLE_URL)"
 	@echo " Postgres      : localhost:5432"
+	@echo " pgAdmin       : http://localhost:5050"
 	@echo " Ctrl-C stops both."
 	@echo "──────────────────────────────────────────────"
 	@FRANZ_DB__HOST=localhost ./$(FRANZ_BIN) & echo $$! > .franz.pid; \

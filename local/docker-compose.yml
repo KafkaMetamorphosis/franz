@@ -1,12 +1,13 @@
 # Franz local-dev infrastructure: Postgres + a one-shot that applies the schema
 # and seeds local-dev fixtures (the local-kafka-agent registration) so
-# `make agent` needs no console step.
+# `make agent` needs no console step + pgAdmin to browse the DB.
 #
 #   docker compose -f local/docker-compose.yml up -d --wait postgres
 #   docker compose -f local/docker-compose.yml run --rm seed
+#   docker compose -f local/docker-compose.yml up -d pgadmin   # http://localhost:5050
 #   docker compose -f local/docker-compose.yml down -v
 #
-# The Makefile drives this: `make deps` = postgres + seed.
+# The Makefile drives this: `make deps` = postgres + seed + pgadmin.
 #
 # Franz itself also applies migrations/ on boot (idempotent, see
 # pkg/franz/adapters/out/postgres/db.go); running them here first just lets the
@@ -53,5 +54,25 @@ services:
       postgres:
         condition: service_healthy
 
+  # Browse the schema + data at http://localhost:5050. Desktop mode — no pgAdmin
+  # login. The "Franz (local)" server is pre-registered (local/pgadmin/servers.json);
+  # it prompts once for the DB password, which is `franz`.
+  pgadmin:
+    image: dpage/pgadmin4:8
+    environment:
+      PGADMIN_DEFAULT_EMAIL: dev@franz.dev
+      PGADMIN_DEFAULT_PASSWORD: franz
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - franz-pgadmin:/var/lib/pgadmin
+      - ./pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   franz-pgdata:
+  franz-pgadmin:

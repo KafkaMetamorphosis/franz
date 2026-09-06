@@ -5,8 +5,9 @@ deployment.
 
 | File | What |
 |---|---|
-| `docker-compose.yml` | Postgres + a one-shot `seed` service |
+| `docker-compose.yml` | Postgres + a one-shot `seed` service + pgAdmin |
 | `seed/*.sql` | local-dev fixtures, applied after the schema, in filename order |
+| `pgadmin/servers.json` | pre-registers the Franz DB connection in pgAdmin |
 
 ## Flow
 
@@ -14,9 +15,16 @@ deployment.
 
 1. starts Postgres (`franz-postgres-1`, port 5432, volume `franz-pgdata`);
 2. runs the `seed` one-shot — applies `../migrations/*.sql` then `seed/*.sql`
-   with `psql`. Both are idempotent, so re-running is safe (`make seed`).
+   with `psql`. Both are idempotent, so re-running is safe (`make seed`);
+3. starts **pgAdmin** at <http://localhost:5050>.
 
 Then Franz starts and re-applies `migrations/` on boot (also idempotent).
+
+## pgAdmin
+
+<http://localhost:5050> — no pgAdmin login (desktop mode). The **Franz (local)**
+server is already in the tree; expand it and enter the DB password `franz` once
+(tick "Save password"). Browse `Databases → franz → Schemas → public → Tables`.
 
 ## Seeded fixtures
 
@@ -39,6 +47,6 @@ UPDATE`).
 ## Reset
 
 ```
-make deps-reset   # docker compose down -v — drops the Postgres volume
+make deps-reset   # docker compose down -v — drops the Postgres + pgAdmin volumes
 make deps         # recreate + re-seed
 ```
