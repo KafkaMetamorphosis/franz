@@ -141,7 +141,10 @@ func (rc *Reconciler) handleSet(ctx context.Context, a assign.Assignment, byName
 		touched[cur.Name] = true
 	}
 	needCreate := !exists
-	needRecreate := exists && cur.RecipeHash != spec.Hash()
+	// For a SET assignment a hash mismatch or a not-running container both mean
+	// "rebuild it" — the container crashed, was stopped by hand, or its spec
+	// changed. The data volume is always kept.
+	needRecreate := exists && (cur.RecipeHash != spec.Hash() || !cur.Running)
 	justStarted := needCreate || needRecreate
 
 	if needCreate || needRecreate {
@@ -163,12 +166,6 @@ func (rc *Reconciler) handleSet(ctx context.Context, a assign.Assignment, byName
 			rc.reportOnce(ctx, name, PhaseError, false, "start: "+err.Error(), ref)
 			return
 		}
-	} else if !cur.Running {
-		if err := rc.docker.Start(ctx, cur.ID); err != nil {
-			rc.reportOnce(ctx, name, PhaseError, false, "start: "+err.Error(), ref)
-			return
-		}
-		justStarted = true
 	}
 
 	ready, msg := rc.checkReady(ctx, spec.AdvertisedURL, justStarted)

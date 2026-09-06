@@ -115,10 +115,14 @@ func (r *grpcReporter) Report(ctx context.Context, cluster string, phase reconci
 	}.Build())
 	if err != nil {
 		r.log.Warn("ReportClusterStatus failed", "cluster", cluster, "phase", phase, "err", err)
-	} else {
-		r.log.Info("reported", "cluster", cluster, "phase", phase, "reachable", reachable)
+		return err
 	}
-	return err
+	lvl := slog.LevelInfo
+	if phase == reconcile.PhaseError || phase == reconcile.PhaseDegraded {
+		lvl = slog.LevelWarn
+	}
+	r.log.Log(ctx, lvl, "reported", "cluster", cluster, "phase", phase, "reachable", reachable, "detail", message)
+	return nil
 }
 
 func phaseToProto(p reconcile.Phase) franzv1.ClusterProviderPhase {

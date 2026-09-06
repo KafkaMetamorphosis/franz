@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
@@ -93,6 +94,20 @@ func (d *EngineDriver) EnsureImage(ctx context.Context, ref string) error {
 }
 
 func (d *EngineDriver) Create(ctx context.Context, spec recipe.Spec) (string, error) {
+	id, err := d.create(ctx, spec)
+	if err == nil {
+		return id, nil
+	}
+	// A stale container with the same name (a previous run that crashed before
+	// the agent could track it) blocks create — force-remove it and retry once.
+	if isNameConflict(err) {
+		_ = d.cli.ContainerRemove(ctx, spec.ContainerName, container.RemoveOptions{Force: true})
+		return d.create(ctx, spec)
+	}
+	return "", err
+}
+
+func (d *EngineDriver) create(ctx context.Context, spec recipe.Spec) (string, error) {
 	port := nat.Port(strconv.Itoa(9092) + "/tcp")
 	cfg := &container.Config{
 		Image:        spec.Image,
@@ -151,4 +166,12 @@ func (d *EngineDriver) Remove(ctx context.Context, id, volumeName string, remove
 func isNotModified(err error) bool {
 	var e interface{ NotModified() bool }
 	return errors.As(err, &e) && e.NotModified()
+}
+
+// isNameConflict matches the Engine's 409 "container name already in use".
+func isNameConflict(err error) bool {
+	if errdefs.IsConflict(err) {
+		return true
+	}
+	return err != nil && strings.Contains(err.Error(), "already in use")
 }
