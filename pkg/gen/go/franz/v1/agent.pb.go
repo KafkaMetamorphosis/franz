@@ -129,18 +129,19 @@ func (x AgentStatus) Number() protoreflect.EnumNumber {
 // An agent is a program registered with Franz that connects to the fleet API
 // over gRPC, pulls work, and reports results. Franz never calls an agent.
 type Agent struct {
-	state                  protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Frn         *string                `protobuf:"bytes,2,opt,name=frn"`
-	xxx_hidden_Type        AgentType              `protobuf:"varint,3,opt,name=type,enum=franz.v1.AgentType"`
-	xxx_hidden_Labels      map[string]string      `protobuf:"bytes,4,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	xxx_hidden_Status      AgentStatus            `protobuf:"varint,5,opt,name=status,enum=franz.v1.AgentStatus"`
-	xxx_hidden_CreatedAt   *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=created_at,json=createdAt"`
-	xxx_hidden_UpdatedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt"`
-	XXX_raceDetectHookData protoimpl.RaceDetectHookData
-	XXX_presence           [1]uint32
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                         protoimpl.MessageState    `protogen:"opaque.v1"`
+	xxx_hidden_Name               *string                   `protobuf:"bytes,1,opt,name=name"`
+	xxx_hidden_Frn                *string                   `protobuf:"bytes,2,opt,name=frn"`
+	xxx_hidden_Type               AgentType                 `protobuf:"varint,3,opt,name=type,enum=franz.v1.AgentType"`
+	xxx_hidden_Labels             map[string]string         `protobuf:"bytes,4,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Status             AgentStatus               `protobuf:"varint,5,opt,name=status,enum=franz.v1.AgentStatus"`
+	xxx_hidden_CreatedAt          *timestamppb.Timestamp    `protobuf:"bytes,6,opt,name=created_at,json=createdAt"`
+	xxx_hidden_UpdatedAt          *timestamppb.Timestamp    `protobuf:"bytes,7,opt,name=updated_at,json=updatedAt"`
+	xxx_hidden_ProvisioningLabels *[]*ProvisioningLabelSpec `protobuf:"bytes,8,rep,name=provisioning_labels,json=provisioningLabels"`
+	XXX_raceDetectHookData        protoimpl.RaceDetectHookData
+	XXX_presence                  [1]uint32
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *Agent) Reset() {
@@ -227,19 +228,28 @@ func (x *Agent) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *Agent) GetProvisioningLabels() []*ProvisioningLabelSpec {
+	if x != nil {
+		if x.xxx_hidden_ProvisioningLabels != nil {
+			return *x.xxx_hidden_ProvisioningLabels
+		}
+	}
+	return nil
+}
+
 func (x *Agent) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 8)
 }
 
 func (x *Agent) SetFrn(v string) {
 	x.xxx_hidden_Frn = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 8)
 }
 
 func (x *Agent) SetType(v AgentType) {
 	x.xxx_hidden_Type = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 8)
 }
 
 func (x *Agent) SetLabels(v map[string]string) {
@@ -248,7 +258,7 @@ func (x *Agent) SetLabels(v map[string]string) {
 
 func (x *Agent) SetStatus(v AgentStatus) {
 	x.xxx_hidden_Status = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 8)
 }
 
 func (x *Agent) SetCreatedAt(v *timestamppb.Timestamp) {
@@ -257,6 +267,10 @@ func (x *Agent) SetCreatedAt(v *timestamppb.Timestamp) {
 
 func (x *Agent) SetUpdatedAt(v *timestamppb.Timestamp) {
 	x.xxx_hidden_UpdatedAt = v
+}
+
+func (x *Agent) SetProvisioningLabels(v []*ProvisioningLabelSpec) {
+	x.xxx_hidden_ProvisioningLabels = &v
 }
 
 func (x *Agent) HasName() bool {
@@ -346,6 +360,11 @@ type Agent_builder struct {
 	Status    *AgentStatus
 	CreatedAt *timestamppb.Timestamp
 	UpdatedAt *timestamppb.Timestamp
+	// Advisory schema: the franz.provisioning/* labels this agent's recipes
+	// understand, with allowed values and defaults. Franz stores and serves it
+	// for the console to render resource forms; it never validates another
+	// resource's labels against it. See 003.9.
+	ProvisioningLabels []*ProvisioningLabelSpec
 }
 
 func (b0 Agent_builder) Build() *Agent {
@@ -353,41 +372,239 @@ func (b0 Agent_builder) Build() *Agent {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 8)
 		x.xxx_hidden_Name = b.Name
 	}
 	if b.Frn != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 8)
 		x.xxx_hidden_Frn = b.Frn
 	}
 	if b.Type != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 8)
 		x.xxx_hidden_Type = *b.Type
 	}
 	x.xxx_hidden_Labels = b.Labels
 	if b.Status != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 8)
 		x.xxx_hidden_Status = *b.Status
 	}
 	x.xxx_hidden_CreatedAt = b.CreatedAt
 	x.xxx_hidden_UpdatedAt = b.UpdatedAt
+	x.xxx_hidden_ProvisioningLabels = &b.ProvisioningLabels
+	return m0
+}
+
+// ProvisioningLabelSpec describes one franz.provisioning/* label an agent's
+// recipe reads. Advisory — a console UX aid only (003.9, ADR-API-008).
+type ProvisioningLabelSpec struct {
+	state                    protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Key           *string                `protobuf:"bytes,1,opt,name=key"`
+	xxx_hidden_Description   *string                `protobuf:"bytes,2,opt,name=description"`
+	xxx_hidden_AllowedValues []string               `protobuf:"bytes,3,rep,name=allowed_values,json=allowedValues"`
+	xxx_hidden_DefaultValue  *string                `protobuf:"bytes,4,opt,name=default_value,json=defaultValue"`
+	xxx_hidden_Required      bool                   `protobuf:"varint,5,opt,name=required"`
+	XXX_raceDetectHookData   protoimpl.RaceDetectHookData
+	XXX_presence             [1]uint32
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *ProvisioningLabelSpec) Reset() {
+	*x = ProvisioningLabelSpec{}
+	mi := &file_franz_v1_agent_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProvisioningLabelSpec) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProvisioningLabelSpec) ProtoMessage() {}
+
+func (x *ProvisioningLabelSpec) ProtoReflect() protoreflect.Message {
+	mi := &file_franz_v1_agent_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *ProvisioningLabelSpec) GetKey() string {
+	if x != nil {
+		if x.xxx_hidden_Key != nil {
+			return *x.xxx_hidden_Key
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *ProvisioningLabelSpec) GetDescription() string {
+	if x != nil {
+		if x.xxx_hidden_Description != nil {
+			return *x.xxx_hidden_Description
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *ProvisioningLabelSpec) GetAllowedValues() []string {
+	if x != nil {
+		return x.xxx_hidden_AllowedValues
+	}
+	return nil
+}
+
+func (x *ProvisioningLabelSpec) GetDefaultValue() string {
+	if x != nil {
+		if x.xxx_hidden_DefaultValue != nil {
+			return *x.xxx_hidden_DefaultValue
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *ProvisioningLabelSpec) GetRequired() bool {
+	if x != nil {
+		return x.xxx_hidden_Required
+	}
+	return false
+}
+
+func (x *ProvisioningLabelSpec) SetKey(v string) {
+	x.xxx_hidden_Key = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 5)
+}
+
+func (x *ProvisioningLabelSpec) SetDescription(v string) {
+	x.xxx_hidden_Description = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 5)
+}
+
+func (x *ProvisioningLabelSpec) SetAllowedValues(v []string) {
+	x.xxx_hidden_AllowedValues = v
+}
+
+func (x *ProvisioningLabelSpec) SetDefaultValue(v string) {
+	x.xxx_hidden_DefaultValue = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 5)
+}
+
+func (x *ProvisioningLabelSpec) SetRequired(v bool) {
+	x.xxx_hidden_Required = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 5)
+}
+
+func (x *ProvisioningLabelSpec) HasKey() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *ProvisioningLabelSpec) HasDescription() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
+}
+
+func (x *ProvisioningLabelSpec) HasDefaultValue() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 3)
+}
+
+func (x *ProvisioningLabelSpec) HasRequired() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 4)
+}
+
+func (x *ProvisioningLabelSpec) ClearKey() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Key = nil
+}
+
+func (x *ProvisioningLabelSpec) ClearDescription() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
+	x.xxx_hidden_Description = nil
+}
+
+func (x *ProvisioningLabelSpec) ClearDefaultValue() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 3)
+	x.xxx_hidden_DefaultValue = nil
+}
+
+func (x *ProvisioningLabelSpec) ClearRequired() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 4)
+	x.xxx_hidden_Required = false
+}
+
+type ProvisioningLabelSpec_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	// Reserved-label key, e.g. "franz.provisioning/kafka-image". Must be
+	// franz.-prefixed.
+	Key         *string
+	Description *string
+	// Allowed values; empty means free text.
+	AllowedValues []string
+	// Pre-filled in the console form. When allowed_values is set, must be one of
+	// them.
+	DefaultValue *string
+	// The console requires a value; Franz does not enforce it.
+	Required *bool
+}
+
+func (b0 ProvisioningLabelSpec_builder) Build() *ProvisioningLabelSpec {
+	m0 := &ProvisioningLabelSpec{}
+	b, x := &b0, m0
+	_, _ = b, x
+	if b.Key != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 5)
+		x.xxx_hidden_Key = b.Key
+	}
+	if b.Description != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 5)
+		x.xxx_hidden_Description = b.Description
+	}
+	x.xxx_hidden_AllowedValues = b.AllowedValues
+	if b.DefaultValue != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 5)
+		x.xxx_hidden_DefaultValue = b.DefaultValue
+	}
+	if b.Required != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 5)
+		x.xxx_hidden_Required = *b.Required
+	}
 	return m0
 }
 
 type CreateAgentRequest struct {
-	state                  protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Type        AgentType              `protobuf:"varint,2,opt,name=type,enum=franz.v1.AgentType"`
-	xxx_hidden_Labels      map[string]string      `protobuf:"bytes,3,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	XXX_raceDetectHookData protoimpl.RaceDetectHookData
-	XXX_presence           [1]uint32
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                         protoimpl.MessageState    `protogen:"opaque.v1"`
+	xxx_hidden_Name               *string                   `protobuf:"bytes,1,opt,name=name"`
+	xxx_hidden_Type               AgentType                 `protobuf:"varint,2,opt,name=type,enum=franz.v1.AgentType"`
+	xxx_hidden_Labels             map[string]string         `protobuf:"bytes,3,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_ProvisioningLabels *[]*ProvisioningLabelSpec `protobuf:"bytes,4,rep,name=provisioning_labels,json=provisioningLabels"`
+	XXX_raceDetectHookData        protoimpl.RaceDetectHookData
+	XXX_presence                  [1]uint32
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *CreateAgentRequest) Reset() {
 	*x = CreateAgentRequest{}
-	mi := &file_franz_v1_agent_proto_msgTypes[1]
+	mi := &file_franz_v1_agent_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -399,7 +616,7 @@ func (x *CreateAgentRequest) String() string {
 func (*CreateAgentRequest) ProtoMessage() {}
 
 func (x *CreateAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[1]
+	mi := &file_franz_v1_agent_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -436,18 +653,31 @@ func (x *CreateAgentRequest) GetLabels() map[string]string {
 	return nil
 }
 
+func (x *CreateAgentRequest) GetProvisioningLabels() []*ProvisioningLabelSpec {
+	if x != nil {
+		if x.xxx_hidden_ProvisioningLabels != nil {
+			return *x.xxx_hidden_ProvisioningLabels
+		}
+	}
+	return nil
+}
+
 func (x *CreateAgentRequest) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 3)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 4)
 }
 
 func (x *CreateAgentRequest) SetType(v AgentType) {
 	x.xxx_hidden_Type = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 3)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 4)
 }
 
 func (x *CreateAgentRequest) SetLabels(v map[string]string) {
 	x.xxx_hidden_Labels = v
+}
+
+func (x *CreateAgentRequest) SetProvisioningLabels(v []*ProvisioningLabelSpec) {
+	x.xxx_hidden_ProvisioningLabels = &v
 }
 
 func (x *CreateAgentRequest) HasName() bool {
@@ -477,9 +707,10 @@ func (x *CreateAgentRequest) ClearType() {
 type CreateAgentRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	Name   *string
-	Type   *AgentType
-	Labels map[string]string
+	Name               *string
+	Type               *AgentType
+	Labels             map[string]string
+	ProvisioningLabels []*ProvisioningLabelSpec
 }
 
 func (b0 CreateAgentRequest_builder) Build() *CreateAgentRequest {
@@ -487,14 +718,15 @@ func (b0 CreateAgentRequest_builder) Build() *CreateAgentRequest {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 3)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 4)
 		x.xxx_hidden_Name = b.Name
 	}
 	if b.Type != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 3)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 4)
 		x.xxx_hidden_Type = *b.Type
 	}
 	x.xxx_hidden_Labels = b.Labels
+	x.xxx_hidden_ProvisioningLabels = &b.ProvisioningLabels
 	return m0
 }
 
@@ -510,7 +742,7 @@ type CreateAgentResponse struct {
 
 func (x *CreateAgentResponse) Reset() {
 	*x = CreateAgentResponse{}
-	mi := &file_franz_v1_agent_proto_msgTypes[2]
+	mi := &file_franz_v1_agent_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -522,7 +754,7 @@ func (x *CreateAgentResponse) String() string {
 func (*CreateAgentResponse) ProtoMessage() {}
 
 func (x *CreateAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[2]
+	mi := &file_franz_v1_agent_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -615,7 +847,7 @@ type GetAgentRequest struct {
 
 func (x *GetAgentRequest) Reset() {
 	*x = GetAgentRequest{}
-	mi := &file_franz_v1_agent_proto_msgTypes[3]
+	mi := &file_franz_v1_agent_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -627,7 +859,7 @@ func (x *GetAgentRequest) String() string {
 func (*GetAgentRequest) ProtoMessage() {}
 
 func (x *GetAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[3]
+	mi := &file_franz_v1_agent_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -691,7 +923,7 @@ type GetAgentResponse struct {
 
 func (x *GetAgentResponse) Reset() {
 	*x = GetAgentResponse{}
-	mi := &file_franz_v1_agent_proto_msgTypes[4]
+	mi := &file_franz_v1_agent_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -703,7 +935,7 @@ func (x *GetAgentResponse) String() string {
 func (*GetAgentResponse) ProtoMessage() {}
 
 func (x *GetAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[4]
+	mi := &file_franz_v1_agent_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -762,7 +994,7 @@ type ListAgentsRequest struct {
 
 func (x *ListAgentsRequest) Reset() {
 	*x = ListAgentsRequest{}
-	mi := &file_franz_v1_agent_proto_msgTypes[5]
+	mi := &file_franz_v1_agent_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -774,7 +1006,7 @@ func (x *ListAgentsRequest) String() string {
 func (*ListAgentsRequest) ProtoMessage() {}
 
 func (x *ListAgentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[5]
+	mi := &file_franz_v1_agent_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -863,7 +1095,7 @@ type ListAgentsResponse struct {
 
 func (x *ListAgentsResponse) Reset() {
 	*x = ListAgentsResponse{}
-	mi := &file_franz_v1_agent_proto_msgTypes[6]
+	mi := &file_franz_v1_agent_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -875,7 +1107,7 @@ func (x *ListAgentsResponse) String() string {
 func (*ListAgentsResponse) ProtoMessage() {}
 
 func (x *ListAgentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[6]
+	mi := &file_franz_v1_agent_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -938,20 +1170,21 @@ func (b0 ListAgentsResponse_builder) Build() *ListAgentsResponse {
 }
 
 type UpdateAgentRequest struct {
-	state                  protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Type        AgentType              `protobuf:"varint,2,opt,name=type,enum=franz.v1.AgentType"`
-	xxx_hidden_Labels      map[string]string      `protobuf:"bytes,3,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	xxx_hidden_UpdateMask  *fieldmaskpb.FieldMask `protobuf:"bytes,4,opt,name=update_mask,json=updateMask"`
-	XXX_raceDetectHookData protoimpl.RaceDetectHookData
-	XXX_presence           [1]uint32
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                         protoimpl.MessageState    `protogen:"opaque.v1"`
+	xxx_hidden_Name               *string                   `protobuf:"bytes,1,opt,name=name"`
+	xxx_hidden_Type               AgentType                 `protobuf:"varint,2,opt,name=type,enum=franz.v1.AgentType"`
+	xxx_hidden_Labels             map[string]string         `protobuf:"bytes,3,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_UpdateMask         *fieldmaskpb.FieldMask    `protobuf:"bytes,4,opt,name=update_mask,json=updateMask"`
+	xxx_hidden_ProvisioningLabels *[]*ProvisioningLabelSpec `protobuf:"bytes,5,rep,name=provisioning_labels,json=provisioningLabels"`
+	XXX_raceDetectHookData        protoimpl.RaceDetectHookData
+	XXX_presence                  [1]uint32
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *UpdateAgentRequest) Reset() {
 	*x = UpdateAgentRequest{}
-	mi := &file_franz_v1_agent_proto_msgTypes[7]
+	mi := &file_franz_v1_agent_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -963,7 +1196,7 @@ func (x *UpdateAgentRequest) String() string {
 func (*UpdateAgentRequest) ProtoMessage() {}
 
 func (x *UpdateAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[7]
+	mi := &file_franz_v1_agent_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1007,14 +1240,23 @@ func (x *UpdateAgentRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	return nil
 }
 
+func (x *UpdateAgentRequest) GetProvisioningLabels() []*ProvisioningLabelSpec {
+	if x != nil {
+		if x.xxx_hidden_ProvisioningLabels != nil {
+			return *x.xxx_hidden_ProvisioningLabels
+		}
+	}
+	return nil
+}
+
 func (x *UpdateAgentRequest) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 4)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 5)
 }
 
 func (x *UpdateAgentRequest) SetType(v AgentType) {
 	x.xxx_hidden_Type = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 4)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 5)
 }
 
 func (x *UpdateAgentRequest) SetLabels(v map[string]string) {
@@ -1023,6 +1265,10 @@ func (x *UpdateAgentRequest) SetLabels(v map[string]string) {
 
 func (x *UpdateAgentRequest) SetUpdateMask(v *fieldmaskpb.FieldMask) {
 	x.xxx_hidden_UpdateMask = v
+}
+
+func (x *UpdateAgentRequest) SetProvisioningLabels(v []*ProvisioningLabelSpec) {
+	x.xxx_hidden_ProvisioningLabels = &v
 }
 
 func (x *UpdateAgentRequest) HasName() bool {
@@ -1067,7 +1313,8 @@ type UpdateAgentRequest_builder struct {
 	Type   *AgentType
 	Labels map[string]string
 	// Fields to update; unset fields are left unchanged.
-	UpdateMask *fieldmaskpb.FieldMask
+	UpdateMask         *fieldmaskpb.FieldMask
+	ProvisioningLabels []*ProvisioningLabelSpec
 }
 
 func (b0 UpdateAgentRequest_builder) Build() *UpdateAgentRequest {
@@ -1075,15 +1322,16 @@ func (b0 UpdateAgentRequest_builder) Build() *UpdateAgentRequest {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 4)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 5)
 		x.xxx_hidden_Name = b.Name
 	}
 	if b.Type != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 4)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 5)
 		x.xxx_hidden_Type = *b.Type
 	}
 	x.xxx_hidden_Labels = b.Labels
 	x.xxx_hidden_UpdateMask = b.UpdateMask
+	x.xxx_hidden_ProvisioningLabels = &b.ProvisioningLabels
 	return m0
 }
 
@@ -1096,7 +1344,7 @@ type UpdateAgentResponse struct {
 
 func (x *UpdateAgentResponse) Reset() {
 	*x = UpdateAgentResponse{}
-	mi := &file_franz_v1_agent_proto_msgTypes[8]
+	mi := &file_franz_v1_agent_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1108,7 +1356,7 @@ func (x *UpdateAgentResponse) String() string {
 func (*UpdateAgentResponse) ProtoMessage() {}
 
 func (x *UpdateAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[8]
+	mi := &file_franz_v1_agent_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1166,7 +1414,7 @@ type DeleteAgentRequest struct {
 
 func (x *DeleteAgentRequest) Reset() {
 	*x = DeleteAgentRequest{}
-	mi := &file_franz_v1_agent_proto_msgTypes[9]
+	mi := &file_franz_v1_agent_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1178,7 +1426,7 @@ func (x *DeleteAgentRequest) String() string {
 func (*DeleteAgentRequest) ProtoMessage() {}
 
 func (x *DeleteAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[9]
+	mi := &file_franz_v1_agent_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1241,7 +1489,7 @@ type DeleteAgentResponse struct {
 
 func (x *DeleteAgentResponse) Reset() {
 	*x = DeleteAgentResponse{}
-	mi := &file_franz_v1_agent_proto_msgTypes[10]
+	mi := &file_franz_v1_agent_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1253,7 +1501,7 @@ func (x *DeleteAgentResponse) String() string {
 func (*DeleteAgentResponse) ProtoMessage() {}
 
 func (x *DeleteAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[10]
+	mi := &file_franz_v1_agent_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1287,7 +1535,7 @@ type PauseAgentRequest struct {
 
 func (x *PauseAgentRequest) Reset() {
 	*x = PauseAgentRequest{}
-	mi := &file_franz_v1_agent_proto_msgTypes[11]
+	mi := &file_franz_v1_agent_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1299,7 +1547,7 @@ func (x *PauseAgentRequest) String() string {
 func (*PauseAgentRequest) ProtoMessage() {}
 
 func (x *PauseAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[11]
+	mi := &file_franz_v1_agent_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1363,7 +1611,7 @@ type PauseAgentResponse struct {
 
 func (x *PauseAgentResponse) Reset() {
 	*x = PauseAgentResponse{}
-	mi := &file_franz_v1_agent_proto_msgTypes[12]
+	mi := &file_franz_v1_agent_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1375,7 +1623,7 @@ func (x *PauseAgentResponse) String() string {
 func (*PauseAgentResponse) ProtoMessage() {}
 
 func (x *PauseAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[12]
+	mi := &file_franz_v1_agent_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1433,7 +1681,7 @@ type ResumeAgentRequest struct {
 
 func (x *ResumeAgentRequest) Reset() {
 	*x = ResumeAgentRequest{}
-	mi := &file_franz_v1_agent_proto_msgTypes[13]
+	mi := &file_franz_v1_agent_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1445,7 +1693,7 @@ func (x *ResumeAgentRequest) String() string {
 func (*ResumeAgentRequest) ProtoMessage() {}
 
 func (x *ResumeAgentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[13]
+	mi := &file_franz_v1_agent_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1509,7 +1757,7 @@ type ResumeAgentResponse struct {
 
 func (x *ResumeAgentResponse) Reset() {
 	*x = ResumeAgentResponse{}
-	mi := &file_franz_v1_agent_proto_msgTypes[14]
+	mi := &file_franz_v1_agent_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1521,7 +1769,7 @@ func (x *ResumeAgentResponse) String() string {
 func (*ResumeAgentResponse) ProtoMessage() {}
 
 func (x *ResumeAgentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[14]
+	mi := &file_franz_v1_agent_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1579,7 +1827,7 @@ type RotateAgentTokenRequest struct {
 
 func (x *RotateAgentTokenRequest) Reset() {
 	*x = RotateAgentTokenRequest{}
-	mi := &file_franz_v1_agent_proto_msgTypes[15]
+	mi := &file_franz_v1_agent_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1591,7 +1839,7 @@ func (x *RotateAgentTokenRequest) String() string {
 func (*RotateAgentTokenRequest) ProtoMessage() {}
 
 func (x *RotateAgentTokenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[15]
+	mi := &file_franz_v1_agent_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1657,7 +1905,7 @@ type RotateAgentTokenResponse struct {
 
 func (x *RotateAgentTokenResponse) Reset() {
 	*x = RotateAgentTokenResponse{}
-	mi := &file_franz_v1_agent_proto_msgTypes[16]
+	mi := &file_franz_v1_agent_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1669,7 +1917,7 @@ func (x *RotateAgentTokenResponse) String() string {
 func (*RotateAgentTokenResponse) ProtoMessage() {}
 
 func (x *RotateAgentTokenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_proto_msgTypes[16]
+	mi := &file_franz_v1_agent_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1729,7 +1977,7 @@ var File_franz_v1_agent_proto protoreflect.FileDescriptor
 
 const file_franz_v1_agent_proto_rawDesc = "" +
 	"\n" +
-	"\x14franz/v1/agent.proto\x12\bfranz.v1\x1a\x1cgoogle/api/annotations.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15franz/v1/common.proto\"\xeb\x02\n" +
+	"\x14franz/v1/agent.proto\x12\bfranz.v1\x1a\x1cgoogle/api/annotations.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15franz/v1/common.proto\"\xbd\x03\n" +
 	"\x05Agent\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03frn\x18\x02 \x01(\tR\x03frn\x12'\n" +
@@ -1739,14 +1987,22 @@ const file_franz_v1_agent_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +
-	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x1a9\n" +
+	"updated_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12P\n" +
+	"\x13provisioning_labels\x18\b \x03(\v2\x1f.franz.v1.ProvisioningLabelSpecR\x12provisioningLabels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xce\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xb3\x01\n" +
+	"\x15ProvisioningLabelSpec\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12 \n" +
+	"\vdescription\x18\x02 \x01(\tR\vdescription\x12%\n" +
+	"\x0eallowed_values\x18\x03 \x03(\tR\rallowedValues\x12#\n" +
+	"\rdefault_value\x18\x04 \x01(\tR\fdefaultValue\x12\x1a\n" +
+	"\brequired\x18\x05 \x01(\bR\brequired\"\xa0\x02\n" +
 	"\x12CreateAgentRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x13.franz.v1.AgentTypeR\x04type\x12@\n" +
-	"\x06labels\x18\x03 \x03(\v2(.franz.v1.CreateAgentRequest.LabelsEntryR\x06labels\x1a9\n" +
+	"\x06labels\x18\x03 \x03(\v2(.franz.v1.CreateAgentRequest.LabelsEntryR\x06labels\x12P\n" +
+	"\x13provisioning_labels\x18\x04 \x03(\v2\x1f.franz.v1.ProvisioningLabelSpecR\x12provisioningLabels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"R\n" +
@@ -1762,13 +2018,14 @@ const file_franz_v1_agent_proto_rawDesc = "" +
 	"\x04type\x18\x02 \x01(\x0e2\x13.franz.v1.AgentTypeR\x04type\"i\n" +
 	"\x12ListAgentsResponse\x12'\n" +
 	"\x06agents\x18\x01 \x03(\v2\x0f.franz.v1.AgentR\x06agents\x12*\n" +
-	"\x04page\x18\x02 \x01(\v2\x16.franz.v1.PageResponseR\x04page\"\x8b\x02\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.franz.v1.PageResponseR\x04page\"\xdd\x02\n" +
 	"\x12UpdateAgentRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12'\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x13.franz.v1.AgentTypeR\x04type\x12@\n" +
 	"\x06labels\x18\x03 \x03(\v2(.franz.v1.UpdateAgentRequest.LabelsEntryR\x06labels\x12;\n" +
 	"\vupdate_mask\x18\x04 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x1a9\n" +
+	"updateMask\x12P\n" +
+	"\x13provisioning_labels\x18\x05 \x03(\v2\x1f.franz.v1.ProvisioningLabelSpecR\x12provisioningLabels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"<\n" +
@@ -1815,76 +2072,80 @@ const file_franz_v1_agent_proto_rawDesc = "" +
 	"AgentProtoP\x01Z?github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1;franzv1\xa2\x02\x03FXX\xaa\x02\bFranz.V1\xca\x02\bFranz\\V1\xe2\x02\x14Franz\\V1\\GPBMetadata\xea\x02\tFranz::V1b\beditionsp\xe9\a"
 
 var file_franz_v1_agent_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_franz_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
+var file_franz_v1_agent_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_franz_v1_agent_proto_goTypes = []any{
 	(AgentType)(0),                   // 0: franz.v1.AgentType
 	(AgentStatus)(0),                 // 1: franz.v1.AgentStatus
 	(*Agent)(nil),                    // 2: franz.v1.Agent
-	(*CreateAgentRequest)(nil),       // 3: franz.v1.CreateAgentRequest
-	(*CreateAgentResponse)(nil),      // 4: franz.v1.CreateAgentResponse
-	(*GetAgentRequest)(nil),          // 5: franz.v1.GetAgentRequest
-	(*GetAgentResponse)(nil),         // 6: franz.v1.GetAgentResponse
-	(*ListAgentsRequest)(nil),        // 7: franz.v1.ListAgentsRequest
-	(*ListAgentsResponse)(nil),       // 8: franz.v1.ListAgentsResponse
-	(*UpdateAgentRequest)(nil),       // 9: franz.v1.UpdateAgentRequest
-	(*UpdateAgentResponse)(nil),      // 10: franz.v1.UpdateAgentResponse
-	(*DeleteAgentRequest)(nil),       // 11: franz.v1.DeleteAgentRequest
-	(*DeleteAgentResponse)(nil),      // 12: franz.v1.DeleteAgentResponse
-	(*PauseAgentRequest)(nil),        // 13: franz.v1.PauseAgentRequest
-	(*PauseAgentResponse)(nil),       // 14: franz.v1.PauseAgentResponse
-	(*ResumeAgentRequest)(nil),       // 15: franz.v1.ResumeAgentRequest
-	(*ResumeAgentResponse)(nil),      // 16: franz.v1.ResumeAgentResponse
-	(*RotateAgentTokenRequest)(nil),  // 17: franz.v1.RotateAgentTokenRequest
-	(*RotateAgentTokenResponse)(nil), // 18: franz.v1.RotateAgentTokenResponse
-	nil,                              // 19: franz.v1.Agent.LabelsEntry
-	nil,                              // 20: franz.v1.CreateAgentRequest.LabelsEntry
-	nil,                              // 21: franz.v1.UpdateAgentRequest.LabelsEntry
-	(*timestamppb.Timestamp)(nil),    // 22: google.protobuf.Timestamp
-	(*PageRequest)(nil),              // 23: franz.v1.PageRequest
-	(*PageResponse)(nil),             // 24: franz.v1.PageResponse
-	(*fieldmaskpb.FieldMask)(nil),    // 25: google.protobuf.FieldMask
+	(*ProvisioningLabelSpec)(nil),    // 3: franz.v1.ProvisioningLabelSpec
+	(*CreateAgentRequest)(nil),       // 4: franz.v1.CreateAgentRequest
+	(*CreateAgentResponse)(nil),      // 5: franz.v1.CreateAgentResponse
+	(*GetAgentRequest)(nil),          // 6: franz.v1.GetAgentRequest
+	(*GetAgentResponse)(nil),         // 7: franz.v1.GetAgentResponse
+	(*ListAgentsRequest)(nil),        // 8: franz.v1.ListAgentsRequest
+	(*ListAgentsResponse)(nil),       // 9: franz.v1.ListAgentsResponse
+	(*UpdateAgentRequest)(nil),       // 10: franz.v1.UpdateAgentRequest
+	(*UpdateAgentResponse)(nil),      // 11: franz.v1.UpdateAgentResponse
+	(*DeleteAgentRequest)(nil),       // 12: franz.v1.DeleteAgentRequest
+	(*DeleteAgentResponse)(nil),      // 13: franz.v1.DeleteAgentResponse
+	(*PauseAgentRequest)(nil),        // 14: franz.v1.PauseAgentRequest
+	(*PauseAgentResponse)(nil),       // 15: franz.v1.PauseAgentResponse
+	(*ResumeAgentRequest)(nil),       // 16: franz.v1.ResumeAgentRequest
+	(*ResumeAgentResponse)(nil),      // 17: franz.v1.ResumeAgentResponse
+	(*RotateAgentTokenRequest)(nil),  // 18: franz.v1.RotateAgentTokenRequest
+	(*RotateAgentTokenResponse)(nil), // 19: franz.v1.RotateAgentTokenResponse
+	nil,                              // 20: franz.v1.Agent.LabelsEntry
+	nil,                              // 21: franz.v1.CreateAgentRequest.LabelsEntry
+	nil,                              // 22: franz.v1.UpdateAgentRequest.LabelsEntry
+	(*timestamppb.Timestamp)(nil),    // 23: google.protobuf.Timestamp
+	(*PageRequest)(nil),              // 24: franz.v1.PageRequest
+	(*PageResponse)(nil),             // 25: franz.v1.PageResponse
+	(*fieldmaskpb.FieldMask)(nil),    // 26: google.protobuf.FieldMask
 }
 var file_franz_v1_agent_proto_depIdxs = []int32{
 	0,  // 0: franz.v1.Agent.type:type_name -> franz.v1.AgentType
-	19, // 1: franz.v1.Agent.labels:type_name -> franz.v1.Agent.LabelsEntry
+	20, // 1: franz.v1.Agent.labels:type_name -> franz.v1.Agent.LabelsEntry
 	1,  // 2: franz.v1.Agent.status:type_name -> franz.v1.AgentStatus
-	22, // 3: franz.v1.Agent.created_at:type_name -> google.protobuf.Timestamp
-	22, // 4: franz.v1.Agent.updated_at:type_name -> google.protobuf.Timestamp
-	0,  // 5: franz.v1.CreateAgentRequest.type:type_name -> franz.v1.AgentType
-	20, // 6: franz.v1.CreateAgentRequest.labels:type_name -> franz.v1.CreateAgentRequest.LabelsEntry
-	2,  // 7: franz.v1.CreateAgentResponse.agent:type_name -> franz.v1.Agent
-	2,  // 8: franz.v1.GetAgentResponse.agent:type_name -> franz.v1.Agent
-	23, // 9: franz.v1.ListAgentsRequest.page:type_name -> franz.v1.PageRequest
-	0,  // 10: franz.v1.ListAgentsRequest.type:type_name -> franz.v1.AgentType
-	2,  // 11: franz.v1.ListAgentsResponse.agents:type_name -> franz.v1.Agent
-	24, // 12: franz.v1.ListAgentsResponse.page:type_name -> franz.v1.PageResponse
-	0,  // 13: franz.v1.UpdateAgentRequest.type:type_name -> franz.v1.AgentType
-	21, // 14: franz.v1.UpdateAgentRequest.labels:type_name -> franz.v1.UpdateAgentRequest.LabelsEntry
-	25, // 15: franz.v1.UpdateAgentRequest.update_mask:type_name -> google.protobuf.FieldMask
-	2,  // 16: franz.v1.UpdateAgentResponse.agent:type_name -> franz.v1.Agent
-	2,  // 17: franz.v1.PauseAgentResponse.agent:type_name -> franz.v1.Agent
-	2,  // 18: franz.v1.ResumeAgentResponse.agent:type_name -> franz.v1.Agent
-	3,  // 19: franz.v1.AgentService.CreateAgent:input_type -> franz.v1.CreateAgentRequest
-	5,  // 20: franz.v1.AgentService.GetAgent:input_type -> franz.v1.GetAgentRequest
-	7,  // 21: franz.v1.AgentService.ListAgents:input_type -> franz.v1.ListAgentsRequest
-	9,  // 22: franz.v1.AgentService.UpdateAgent:input_type -> franz.v1.UpdateAgentRequest
-	11, // 23: franz.v1.AgentService.DeleteAgent:input_type -> franz.v1.DeleteAgentRequest
-	13, // 24: franz.v1.AgentService.PauseAgent:input_type -> franz.v1.PauseAgentRequest
-	15, // 25: franz.v1.AgentService.ResumeAgent:input_type -> franz.v1.ResumeAgentRequest
-	17, // 26: franz.v1.AgentService.RotateAgentToken:input_type -> franz.v1.RotateAgentTokenRequest
-	4,  // 27: franz.v1.AgentService.CreateAgent:output_type -> franz.v1.CreateAgentResponse
-	6,  // 28: franz.v1.AgentService.GetAgent:output_type -> franz.v1.GetAgentResponse
-	8,  // 29: franz.v1.AgentService.ListAgents:output_type -> franz.v1.ListAgentsResponse
-	10, // 30: franz.v1.AgentService.UpdateAgent:output_type -> franz.v1.UpdateAgentResponse
-	12, // 31: franz.v1.AgentService.DeleteAgent:output_type -> franz.v1.DeleteAgentResponse
-	14, // 32: franz.v1.AgentService.PauseAgent:output_type -> franz.v1.PauseAgentResponse
-	16, // 33: franz.v1.AgentService.ResumeAgent:output_type -> franz.v1.ResumeAgentResponse
-	18, // 34: franz.v1.AgentService.RotateAgentToken:output_type -> franz.v1.RotateAgentTokenResponse
-	27, // [27:35] is the sub-list for method output_type
-	19, // [19:27] is the sub-list for method input_type
-	19, // [19:19] is the sub-list for extension type_name
-	19, // [19:19] is the sub-list for extension extendee
-	0,  // [0:19] is the sub-list for field type_name
+	23, // 3: franz.v1.Agent.created_at:type_name -> google.protobuf.Timestamp
+	23, // 4: franz.v1.Agent.updated_at:type_name -> google.protobuf.Timestamp
+	3,  // 5: franz.v1.Agent.provisioning_labels:type_name -> franz.v1.ProvisioningLabelSpec
+	0,  // 6: franz.v1.CreateAgentRequest.type:type_name -> franz.v1.AgentType
+	21, // 7: franz.v1.CreateAgentRequest.labels:type_name -> franz.v1.CreateAgentRequest.LabelsEntry
+	3,  // 8: franz.v1.CreateAgentRequest.provisioning_labels:type_name -> franz.v1.ProvisioningLabelSpec
+	2,  // 9: franz.v1.CreateAgentResponse.agent:type_name -> franz.v1.Agent
+	2,  // 10: franz.v1.GetAgentResponse.agent:type_name -> franz.v1.Agent
+	24, // 11: franz.v1.ListAgentsRequest.page:type_name -> franz.v1.PageRequest
+	0,  // 12: franz.v1.ListAgentsRequest.type:type_name -> franz.v1.AgentType
+	2,  // 13: franz.v1.ListAgentsResponse.agents:type_name -> franz.v1.Agent
+	25, // 14: franz.v1.ListAgentsResponse.page:type_name -> franz.v1.PageResponse
+	0,  // 15: franz.v1.UpdateAgentRequest.type:type_name -> franz.v1.AgentType
+	22, // 16: franz.v1.UpdateAgentRequest.labels:type_name -> franz.v1.UpdateAgentRequest.LabelsEntry
+	26, // 17: franz.v1.UpdateAgentRequest.update_mask:type_name -> google.protobuf.FieldMask
+	3,  // 18: franz.v1.UpdateAgentRequest.provisioning_labels:type_name -> franz.v1.ProvisioningLabelSpec
+	2,  // 19: franz.v1.UpdateAgentResponse.agent:type_name -> franz.v1.Agent
+	2,  // 20: franz.v1.PauseAgentResponse.agent:type_name -> franz.v1.Agent
+	2,  // 21: franz.v1.ResumeAgentResponse.agent:type_name -> franz.v1.Agent
+	4,  // 22: franz.v1.AgentService.CreateAgent:input_type -> franz.v1.CreateAgentRequest
+	6,  // 23: franz.v1.AgentService.GetAgent:input_type -> franz.v1.GetAgentRequest
+	8,  // 24: franz.v1.AgentService.ListAgents:input_type -> franz.v1.ListAgentsRequest
+	10, // 25: franz.v1.AgentService.UpdateAgent:input_type -> franz.v1.UpdateAgentRequest
+	12, // 26: franz.v1.AgentService.DeleteAgent:input_type -> franz.v1.DeleteAgentRequest
+	14, // 27: franz.v1.AgentService.PauseAgent:input_type -> franz.v1.PauseAgentRequest
+	16, // 28: franz.v1.AgentService.ResumeAgent:input_type -> franz.v1.ResumeAgentRequest
+	18, // 29: franz.v1.AgentService.RotateAgentToken:input_type -> franz.v1.RotateAgentTokenRequest
+	5,  // 30: franz.v1.AgentService.CreateAgent:output_type -> franz.v1.CreateAgentResponse
+	7,  // 31: franz.v1.AgentService.GetAgent:output_type -> franz.v1.GetAgentResponse
+	9,  // 32: franz.v1.AgentService.ListAgents:output_type -> franz.v1.ListAgentsResponse
+	11, // 33: franz.v1.AgentService.UpdateAgent:output_type -> franz.v1.UpdateAgentResponse
+	13, // 34: franz.v1.AgentService.DeleteAgent:output_type -> franz.v1.DeleteAgentResponse
+	15, // 35: franz.v1.AgentService.PauseAgent:output_type -> franz.v1.PauseAgentResponse
+	17, // 36: franz.v1.AgentService.ResumeAgent:output_type -> franz.v1.ResumeAgentResponse
+	19, // 37: franz.v1.AgentService.RotateAgentToken:output_type -> franz.v1.RotateAgentTokenResponse
+	30, // [30:38] is the sub-list for method output_type
+	22, // [22:30] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_franz_v1_agent_proto_init() }
@@ -1899,7 +2160,7 @@ func file_franz_v1_agent_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_franz_v1_agent_proto_rawDesc), len(file_franz_v1_agent_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   20,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -2,12 +2,10 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Breadcrumbs, ErrorBanner, PageHeading, Panel } from "../../components/ui";
 import { LabelEditor } from "../../components/LabelEditor";
+import { ProvisioningFields } from "../../components/ProvisioningFields";
 import { useAgents, useCreateCluster } from "../../api/hooks";
-
-const PROVISIONING_KEYS = [
-  { key: "franz.provisioning/deployment-type", placeholder: "local-docker" },
-  { key: "franz.provisioning/kafka-version", placeholder: "3.7.0" },
-];
+import { parseKeyValues } from "../../keyvalues";
+import { FALLBACK_PROVISIONING_LABELS, missingRequired, prefilled } from "../../provisioning";
 
 export function ClusterRegister() {
   const navigate = useNavigate();
@@ -20,8 +18,18 @@ export function ClusterRegister() {
   const [labels, setLabels] = useState<Record<string, string>>({});
   const [provisioning, setProvisioning] = useState<Record<string, string>>({});
   const [config, setConfig] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const providerAgents = agentsQuery.data?.agents ?? [];
+  const selectedAgent = providerAgents.find((a) => a.name === providerAgent);
+  const specs =
+    (selectedAgent?.provisioningLabels?.length ?? 0) > 0
+      ? selectedAgent!.provisioningLabels!
+      : FALLBACK_PROVISIONING_LABELS;
+
+  // Pre-fill the provisioning values with the schema defaults whenever the
+  // selected agent (and therefore the spec list) changes.
+  const provisioningValues = useMemo(() => prefilled(provisioning, specs), [provisioning, specs]);
 
   const parsedConfig = useMemo(() => parseKeyValues(config), [config]);
 
@@ -38,26 +46,30 @@ export function ClusterRegister() {
         title="Register Kafka Cluster"
         lead="Record a Kafka Cluster and its provisioning intent. A linked Cluster Provider agent stands the substrate up."
       />
-      <ErrorBanner error={createCluster.error} />
+      <ErrorBanner error={localError ?? createCluster.error} />
       <Panel title="Cluster details" note="Registration records declared intent. Franz never connects to the cluster.">
         <form
           className="form-layout"
           onSubmit={(e) => {
             e.preventDefault();
-            const allLabels = { ...labels, ...pruneEmpty(provisioning) };
+            setLocalError(null);
+            const bootstrapUrls = bootstrap.split(",").map((s) => s.trim()).filter(Boolean);
+            if (bootstrapUrls.length === 0) {
+              setLocalError("At least one bootstrap URL is required.");
+              return;
+            }
+            const missing = missingRequired(provisioningValues, specs);
+            if (missing.length > 0) {
+              setLocalError(`Required provisioning label(s) not set: ${missing.join(", ")}.`);
+              return;
+            }
             createCluster.mutate(
               {
                 name: name.trim(),
                 connectionStrings: [
-                  {
-                    bootstrapUrls: bootstrap
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean),
-                    type: "CONNECTION_TYPE_PLAINTEXT" as never,
-                  },
+                  { bootstrapUrls, type: "CONNECTION_TYPE_PLAINTEXT" as never },
                 ],
-                labels: allLabels,
+                labels: { ...labels, ...provisioningValues },
                 clusterConfiguration: parsedConfig,
                 clusterProviderAgent: providerAgent || undefined,
               },
@@ -125,23 +137,11 @@ export function ClusterRegister() {
           <div className="form-section">
             <h3>Provisioning intent</h3>
             <p className="form-help">
-              <code>franz.provisioning/*</code> labels the agent&rsquo;s recipe reads.
+              {selectedAgent?.provisioningLabels?.length
+                ? `Fields declared by ${selectedAgent.name}.`
+                : "franz.provisioning/* labels the agent's recipe reads."}
             </p>
-            {PROVISIONING_KEYS.map((f) => (
-              <div className="field" key={f.key}>
-                <label htmlFor={f.key}>
-                  <code>{f.key.replace("franz.provisioning/", "")}</code>
-                </label>
-                <div>
-                  <input
-                    id={f.key}
-                    placeholder={f.placeholder}
-                    value={provisioning[f.key] ?? ""}
-                    onChange={(e) => setProvisioning({ ...provisioning, [f.key]: e.target.value })}
-                  />
-                </div>
-              </div>
-            ))}
+            <ProvisioningFields specs={specs} value={provisioningValues} onChange={setProvisioning} />
           </div>
 
           <div className="form-section">
@@ -182,19 +182,4 @@ export function ClusterRegister() {
       </Panel>
     </>
   );
-}
-
-function parseKeyValues(text: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const line of text.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || !trimmed.includes("=")) continue;
-    const idx = trimmed.indexOf("=");
-    out[trimmed.slice(0, idx).trim()] = trimmed.slice(idx + 1).trim();
-  }
-  return out;
-}
-
-function pruneEmpty(m: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(Object.entries(m).filter(([, v]) => v.trim() !== ""));
 }

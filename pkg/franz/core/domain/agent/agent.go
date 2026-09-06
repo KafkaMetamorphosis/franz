@@ -45,21 +45,24 @@ const (
 
 // Agent is a registered agent.
 type Agent struct {
-	ID        uuid.UUID
-	FRN       frn.FRN
-	RealmID   uuid.UUID
-	Name      string
-	Type      Type
-	Labels    map[string]string
-	Status    Status
-	TokenHash string // sha256 of the bearer token; never rendered to the API
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID      uuid.UUID
+	FRN     frn.FRN
+	RealmID uuid.UUID
+	Name    string
+	Type    Type
+	Labels  map[string]string
+	// ProvisioningLabels is the agent's advisory franz.provisioning/* schema
+	// (003.9, ADR-API-008). Nil/empty when the agent advertises none.
+	ProvisioningLabels []ProvisioningLabelSpec
+	Status             Status
+	TokenHash          string // sha256 of the bearer token; never rendered to the API
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
 }
 
 // New builds an Agent in status ACTIVE. tokenHash is the digest of the one-time
 // bearer token minted by the caller.
-func New(r realm.Realm, name string, typ Type, labels map[string]string, tokenHash string) (*Agent, error) {
+func New(r realm.Realm, name string, typ Type, labels map[string]string, provisioningLabels []ProvisioningLabelSpec, tokenHash string) (*Agent, error) {
 	id, err := frn.New(r.Slug, frn.TypeAgent, name)
 	if err != nil {
 		return nil, err
@@ -67,15 +70,29 @@ func New(r realm.Realm, name string, typ Type, labels map[string]string, tokenHa
 	if !typ.Valid() {
 		return nil, errs.InvalidField("type", "must be one of CLUSTER_PROVIDER, RESOURCE_PROVIDER, TELEMETRY_AGENT, CUSTOM")
 	}
+	if err := ValidateProvisioningLabels(provisioningLabels); err != nil {
+		return nil, err
+	}
 	return &Agent{
-		FRN:       id,
-		RealmID:   r.ID,
-		Name:      name,
-		Type:      typ,
-		Labels:    nonNil(labels),
-		Status:    StatusActive,
-		TokenHash: tokenHash,
+		FRN:                id,
+		RealmID:            r.ID,
+		Name:               name,
+		Type:               typ,
+		Labels:             nonNil(labels),
+		ProvisioningLabels: provisioningLabels,
+		Status:             StatusActive,
+		TokenHash:          tokenHash,
 	}, nil
+}
+
+// SetProvisioningLabels replaces the advisory provisioning-label schema
+// wholesale (003.9). Validates well-formedness only.
+func (a *Agent) SetProvisioningLabels(specs []ProvisioningLabelSpec) error {
+	if err := ValidateProvisioningLabels(specs); err != nil {
+		return err
+	}
+	a.ProvisioningLabels = specs
+	return nil
 }
 
 // SetType changes the organisational type. 003.9 OQ2 leaves type mutability

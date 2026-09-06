@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Breadcrumbs, CopyButton, ErrorBanner, PageHeading, Panel } from "../../components/ui";
 import { LabelEditor } from "../../components/LabelEditor";
-import { useCreateAgent } from "../../api/hooks";
+import { ProvisioningLabelEditor } from "../../components/ProvisioningLabelEditor";
+import { validateSchema } from "../../provisioning";
+import { useCreateAgent, type ProvisioningLabelSpec } from "../../api/hooks";
 import { AGENT_TYPES } from "../../api/enums";
 
 export function AgentRegister() {
@@ -11,6 +13,8 @@ export function AgentRegister() {
   const [name, setName] = useState("");
   const [type, setType] = useState<string>(AGENT_TYPES[0].value);
   const [labels, setLabels] = useState<Record<string, string>>({});
+  const [provisioningLabels, setProvisioningLabels] = useState<ProvisioningLabelSpec[]>([]);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [createdName, setCreatedName] = useState<string | null>(null);
 
@@ -60,14 +64,25 @@ export function AgentRegister() {
         title="Register Agent"
         lead="Record an agent that will connect to the Franz fleet API. Franz never connects back."
       />
-      <ErrorBanner error={createAgent.error} />
+      <ErrorBanner error={localError ?? createAgent.error} />
       <Panel title="Agent details" note="Registration records the agent in the control plane — nothing is provisioned here.">
         <form
           className="form-layout"
           onSubmit={(e) => {
             e.preventDefault();
+            setLocalError(null);
+            const problem = validateSchema(provisioningLabels);
+            if (problem) {
+              setLocalError(problem);
+              return;
+            }
             createAgent.mutate(
-              { name: name.trim(), type: type as never, labels },
+              {
+                name: name.trim(),
+                type: type as never,
+                labels,
+                ...(provisioningLabels.length ? { provisioningLabels } : {}),
+              },
               {
                 onSuccess: (res) => {
                   setToken(res.token ?? "");
@@ -116,6 +131,14 @@ export function AgentRegister() {
                 <LabelEditor value={labels} onChange={setLabels} />
               </div>
             </div>
+          </div>
+          <div className="form-section">
+            <h3>Provisioning-label schema</h3>
+            <p className="form-help">
+              Optional. Advisory hints the console uses to pre-fill and constrain resource forms
+              that target this agent. Franz does not enforce them.
+            </p>
+            <ProvisioningLabelEditor value={provisioningLabels} onChange={setProvisioningLabels} />
           </div>
           <div className="form-actions">
             <Link className="button" to="/agents">

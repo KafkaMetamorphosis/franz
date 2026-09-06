@@ -56,3 +56,58 @@ test("register agent → token → register cluster → provider status panel", 
   await expect(page.getByText("No provider events yet.")).toBeVisible();
   await expect(page.getByRole("link", { name: AGENT })).toBeVisible();
 });
+
+test("edit an agent's type and a cluster's config from the browser", async ({ page }) => {
+  const nav = page.locator(".sidebar");
+  const agent = `e2e-edit-agent-${stamp}`;
+  const cluster = `e2e-edit-cluster-${stamp}`;
+
+  await page.goto("/login");
+  await page.getByLabel("Organization or account ID").fill("acme");
+  await page.getByLabel("Email address").fill("op@acme.com");
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  // register an agent that advertises a kafka-image provisioning label
+  await nav.getByRole("link", { name: "Agents" }).click();
+  await page.getByRole("link", { name: "Register Agent" }).click();
+  await page.getByLabel(/Agent name/).fill(agent);
+  await page.getByLabel("Agent type").selectOption({ label: "Cluster Provider" });
+  await page.getByRole("button", { name: "Add provisioning label" }).click();
+  const schemaRow = page.locator(".provisioning-schema-row");
+  await schemaRow.getByLabel("Key", { exact: true }).fill("franz.provisioning/kafka-image");
+  await schemaRow.getByLabel("Default value", { exact: true }).fill("apache/kafka:3.7.0");
+  await page.getByRole("button", { name: "Register Agent" }).click();
+  await page.getByRole("link", { name: "Open agent" }).click();
+
+  // edit the agent's type, reload, persisted
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Agent type").selectOption({ label: "Telemetry Agent" });
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.waitForURL(`**/agents/${agent}`);
+  await page.reload();
+  await expect(page.locator("dd", { hasText: "Telemetry Agent" })).toBeVisible();
+
+  // put the type back so the agent can own a cluster
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  await page.getByLabel("Agent type").selectOption({ label: "Cluster Provider" });
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.waitForURL(`**/agents/${agent}`);
+
+  // register a cluster — the kafka-image field is pre-filled from the agent
+  await nav.getByRole("link", { name: "Clusters" }).click();
+  await page.getByRole("link", { name: "Register Kafka Cluster" }).click();
+  await page.getByLabel(/Cluster name/).fill(cluster);
+  await page.getByLabel(/Bootstrap URL/).fill("localhost:9092");
+  await page.getByLabel("Cluster Provider").selectOption(agent);
+  await expect(page.getByLabel("kafka-image")).toHaveValue("apache/kafka:3.7.0");
+  await page.getByRole("button", { name: "Register Kafka Cluster" }).click();
+  await expect(page.getByRole("heading", { name: cluster })).toBeVisible();
+
+  // edit the cluster's configuration, reload, persisted
+  await page.getByRole("link", { name: "Edit", exact: true }).click();
+  await page.getByLabel("cluster_configuration").fill("num.partitions=6");
+  await page.getByRole("button", { name: "Save changes" }).click();
+  await page.waitForURL(`**/kafka/clusters/${cluster}`);
+  await page.reload();
+  await expect(page.getByText("num.partitions=6")).toBeVisible();
+});

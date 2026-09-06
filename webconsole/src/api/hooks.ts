@@ -13,6 +13,14 @@ export type KafkaCluster = Schemas["v1KafkaCluster"];
 export type ClusterProviderEvent = Schemas["v1ClusterProviderEvent"];
 export type ConnectionString = Schemas["v1ConnectionString"];
 export type AgentType = Schemas["v1AgentType"];
+export type ProvisioningLabelSpec = Schemas["v1ProvisioningLabelSpec"];
+
+// The gateway parses `update_mask` with protojson semantics: comma-separated
+// lowerCamelCase paths (snake_case is rejected). Callers pass the body keys they
+// changed.
+export function updateMask(paths: string[]): string {
+  return paths.join(",");
+}
 
 function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): T {
   if (result.error !== undefined || !result.response.ok) {
@@ -49,6 +57,22 @@ export function useCreateAgent() {
     mutationFn: async (body: Schemas["v1CreateAgentRequest"]) =>
       unwrap(await api.POST("/v1/kafka/agents", { body })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["agents"] }),
+  });
+}
+
+// UpdateAgentBody is the PATCH payload; callers set only the changed fields plus
+// updateMask (built with updateMask()).
+export type UpdateAgentBody = Schemas["AgentServiceUpdateAgentBody"];
+
+export function useUpdateAgent(name: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdateAgentBody) =>
+      unwrap(await api.PATCH("/v1/kafka/agents/{name}", { params: { path: { name } }, body })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["agent", name] });
+      qc.invalidateQueries({ queryKey: ["agents"] });
+    },
   });
 }
 
@@ -123,6 +147,20 @@ export function useCreateCluster() {
     mutationFn: async (body: Schemas["v1CreateKafkaClusterRequest"]) =>
       unwrap(await api.POST("/v1/kafka/clusters", { body })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["clusters"] }),
+  });
+}
+
+export type UpdateKafkaClusterBody = Schemas["KafkaClusterServiceUpdateKafkaClusterBody"];
+
+export function useUpdateKafkaCluster(name: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdateKafkaClusterBody) =>
+      unwrap(await api.PATCH("/v1/kafka/clusters/{name}", { params: { path: { name } }, body })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["cluster", name] });
+      qc.invalidateQueries({ queryKey: ["clusters"] });
+    },
   });
 }
 

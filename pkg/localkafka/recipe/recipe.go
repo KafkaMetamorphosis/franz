@@ -19,7 +19,12 @@ const (
 	// DeploymentTypeLabel selects the recipe family (ADR 004 §3).
 	DeploymentTypeLabel = "franz.provisioning/deployment-type"
 	KafkaVersionLabel   = "franz.provisioning/kafka-version"
-	BrokersLabel        = "franz.provisioning/brokers"
+	// KafkaImageLabel overrides the container image with a full ref (tag,
+	// digest, or registry mirror). Must be an apache/kafka-compatible image —
+	// the recipe renders the KRaft env for that image. Takes precedence over
+	// KafkaVersionLabel (ADR 004 §3, ADR-API-008).
+	KafkaImageLabel = "franz.provisioning/kafka-image"
+	BrokersLabel    = "franz.provisioning/brokers"
 
 	// LocalDocker is the only deployment type this agent handles.
 	LocalDocker = "local-docker"
@@ -102,6 +107,10 @@ func Render(agentName string, a assign.Assignment, defaultVersion string) (Spec,
 	if version == "" {
 		version = defaultVersion
 	}
+	image := a.Provisioning[KafkaImageLabel]
+	if image == "" {
+		image = "apache/kafka:" + version
+	}
 
 	var warnings []string
 	if b := a.Provisioning[BrokersLabel]; b != "" && b != "1" {
@@ -143,7 +152,7 @@ func Render(agentName string, a assign.Assignment, defaultVersion string) (Spec,
 	spec := Spec{
 		ClusterName:   a.ClusterName,
 		ContainerName: "franz-" + a.ClusterName,
-		Image:         "apache/kafka:" + version,
+		Image:         image,
 		Env:           envList,
 		HostPort:      port,
 		VolumeName:    "franz-" + a.ClusterName + "-data",

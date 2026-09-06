@@ -7,6 +7,35 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **`README.md`** — project overview + local-dev quickstart.
+- **Resource management & agent provisioning schema** (impls_plan deliverable 08):
+  - `Agent.provisioning_labels` — a new `ProvisioningLabelSpec` (`key`,
+    `description`, `allowed_values`, `default_value`, `required`) carried on
+    `CreateAgent` / `UpdateAgent` (mask `provisioning_labels`) and returned by
+    `GetAgent` / `ListAgents`, stored as `agent.provisioning_labels jsonb`. It is
+    **advisory** (ADR-API-008): Franz validates only its own well-formedness and
+    never checks a `KafkaCluster`'s labels against it.
+  - Web console: **edit pages** for Agent (`/agents/:name/edit` — type, labels,
+    provisioning-label schema editor) and Kafka Cluster
+    (`/kafka/clusters/:name/edit` — bootstrap URLs, labels, `cluster_configuration`,
+    provider agent), each reached from an "Edit" button on the detail page. The
+    `update_mask` carries only changed fields; a `409` offers reload-and-re-apply.
+    Changing a cluster's provider agent is gated behind an explicit confirm.
+  - Console cluster forms render **schema-driven provisioning fields**: pick a
+    provider agent and its declared `franz.provisioning/*` labels appear,
+    pre-filled with defaults and constrained to allowed values (falling back to
+    the common local-docker keys when the agent advertises no schema).
+  - `local-docker` recipe: `franz.provisioning/kafka-image` sets a full
+    apache/kafka-compatible image ref (tag, digest, or registry mirror),
+    precedence over `kafka-version`, feeding the recipe hash.
+  - **`franz/local/`** — local-dev infrastructure: `docker-compose.yml`
+    (Postgres + a `seed` one-shot) and `seed/*.sql`. `make deps` now applies the
+    schema and seeds the `local-kafka-agent` registration (with its provisioning
+    schema and a fixed public dev token) **before Franz starts**, so `make agent`
+    connects with no console step. Replaces the `FRANZ_REGISTER=1` self-register
+    path from deliverable 07 — `pkg/localkafka/register.go` and the `Register`
+    config field are removed; the agent takes `FRANZ_TOKEN` only.
+
 - **local-kafka-docker-agent** (impls_plan deliverable 07): `cmd/local-kafka-agent`
   — the first Cluster Provider agent. It registers with Franz, watches
   `WatchClusterAssignments` (reconnect + backoff, debounced into one reconcile),
@@ -22,14 +51,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   real-Docker end-to-end (`make agent-e2e`, opt-in) verifies a client can
   connect and create a topic against the provisioned broker. New Make targets
   `agent` / `agent-e2e`. New deps: `github.com/twmb/franz-go`,
-  `github.com/docker/docker`.
-- **`make agent` self-registration** (local dev): with no `TOKEN=`, `make agent`
-  sets `FRANZ_REGISTER=1` and the agent seeds (or reuses) its own registration
-  with Franz on startup — `GetAgent` → `CreateAgent` if absent, else
-  `RotateAgentToken` — and uses the returned bearer token. Removes the manual
-  "register in the console, copy the token, pass `TOKEN=`" step.
-  `TOKEN=` / `AGENT_NAME=` still override. Local-dev only (`AgentService` is
-  unauthenticated there). `pkg/localkafka/register.go`.
+  `github.com/docker/docker`. Local dev: `make agent` uses the seeded dev token
+  (see `franz/local/` above) — no console step.
 - **Web console bootstrap** (impls_plan deliverable 06): `webconsole/` — a
   Vite + React + TypeScript operator console (separate static build, not
   embedded). App shell ported from the `001-ux` prototype; Login stub; **Agents**

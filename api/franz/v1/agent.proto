@@ -28,6 +28,28 @@ message Agent {
 
   google.protobuf.Timestamp created_at = 6;
   google.protobuf.Timestamp updated_at = 7;
+
+  // Advisory schema: the franz.provisioning/* labels this agent's recipes
+  // understand, with allowed values and defaults. Franz stores and serves it
+  // for the console to render resource forms; it never validates another
+  // resource's labels against it. See 003.9.
+  repeated ProvisioningLabelSpec provisioning_labels = 8;
+}
+
+// ProvisioningLabelSpec describes one franz.provisioning/* label an agent's
+// recipe reads. Advisory — a console UX aid only (003.9, ADR-API-008).
+message ProvisioningLabelSpec {
+  // Reserved-label key, e.g. "franz.provisioning/kafka-image". Must be
+  // franz.-prefixed.
+  string key = 1;
+  string description = 2;
+  // Allowed values; empty means free text.
+  repeated string allowed_values = 3;
+  // Pre-filled in the console form. When allowed_values is set, must be one of
+  // them.
+  string default_value = 4;
+  // The console requires a value; Franz does not enforce it.
+  bool required = 5;
 }
 
 enum AgentType {
@@ -55,6 +77,7 @@ message CreateAgentRequest {
   string name = 1;
   AgentType type = 2;
   map<string, string> labels = 3;
+  repeated ProvisioningLabelSpec provisioning_labels = 4;
 }
 
 message CreateAgentResponse {
@@ -90,6 +113,7 @@ message UpdateAgentRequest {
   map<string, string> labels = 3;
   // Fields to update; unset fields are left unchanged.
   google.protobuf.FieldMask update_mask = 4;
+  repeated ProvisioningLabelSpec provisioning_labels = 5;
 }
 
 message UpdateAgentResponse {

@@ -55,3 +55,36 @@
 .status.info::before { background: var(--blue); }
 
 .copy-button { margin-left: 8px; padding: 4px 8px; font-weight: 700; font-size: 12px; }
+
+/* Provisioning-label schema editor + schema-driven fields (deliverable 08) */
+.provisioning-fields { display: grid; gap: 12px; }
+.provisioning-fields .req { color: var(--danger); }
+
+.provisioning-schema-editor { display: grid; gap: 14px; }
+.provisioning-schema-row {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.provisioning-schema-row .field { margin: 0; }
+
+.checkbox-field {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.checkbox-field input { flex: none; }
+.reassign-warning {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border: 1px solid #e6c07a;
+  border-left: 3px solid #d9a441;
+  border-radius: var(--radius);
+  background: #fdf7ec;
+  color: #6b4c12;
+}
