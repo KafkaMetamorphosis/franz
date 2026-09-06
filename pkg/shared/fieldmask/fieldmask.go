@@ -21,10 +21,11 @@ import (
 
 // immutable is the set of field paths that can never be masked.
 var immutable = map[string]bool{
-	"name":       true,
-	"frn":        true,
-	"created_at": true,
-	"updated_at": true,
+	"name":        true,
+	"frn":         true,
+	"created_at":  true,
+	"updated_at":  true,
+	"update_mask": true,
 }
 
 // Validate checks mask against the descriptor of msg. It returns an
@@ -72,6 +73,21 @@ func Apply(mask *fieldmaskpb.FieldMask, src, dst proto.Message) error {
 		}
 	}
 	return nil
+}
+
+// CanonicalPaths validates the mask, then returns its paths as proto field
+// names (resolving any lowerCamel JSON-name aliases). Handlers switch on the
+// result to build a typed update input.
+func CanonicalPaths(mask *fieldmaskpb.FieldMask, msg proto.Message) ([]string, error) {
+	if err := Validate(mask, msg); err != nil {
+		return nil, err
+	}
+	fields := msg.ProtoReflect().Descriptor().Fields()
+	paths := make([]string, 0, len(mask.GetPaths()))
+	for _, p := range mask.GetPaths() {
+		paths = append(paths, string(fieldByName(fields, p).Name()))
+	}
+	return paths, nil
 }
 
 // fieldByName resolves a mask path against both the proto field name and the

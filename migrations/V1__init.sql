@@ -25,3 +25,27 @@ CREATE TABLE IF NOT EXISTS realm (
 INSERT INTO realm (id, slug, name)
 VALUES ('00000000-0000-0000-0000-000000000001', 'default', 'Default realm')
 ON CONFLICT (id) DO NOTHING;
+
+-- Kafka Cluster — a registration, not a managed resource (003.3). `frn` holds the
+-- prefix-less path (003.12 / ADR-API-007). `state` is server-managed via
+-- pause/resume/delete only. `(realm_id, name)` is unconditionally unique — a
+-- soft-deleted row keeps its name.
+CREATE TABLE IF NOT EXISTS kafka_cluster (
+    id                     uuid        PRIMARY KEY,
+    realm_id               uuid        NOT NULL REFERENCES realm (id),
+    name                   text        NOT NULL,
+    frn                    text        NOT NULL,
+    connection_strings     jsonb       NOT NULL DEFAULT '[]'::jsonb,
+    labels                 jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    cluster_configuration  jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    cluster_provider_agent text        NOT NULL DEFAULT '',
+    state                  text        NOT NULL DEFAULT 'ACTIVE'
+                               CHECK (state IN ('ACTIVE', 'PAUSED', 'DELETED')),
+    created_at             timestamptz NOT NULL DEFAULT now(),
+    updated_at             timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (realm_id, name),
+    UNIQUE (frn)
+);
+
+CREATE INDEX IF NOT EXISTS kafka_cluster_labels_gin
+    ON kafka_cluster USING gin (labels);

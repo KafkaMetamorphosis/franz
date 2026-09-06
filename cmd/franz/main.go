@@ -12,9 +12,12 @@ import (
 
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/adapters/in/grpcgateway"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/adapters/out/postgres"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/adapters/out/stub"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/config"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/frn"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/in"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/out"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/clusters"
 	"github.com/KafkaMetamorphosis/franz/pkg/shared"
 )
 
@@ -26,6 +29,10 @@ func main() {
 			func(c config.Config) (frn.Codec, error) { return frn.NewCodec(c.ResourcePrefix) },
 			newDB,
 			fx.Annotate(postgres.NewRealmRepo, fx.As(new(out.RealmRepository))),
+			fx.Annotate(postgres.NewClusterRepo, fx.As(new(out.ClusterRepository))),
+			fx.Annotate(func() stub.NoTopicGuard { return stub.NoTopicGuard{} },
+				fx.As(new(out.ClusterTopicGuard))),
+			fx.Annotate(clusters.NewService, fx.As(new(in.KafkaClusterService))),
 			func(r out.RealmRepository) *grpcgateway.Authenticator {
 				return grpcgateway.NewAuthenticator(r)
 			},
@@ -65,9 +72,17 @@ func newDB(lc fx.Lifecycle, c config.Config, log *slog.Logger) (*postgres.DB, er
 }
 
 // newServer builds the inbound adapter with the realm-resolving interceptors
-// installed on every path (deliverable 02.10).
-func newServer(c config.Config, log *slog.Logger, auth *grpcgateway.Authenticator) *grpcgateway.Server {
-	return grpcgateway.New(c.GRPCPort, c.HTTPPort, log, grpcgateway.WithAuthenticator(auth))
+// installed on every path (deliverable 02.10) and registers the entity services.
+func newServer(
+	c config.Config, log *slog.Logger,
+	auth *grpcgateway.Authenticator, codec frn.Codec,
+	clusterSvc in.KafkaClusterService,
+) (*grpcgateway.Server, error) {
+	s := grpcgateway.New(c.GRPCPort, c.HTTPPort, log, grpcgateway.WithAuthenticator(auth))
+	if err := grpcgateway.RegisterKafkaClusterService(s, clusterSvc, codec); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 func registerServer(lc fx.Lifecycle, s *grpcgateway.Server, log *slog.Logger, c config.Config, codec frn.Codec) {
