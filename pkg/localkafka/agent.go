@@ -87,7 +87,7 @@ func selfRegister(cfg Config, log *slog.Logger) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
-	token, created, err := EnsureRegistered(ctx, conn, cfg.AgentName)
+	token, created, err := EnsureRegistered(ctx, conn, cfg.AgentName, provisioningSchema(cfg.KafkaVersionDefault))
 	if err != nil {
 		return "", err
 	}

@@ -22,6 +22,9 @@ type stubAgentService struct {
 	existing *franzv1.Agent // nil ⇒ GetAgent returns NotFound
 	created  []string
 	rotated  []string
+	updated  []string // names passed to UpdateAgent
+	lastMask []string
+	lastSpec int // provisioning_labels count on the last create/update
 }
 
 func (s *stubAgentService) GetAgent(_ context.Context, req *franzv1.GetAgentRequest) (*franzv1.GetAgentResponse, error) {
@@ -33,12 +36,24 @@ func (s *stubAgentService) GetAgent(_ context.Context, req *franzv1.GetAgentRequ
 
 func (s *stubAgentService) CreateAgent(_ context.Context, req *franzv1.CreateAgentRequest) (*franzv1.CreateAgentResponse, error) {
 	s.created = append(s.created, req.GetName())
+	s.lastSpec = len(req.GetProvisioningLabels())
 	return franzv1.CreateAgentResponse_builder{Token: strptr("frnat_created")}.Build(), nil
+}
+
+func (s *stubAgentService) UpdateAgent(_ context.Context, req *franzv1.UpdateAgentRequest) (*franzv1.UpdateAgentResponse, error) {
+	s.updated = append(s.updated, req.GetName())
+	s.lastMask = req.GetUpdateMask().GetPaths()
+	s.lastSpec = len(req.GetProvisioningLabels())
+	return franzv1.UpdateAgentResponse_builder{Agent: s.existing}.Build(), nil
 }
 
 func (s *stubAgentService) RotateAgentToken(_ context.Context, req *franzv1.RotateAgentTokenRequest) (*franzv1.RotateAgentTokenResponse, error) {
 	s.rotated = append(s.rotated, req.GetName())
 	return franzv1.RotateAgentTokenResponse_builder{Token: strptr("frnat_rotated")}.Build(), nil
+}
+
+func testSchema() []*franzv1.ProvisioningLabelSpec {
+	return provisioningSchema("3.7.0")
 }
 
 func dialStub(t *testing.T, svc franzv1.AgentServiceServer) *grpc.ClientConn {
@@ -61,7 +76,7 @@ func dialStub(t *testing.T, svc franzv1.AgentServiceServer) *grpc.ClientConn {
 
 func TestEnsureRegisteredCreatesWhenMissing(t *testing.T) {
 	svc := &stubAgentService{existing: nil}
-	token, created, err := EnsureRegistered(context.Background(), dialStub(t, svc), "local-kafka-agent")
+	token, created, err := EnsureRegistered(context.Background(), dialStub(t, svc), "local-kafka-agent", testSchema())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,6 +86,9 @@ func TestEnsureRegisteredCreatesWhenMissing(t *testing.T) {
 	if len(svc.created) != 1 || svc.created[0] != "local-kafka-agent" {
 		t.Fatalf("CreateAgent not called as expected: %v", svc.created)
 	}
+	if svc.lastSpec != 3 {
+		t.Fatalf("provisioning schema not sent on create: %d specs", svc.lastSpec)
+	}
 }
 
 func TestEnsureRegisteredRotatesWhenPresent(t *testing.T) {
@@ -78,7 +96,7 @@ func TestEnsureRegisteredRotatesWhenPresent(t *testing.T) {
 		Name:   strptr("local-kafka-agent"),
 		Status: franzv1.AgentStatus_AGENT_STATUS_ACTIVE.Enum(),
 	}.Build()}
-	token, created, err := EnsureRegistered(context.Background(), dialStub(t, svc), "local-kafka-agent")
+	token, created, err := EnsureRegistered(context.Background(), dialStub(t, svc), "local-kafka-agent", testSchema())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,6 +106,9 @@ func TestEnsureRegisteredRotatesWhenPresent(t *testing.T) {
 	if len(svc.rotated) != 1 {
 		t.Fatalf("RotateAgentToken not called: %v", svc.rotated)
 	}
+	if len(svc.updated) != 1 || len(svc.lastMask) != 1 || svc.lastMask[0] != "provisioning_labels" {
+		t.Fatalf("schema not refreshed on reuse: updated=%v mask=%v", svc.updated, svc.lastMask)
+	}
 }
 
 func TestEnsureRegisteredRejectsDeleted(t *testing.T) {
@@ -95,7 +116,7 @@ func TestEnsureRegisteredRejectsDeleted(t *testing.T) {
 		Name:   strptr("local-kafka-agent"),
 		Status: franzv1.AgentStatus_AGENT_STATUS_DELETED.Enum(),
 	}.Build()}
-	if _, _, err := EnsureRegistered(context.Background(), dialStub(t, svc), "local-kafka-agent"); err == nil {
+	if _, _, err := EnsureRegistered(context.Background(), dialStub(t, svc), "local-kafka-agent", testSchema()); err == nil {
 		t.Fatal("expected an error for a deleted agent")
 	}
 }

@@ -34,6 +34,12 @@ Pass `make agent TOKEN=<token> AGENT_NAME=<agent>` to use a token you minted in
 the console instead of self-registering. Self-register is local-dev only: Franz's
 `AgentService` is unauthenticated there.
 
+On registration the agent advertises its provisioning-label schema
+(`deployment-type` / `kafka-version` / `kafka-image`), so the cluster form
+pre-fills and constrains those fields once you pick the agent. Set
+`franz.provisioning/kafka-image` on a cluster to pin a full image ref
+(e.g. `apache/kafka:3.9.0` or a registry mirror) instead of only a version.
+
 ## Scripts
 
 | Script | What |

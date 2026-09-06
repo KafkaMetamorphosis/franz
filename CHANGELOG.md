@@ -7,6 +7,29 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Resource management & agent provisioning schema** (impls_plan deliverable 08):
+  - `Agent.provisioning_labels` — a new `ProvisioningLabelSpec` (`key`,
+    `description`, `allowed_values`, `default_value`, `required`) carried on
+    `CreateAgent` / `UpdateAgent` (mask `provisioning_labels`) and returned by
+    `GetAgent` / `ListAgents`, stored as `agent.provisioning_labels jsonb`. It is
+    **advisory** (ADR-API-008): Franz validates only its own well-formedness and
+    never checks a `KafkaCluster`'s labels against it.
+  - Web console: **edit pages** for Agent (`/agents/:name/edit` — type, labels,
+    provisioning-label schema editor) and Kafka Cluster
+    (`/kafka/clusters/:name/edit` — bootstrap URLs, labels, `cluster_configuration`,
+    provider agent), each reached from an "Edit" button on the detail page. The
+    `update_mask` carries only changed fields; a `409` offers reload-and-re-apply.
+    Changing a cluster's provider agent is gated behind an explicit confirm.
+  - Console cluster forms render **schema-driven provisioning fields**: pick a
+    provider agent and its declared `franz.provisioning/*` labels appear,
+    pre-filled with defaults and constrained to allowed values (falling back to
+    the common local-docker keys when the agent advertises no schema).
+  - `local-docker` recipe: `franz.provisioning/kafka-image` sets a full
+    apache/kafka-compatible image ref (tag, digest, or registry mirror),
+    precedence over `kafka-version`, feeding the recipe hash. The
+    local-kafka-docker-agent self-declares its `deployment-type` /
+    `kafka-version` / `kafka-image` schema when it registers.
+
 - **local-kafka-docker-agent** (impls_plan deliverable 07): `cmd/local-kafka-agent`
   — the first Cluster Provider agent. It registers with Franz, watches
   `WatchClusterAssignments` (reconnect + backoff, debounced into one reconcile),

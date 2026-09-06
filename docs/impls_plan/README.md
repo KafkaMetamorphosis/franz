@@ -33,7 +33,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [05](./05-agent-interaction-cluster-provider.md) | Agent interaction (Cluster Provider) | 02 · 03 · 04 | ✅ |
 | [06](./06-web-console-bootstrap.md) | Web console bootstrap | 03 · 04 · 05 | ✅ |
 | [07](./07-local-kafka-docker-agent.md) | local-kafka-docker-agent | 05 · 06 | ✅ |
-| [08](./08-resource-management-ui.md) | Resource management & agent provisioning schema | 03 · 04 · 06 · 07 | 🚧 |
+| [08](./08-resource-management-ui.md) | Resource management & agent provisioning schema | 03 · 04 · 06 · 07 | ✅ |
 
 ## Rest of the control plane
 
@@ -86,6 +86,13 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-06 · **08** Resource management & agent provisioning schema ·
+  `Agent.provisioning_labels` (advisory schema, ADR-API-008) through proto →
+  deliverable-04 backend → console. Console edit pages for Agent + Kafka Cluster
+  (`/…/edit`), schema-driven provisioning fields on the cluster forms,
+  re-assignment confirm gate, 409 reload-and-re-apply. `local-docker` recipe
+  gains `franz.provisioning/kafka-image`; the local agent self-declares its
+  schema on registration. codex out of quota → claude implemented it all.
 - 2026-09-06 · **plan** · inserted deliverable **08 — resource management in the
   console**; renumbered the former 08–15 to **09–16**. All cross-references and
   `Depends on` columns updated. No code or shipped deliverable (01–07) affected.
