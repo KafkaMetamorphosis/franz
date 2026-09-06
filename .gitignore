@@ -1,16 +1,28 @@
-/target/
-/classes/
-/.lein-repl-history
-/.lein-failures
-/.nrepl-port
-/.cpcache/
+# Go
+/franz
+/franz-bin
+*.exe
+*.test
+*.out
+/coverage.*
+/dist/
+
+# generated code is COMMITTED (pkg/gen/go) — CI verifies it is current.
+# Do not ignore it.
+
+# tooling / editors
+/.idea/
+/.vscode/
+*.swp
 .DS_Store
 
-/.lsp/*
-!/.lsp/config.edn
+# local env
+.env
+.env.*
+!.env.example
 
-.vscode/
-.clj-kondo/
+# buf
+/buf.build/
 
-*.jar
-*.class
+# local build/module cache (codex sandbox uses this)
+/.gocache/

@@ -1,0 +1,60 @@
+edition = "2024";
+
+package franz.v1;
+
+import "franz/v1/common.proto";
+import "franz/v1/kafka.proto";
+
+// Contract between a Cluster Provider agent and Franz. The agent authenticates
+// with its registration bearer token (agent.proto `CreateAgentResponse.token`),
+// watches the clusters it owns (`KafkaCluster.cluster_provider_agent == me`),
+// and reports what it provisioned. gRPC only — no REST gateway.
+// Semantics: 004-local-kafka-docker-agent.
+
+message WatchClusterAssignmentsRequest {}
+
+// One stream message: a single assignment change. On stream open Franz sends one
+// per current assignment (all CHANGE_SET), then one per change.
+message WatchClusterAssignmentsResponse {
+  ClusterAssignment assignment = 1;
+}
+
+// One cluster the agent owns, and how it changed.
+message ClusterAssignment {
+  enum Change {
+    CHANGE_UNSPECIFIED = 0;
+    // Created or spec-changed — reconcile the substrate to this desired state.
+    CHANGE_SET = 1;
+    // Cluster paused — stop the substrate but keep it.
+    CHANGE_PAUSED = 2;
+    // Cluster deleted — tear the substrate down.
+    CHANGE_REMOVED = 3;
+  }
+
+  Change change = 1;
+  string cluster_name = 2;
+  string cluster_orn = 3;
+
+  // Desired-state inputs the agent's recipe consumes.
+  repeated ConnectionString connection_strings = 4;
+  map<string, string> cluster_configuration = 5;
+  // The cluster's `franz.provisioning/*` labels (those keys only).
+  map<string, string> provisioning = 6;
+}
+
+message ReportClusterStatusRequest {
+  string cluster_name = 1;
+  ClusterProviderPhase phase = 2;
+  bool reachable = 3;
+  // Human-readable detail, especially on DEGRADED / ERROR.
+  string message = 4;
+  // Recipe name + rendered-spec hash, e.g. "local-docker@ab12cd34".
+  string recipe_ref = 5;
+}
+
+message ReportClusterStatusResponse {}
+
+service ClusterProviderService {
+  rpc WatchClusterAssignments(WatchClusterAssignmentsRequest) returns (stream WatchClusterAssignmentsResponse);
+  rpc ReportClusterStatus(ReportClusterStatusRequest) returns (ReportClusterStatusResponse);
+}

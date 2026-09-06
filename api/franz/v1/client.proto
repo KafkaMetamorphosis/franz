@@ -1,0 +1,156 @@
+edition = "2024";
+
+package franz.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "franz/v1/common.proto";
+
+// A fleet-wide identity that reads from or writes to Async Channels through the
+// Franz SDK. A client has no Read/Write role of its own; every permission comes
+// from the access policy of the channel it connects to.
+message Client {
+  // Globally unique, provided at registration. Also the default consumer-group prefix.
+  string name = 1;
+  // Assigned by Franz.
+  string orn = 2;
+
+  // At least org.com/owner. Channel access policies match against these.
+  map<string, string> labels = 3;
+
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// A channel this client may use, and the permission granted. Derived from
+// every channel access policy whose statements match the client.
+message ClientChannelAccess {
+  string async_channel = 1;
+  repeated Permission effective = 2;
+  string matched_by = 3;
+}
+
+// A consumer group observed for this client, reported by a Telemetry Agent.
+// Not registered in Franz. ListObservedConsumerGroups returns the current view
+// (one row per (group, topic), latest sighting); ListConsumerGroupObservations
+// returns the raw sightings within a time range. See 003.14-telemetry-ingest.md.
+message ObservedConsumerGroup {
+  string group = 1;
+  string async_channel = 2;
+  string kafka_topic = 3;
+  // true when the group name is not the default <client>.<topic> form.
+  bool custom = 4;
+  string reported_by_agent = 5;
+  // Current view: most recent sighting. History view: the sighting's time.
+  google.protobuf.Timestamp last_seen_at = 6;
+}
+
+message CreateClientRequest {
+  string name = 1;
+  map<string, string> labels = 2;
+}
+
+message CreateClientResponse {
+  Client client = 1;
+}
+
+message GetClientRequest {
+  string name = 1;
+}
+
+message GetClientResponse {
+  Client client = 1;
+}
+
+message ListClientsRequest {
+  PageRequest page = 1;
+  string selector = 2;
+}
+
+message ListClientsResponse {
+  repeated Client clients = 1;
+  PageResponse page = 2;
+}
+
+message UpdateClientRequest {
+  string name = 1;
+  map<string, string> labels = 2;
+  // Fields to update; unset fields are left unchanged.
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+message UpdateClientResponse {
+  Client client = 1;
+}
+
+message DeleteClientRequest {
+  string name = 1;
+}
+
+message DeleteClientResponse {}
+
+message ListClientChannelAccessRequest {
+  string name = 1;
+  PageRequest page = 2;
+}
+
+message ListClientChannelAccessResponse {
+  repeated ClientChannelAccess access = 1;
+  PageResponse page = 2;
+}
+
+message ListObservedConsumerGroupsRequest {
+  string name = 1;
+  PageRequest page = 2;
+}
+
+message ListObservedConsumerGroupsResponse {
+  repeated ObservedConsumerGroup groups = 1;
+  PageResponse page = 2;
+}
+
+message ListConsumerGroupObservationsRequest {
+  string name = 1;
+  google.protobuf.Timestamp from = 2;
+  google.protobuf.Timestamp to = 3;
+  PageRequest page = 4;
+}
+
+message ListConsumerGroupObservationsResponse {
+  repeated ObservedConsumerGroup observations = 1;
+  PageResponse page = 2;
+}
+
+service ClientService {
+  rpc CreateClient(CreateClientRequest) returns (CreateClientResponse) {
+    option (google.api.http) = {
+      post: "/v1/clients"
+      body: "*"
+    };
+  }
+  rpc GetClient(GetClientRequest) returns (GetClientResponse) {
+    option (google.api.http) = {get: "/v1/clients/{name}"};
+  }
+  rpc ListClients(ListClientsRequest) returns (ListClientsResponse) {
+    option (google.api.http) = {get: "/v1/clients"};
+  }
+  rpc UpdateClient(UpdateClientRequest) returns (UpdateClientResponse) {
+    option (google.api.http) = {
+      patch: "/v1/clients/{name}"
+      body: "*"
+    };
+  }
+  rpc DeleteClient(DeleteClientRequest) returns (DeleteClientResponse) {
+    option (google.api.http) = {delete: "/v1/clients/{name}"};
+  }
+  rpc ListClientChannelAccess(ListClientChannelAccessRequest) returns (ListClientChannelAccessResponse) {
+    option (google.api.http) = {get: "/v1/clients/{name}/channel-access"};
+  }
+  rpc ListObservedConsumerGroups(ListObservedConsumerGroupsRequest) returns (ListObservedConsumerGroupsResponse) {
+    option (google.api.http) = {get: "/v1/clients/{name}/consumer-groups"};
+  }
+  rpc ListConsumerGroupObservations(ListConsumerGroupObservationsRequest) returns (ListConsumerGroupObservationsResponse) {
+    option (google.api.http) = {get: "/v1/clients/{name}/consumer-group-observations"};
+  }
+}

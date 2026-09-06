@@ -1,0 +1,50 @@
+edition = "2024";
+
+package franz.v1;
+
+// Shared types used across the Franz API.
+//
+// ORNs are plain strings of the form:
+//   orn:<realm>:<resource-type>:<name>
+// e.g. orn:acme-platform:async-channel:billing-events
+//
+// Label selectors are plain strings using the grammar defined in the
+// UX/domain specs, supporting equality and set membership:
+//   org.com/env=prod, org.com/country IN (br, mx)
+// An empty selector matches everything of the target kind.
+
+// Standard pagination request fields. Embed in every List request.
+message PageRequest {
+  // Maximum number of items to return. The server may return fewer.
+  int32 page_size = 1;
+  // Opaque token from a previous response's next_page_token. Empty for the first page.
+  string page_token = 2;
+}
+
+// Standard pagination response fields. Embed in every List response.
+message PageResponse {
+  // Pass as PageRequest.page_token to fetch the next page. Empty when there are no more.
+  string next_page_token = 1;
+  // Total number of items across all pages, when the server can compute it cheaply.
+  int32 total_size = 2;
+}
+
+// A permission that a channel access policy statement grants to a client.
+enum Permission {
+  PERMISSION_UNSPECIFIED = 0;
+  PERMISSION_READ = 1;
+  PERMISSION_WRITE = 2;
+}
+
+// What a Cluster Provider agent reports about a cluster it provisions.
+// This is agent-observed reality — distinct from KafkaClusterState (operator
+// intent). See 004-local-kafka-docker-agent.
+enum ClusterProviderPhase {
+  CLUSTER_PROVIDER_PHASE_UNSPECIFIED = 0;
+  CLUSTER_PROVIDER_PHASE_PROVISIONING = 1;
+  CLUSTER_PROVIDER_PHASE_READY = 2;
+  CLUSTER_PROVIDER_PHASE_DEGRADED = 3;
+  CLUSTER_PROVIDER_PHASE_ERROR = 4;
+  CLUSTER_PROVIDER_PHASE_STOPPED = 5;
+  CLUSTER_PROVIDER_PHASE_REMOVED = 6;
+}

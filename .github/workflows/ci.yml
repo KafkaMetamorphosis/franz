@@ -1,0 +1,56 @@
+name: ci
+
+on:
+  push:
+    branches: [main, go-monorepo]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  buf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ github.token }}
+      - name: buf lint
+        run: buf lint api
+      - name: buf breaking
+        if: github.ref != 'refs/heads/main'
+        run: buf breaking api --against '.git#branch=main'
+
+  go:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: franz
+          POSTGRES_USER: franz
+          POSTGRES_PASSWORD: franz
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U franz -d franz"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache-dependency-path: go.sum
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ github.token }}
+      - name: generated code is current
+        run: |
+          buf generate api
+          git diff --exit-code -- pkg/gen/go
+      - run: go vet ./...
+      - run: go build ./...
+      - name: go test
+        env:
+          FRANZ_DB__HOST: localhost
+        run: go test ./...

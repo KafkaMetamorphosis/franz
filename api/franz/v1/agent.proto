@@ -1,0 +1,161 @@
+edition = "2024";
+
+package franz.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "franz/v1/common.proto";
+
+// An agent is a program registered with Franz that connects to the fleet API
+// over gRPC, pulls work, and reports results. Franz never calls an agent.
+message Agent {
+  string name = 1;
+  // Assigned by Franz.
+  string orn = 2;
+
+  // Organisational filter only; does not change how the agent connects.
+  AgentType type = 3;
+
+  // Arbitrary metadata labels — for information and as an extension point
+  // (owner, team, environment, future scoping rules, …).
+  map<string, string> labels = 4;
+
+  // Lifecycle state. Franz sets ACTIVE at registration; PAUSED/DELETED are
+  // reached through PauseAgent / ResumeAgent / DeleteAgent. Liveness/health
+  // (last contact, connected vs stale) is not modelled yet — see 003.9.
+  AgentStatus status = 5;
+
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+enum AgentType {
+  AGENT_TYPE_UNSPECIFIED = 0;
+  // Deploys and maintains a substrate (Kafka cluster, RabbitMQ, ...).
+  AGENT_TYPE_CLUSTER_PROVIDER = 1;
+  // Realises individual resources (Kafka topics, queues). Gregor Samsa is one.
+  AGENT_TYPE_RESOURCE_PROVIDER = 2;
+  // Publishes indicator and consumer-group telemetry. Odradek is one.
+  AGENT_TYPE_TELEMETRY_AGENT = 3;
+  AGENT_TYPE_CUSTOM = 4;
+}
+
+enum AgentStatus {
+  AGENT_STATUS_UNSPECIFIED = 0;
+  // Registered and eligible to receive work.
+  AGENT_STATUS_ACTIVE = 1;
+  // Registered but Franz hands it no work.
+  AGENT_STATUS_PAUSED = 2;
+  // Soft-deleted. Terminal; the record is retained for audit.
+  AGENT_STATUS_DELETED = 3;
+}
+
+message CreateAgentRequest {
+  string name = 1;
+  AgentType type = 2;
+  map<string, string> labels = 3;
+}
+
+message CreateAgentResponse {
+  Agent agent = 1;
+  // Bearer token the agent presents to authenticate (gRPC `authorization`
+  // metadata). Returned once, on creation; Franz stores only its hash.
+  // See 004-local-kafka-docker-agent.
+  string token = 2;
+}
+
+message GetAgentRequest {
+  string name = 1;
+}
+
+message GetAgentResponse {
+  Agent agent = 1;
+}
+
+message ListAgentsRequest {
+  PageRequest page = 1;
+  // Optional filter by type.
+  AgentType type = 2;
+}
+
+message ListAgentsResponse {
+  repeated Agent agents = 1;
+  PageResponse page = 2;
+}
+
+message UpdateAgentRequest {
+  string name = 1;
+  AgentType type = 2;
+  map<string, string> labels = 3;
+  // Fields to update; unset fields are left unchanged.
+  google.protobuf.FieldMask update_mask = 4;
+}
+
+message UpdateAgentResponse {
+  Agent agent = 1;
+}
+
+message DeleteAgentRequest {
+  string name = 1;
+}
+
+message DeleteAgentResponse {}
+
+message PauseAgentRequest {
+  string name = 1;
+}
+
+message PauseAgentResponse {
+  Agent agent = 1;
+}
+
+message ResumeAgentRequest {
+  string name = 1;
+}
+
+message ResumeAgentResponse {
+  Agent agent = 1;
+}
+
+message RotateAgentTokenRequest {
+  string name = 1;
+}
+
+message RotateAgentTokenResponse {
+  // The new bearer token. The previous token is invalidated immediately.
+  string token = 1;
+}
+
+service AgentService {
+  rpc CreateAgent(CreateAgentRequest) returns (CreateAgentResponse) {
+    option (google.api.http) = {
+      post: "/v1/kafka/agents"
+      body: "*"
+    };
+  }
+  rpc GetAgent(GetAgentRequest) returns (GetAgentResponse) {
+    option (google.api.http) = {get: "/v1/kafka/agents/{name}"};
+  }
+  rpc ListAgents(ListAgentsRequest) returns (ListAgentsResponse) {
+    option (google.api.http) = {get: "/v1/kafka/agents"};
+  }
+  rpc UpdateAgent(UpdateAgentRequest) returns (UpdateAgentResponse) {
+    option (google.api.http) = {
+      patch: "/v1/kafka/agents/{name}"
+      body: "*"
+    };
+  }
+  rpc DeleteAgent(DeleteAgentRequest) returns (DeleteAgentResponse) {
+    option (google.api.http) = {delete: "/v1/kafka/agents/{name}"};
+  }
+  rpc PauseAgent(PauseAgentRequest) returns (PauseAgentResponse) {
+    option (google.api.http) = {post: "/v1/kafka/agents/{name}:pause"};
+  }
+  rpc ResumeAgent(ResumeAgentRequest) returns (ResumeAgentResponse) {
+    option (google.api.http) = {post: "/v1/kafka/agents/{name}:resume"};
+  }
+  rpc RotateAgentToken(RotateAgentTokenRequest) returns (RotateAgentTokenResponse) {
+    option (google.api.http) = {post: "/v1/kafka/agents/{name}:rotateToken"};
+  }
+}

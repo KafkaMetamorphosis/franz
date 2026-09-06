@@ -1,0 +1,215 @@
+edition = "2024";
+
+package franz.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "franz/v1/common.proto";
+
+// An Async Channel is the customer-facing boundary of asynchronous
+// communication. Creating one causes Franz to generate one or more linked
+// Kafka Topics (see kafka.proto). Formerly "Topic Definition".
+message AsyncChannel {
+  // Unique name, provided at creation. Also the base name Franz uses to
+  // generate Kafka topic names.
+  string name = 1;
+  // Assigned by Franz.
+  string orn = 2;
+
+  ChannelType type = 3;
+
+  // Shard count: Franz splits the channel into this many Kafka Topics, named
+  // "<name>-<index>" (index 0..channel_partitions-1). Changing it is a staged
+  // re-shard operation (003.4 / 003.11), not a plain field write.
+  int32 channel_partitions = 4;
+
+  // Arbitrary metadata labels for this channel.
+  map<string, string> labels = 5;
+
+  ChannelState state = 6;
+
+  // Who may use this channel. One document, zero trust: a client with no
+  // matching statement has no access.
+  AccessPolicy access_policy = 7;
+
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+enum ChannelType {
+  CHANNEL_TYPE_UNSPECIFIED = 0;
+  CHANNEL_TYPE_KAFKA_TOPIC = 1;
+}
+
+enum ChannelState {
+  CHANNEL_STATE_UNSPECIFIED = 0;
+  // Franz maintains the channel and its shards automatically.
+  CHANNEL_STATE_ACTIVE = 1;
+  // Recorded, but Franz has stopped reconciling the channel's shards.
+  CHANNEL_STATE_PAUSED = 2;
+  // Soft-deleted; agents remove the real-world resources.
+  CHANNEL_STATE_DELETED = 3;
+}
+
+// One access-policy document per channel. Evaluation for a (client, action):
+// take the statements whose principal matches the client and whose permissions
+// include the action; if any is EFFECT_DENY the action is denied; otherwise if
+// any is EFFECT_ALLOW it is allowed; otherwise denied (zero trust).
+message AccessPolicy {
+  repeated AccessPolicyStatement statements = 1;
+}
+
+message AccessPolicyStatement {
+  // Required. EFFECT_UNSPECIFIED is rejected.
+  Effect effect = 1;
+  Principal principal = 2;
+  // One or more of PERMISSION_READ / PERMISSION_WRITE. Must be non-empty.
+  repeated Permission permissions = 3;
+}
+
+enum Effect {
+  EFFECT_UNSPECIFIED = 0;
+  EFFECT_ALLOW = 1;
+  EFFECT_DENY = 2;
+}
+
+// A statement matches a client when its ORN matches client_orn (if set) OR its
+// labels satisfy the selector (if set); at least one must be set. Both
+// client_orn and the label-selector values accept `*` as a wildcard.
+message Principal {
+  string client_orn = 1;
+  string labels = 2;
+}
+
+// The permission a specific client has on a channel, after evaluating the policy.
+message ChannelClientAccess {
+  string client_orn = 1;
+  map<string, string> client_labels = 2;
+  repeated Permission effective = 3;
+  // Human-readable note on which statement matched.
+  string matched_by = 4;
+}
+
+message CreateAsyncChannelRequest {
+  string name = 1;
+  ChannelType type = 2;
+  int32 channel_partitions = 3;
+  map<string, string> labels = 4;
+  AccessPolicy access_policy = 5;
+}
+
+message CreateAsyncChannelResponse {
+  AsyncChannel async_channel = 1;
+}
+
+message GetAsyncChannelRequest {
+  string name = 1;
+}
+
+message GetAsyncChannelResponse {
+  AsyncChannel async_channel = 1;
+}
+
+message ListAsyncChannelsRequest {
+  PageRequest page = 1;
+  string selector = 2;
+}
+
+message ListAsyncChannelsResponse {
+  repeated AsyncChannel async_channels = 1;
+  PageResponse page = 2;
+}
+
+message UpdateAsyncChannelRequest {
+  string name = 1;
+  map<string, string> labels = 2;
+  // Fields to update; unset fields are left unchanged. `type` is immutable, the
+  // access policy is changed via SetAccessPolicy, and `channel_partitions` is
+  // changed via the staged re-shard flow (003.11) — none may appear in the mask.
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+message UpdateAsyncChannelResponse {
+  AsyncChannel async_channel = 1;
+}
+
+message DeleteAsyncChannelRequest {
+  string name = 1;
+}
+
+message DeleteAsyncChannelResponse {}
+
+message PauseAsyncChannelRequest {
+  string name = 1;
+}
+
+message PauseAsyncChannelResponse {
+  AsyncChannel async_channel = 1;
+}
+
+message ResumeAsyncChannelRequest {
+  string name = 1;
+}
+
+message ResumeAsyncChannelResponse {
+  AsyncChannel async_channel = 1;
+}
+
+message SetAccessPolicyRequest {
+  string name = 1;
+  AccessPolicy access_policy = 2;
+}
+
+message SetAccessPolicyResponse {
+  AsyncChannel async_channel = 1;
+}
+
+message ListChannelClientsRequest {
+  string name = 1;
+  PageRequest page = 2;
+}
+
+message ListChannelClientsResponse {
+  repeated ChannelClientAccess clients = 1;
+  PageResponse page = 2;
+}
+
+service AsyncChannelService {
+  rpc CreateAsyncChannel(CreateAsyncChannelRequest) returns (CreateAsyncChannelResponse) {
+    option (google.api.http) = {
+      post: "/v1/async-channels"
+      body: "*"
+    };
+  }
+  rpc GetAsyncChannel(GetAsyncChannelRequest) returns (GetAsyncChannelResponse) {
+    option (google.api.http) = {get: "/v1/async-channels/{name}"};
+  }
+  rpc ListAsyncChannels(ListAsyncChannelsRequest) returns (ListAsyncChannelsResponse) {
+    option (google.api.http) = {get: "/v1/async-channels"};
+  }
+  rpc UpdateAsyncChannel(UpdateAsyncChannelRequest) returns (UpdateAsyncChannelResponse) {
+    option (google.api.http) = {
+      patch: "/v1/async-channels/{name}"
+      body: "*"
+    };
+  }
+  rpc DeleteAsyncChannel(DeleteAsyncChannelRequest) returns (DeleteAsyncChannelResponse) {
+    option (google.api.http) = {delete: "/v1/async-channels/{name}"};
+  }
+  rpc PauseAsyncChannel(PauseAsyncChannelRequest) returns (PauseAsyncChannelResponse) {
+    option (google.api.http) = {post: "/v1/async-channels/{name}:pause"};
+  }
+  rpc ResumeAsyncChannel(ResumeAsyncChannelRequest) returns (ResumeAsyncChannelResponse) {
+    option (google.api.http) = {post: "/v1/async-channels/{name}:resume"};
+  }
+  rpc SetAccessPolicy(SetAccessPolicyRequest) returns (SetAccessPolicyResponse) {
+    option (google.api.http) = {
+      put: "/v1/async-channels/{name}/access-policy"
+      body: "access_policy"
+    };
+  }
+  rpc ListChannelClients(ListChannelClientsRequest) returns (ListChannelClientsResponse) {
+    option (google.api.http) = {get: "/v1/async-channels/{name}/clients"};
+  }
+}

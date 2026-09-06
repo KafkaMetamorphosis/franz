@@ -1,0 +1,321 @@
+edition = "2024";
+
+package franz.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/field_mask.proto";
+import "google/protobuf/timestamp.proto";
+import "franz/v1/common.proto";
+
+// ============================================================================
+// Kafka Cluster
+// ============================================================================
+
+// A Kafka Cluster registration. Franz records where a cluster lives and its
+// fleet context; it never connects to the cluster. Real-world work is done by
+// the linked Cluster Provider agent (if any) and by Resource Provider agents.
+message KafkaCluster {
+  // Control-plane identifier, provided at registration. Immutable.
+  string name = 1;
+  // Assigned by Franz.
+  string orn = 2;
+
+  // How to reach the cluster's brokers. Repeated so additional connection
+  // types (each with their own auth) can be added without a breaking change.
+  repeated ConnectionString connection_strings = 3;
+
+  // Fleet context. Source of truth for placement matching.
+  map<string, string> labels = 4;
+
+  // Default Kafka configuration applied to topics on this cluster when nothing
+  // more specific is declared (e.g. "default.replication.factor" -> "3").
+  map<string, string> cluster_configuration = 5;
+
+  // Optional name of the Cluster Provider agent that deploys and maintains this
+  // cluster's substrate. Empty means the infrastructure is managed outside Franz.
+  string cluster_provider_agent = 6;
+
+  // Lifecycle state. Franz sets ACTIVE at registration; PAUSED/DELETED are
+  // reached through PauseKafkaCluster / ResumeKafkaCluster / DeleteKafkaCluster.
+  // See 003.3-kafka-cluster.md for the state machine.
+  KafkaClusterState state = 7;
+
+  // What the Cluster Provider agent last reported (agent-observed reality,
+  // distinct from `state`). Absent when there is no provider or no report yet.
+  // Derived from the latest cluster_provider_event.
+  ClusterProviderStatus provider_status = 8;
+
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+enum KafkaClusterState {
+  KAFKA_CLUSTER_STATE_UNSPECIFIED = 0;
+  // Registered and eligible for placement.
+  KAFKA_CLUSTER_STATE_ACTIVE = 1;
+  // Registered but excluded from new placement; existing topics are untouched.
+  KAFKA_CLUSTER_STATE_PAUSED = 2;
+  // Soft-deleted. Terminal; the record is retained for audit.
+  KAFKA_CLUSTER_STATE_DELETED = 3;
+}
+
+// Current provider-reported status for a cluster: the latest
+// cluster_provider_event. See 004-local-kafka-docker-agent.
+message ClusterProviderStatus {
+  ClusterProviderPhase phase = 1;
+  bool reachable = 2;
+  string message = 3;
+  string recipe_ref = 4;
+  string reporting_agent = 5;
+  google.protobuf.Timestamp reported_at = 6;
+}
+
+// One provider status report, retained as history.
+message ClusterProviderEvent {
+  string cluster_orn = 1;
+  ClusterProviderPhase phase = 2;
+  bool reachable = 3;
+  string message = 4;
+  string recipe_ref = 5;
+  string reporting_agent = 6;
+  google.protobuf.Timestamp occurred_at = 7;
+}
+
+// A way to reach a cluster's brokers. Today only PLAINTEXT is supported; the
+// message exists so authenticated connection types can be added later.
+message ConnectionString {
+  repeated string bootstrap_urls = 1;
+  ConnectionType type = 2;
+}
+
+enum ConnectionType {
+  CONNECTION_TYPE_UNSPECIFIED = 0;
+  CONNECTION_TYPE_PLAINTEXT = 1;
+}
+
+// Only the client-settable fields of a KafkaCluster. Franz assigns the ORN and
+// the timestamps.
+message CreateKafkaClusterRequest {
+  string name = 1;
+  repeated ConnectionString connection_strings = 2;
+  map<string, string> labels = 3;
+  map<string, string> cluster_configuration = 4;
+  string cluster_provider_agent = 5;
+}
+
+message CreateKafkaClusterResponse {
+  KafkaCluster kafka_cluster = 1;
+}
+
+message GetKafkaClusterRequest {
+  string name = 1;
+}
+
+message GetKafkaClusterResponse {
+  KafkaCluster kafka_cluster = 1;
+}
+
+message ListKafkaClustersRequest {
+  PageRequest page = 1;
+  // Optional label selector to filter the result.
+  string selector = 2;
+}
+
+message ListKafkaClustersResponse {
+  repeated KafkaCluster kafka_clusters = 1;
+  PageResponse page = 2;
+}
+
+message UpdateKafkaClusterRequest {
+  string name = 1;
+  repeated ConnectionString connection_strings = 2;
+  map<string, string> labels = 3;
+  map<string, string> cluster_configuration = 4;
+  string cluster_provider_agent = 5;
+  // Fields to update; unset fields are left unchanged.
+  google.protobuf.FieldMask update_mask = 6;
+}
+
+message UpdateKafkaClusterResponse {
+  KafkaCluster kafka_cluster = 1;
+}
+
+message DeleteKafkaClusterRequest {
+  string name = 1;
+}
+
+message DeleteKafkaClusterResponse {}
+
+message PauseKafkaClusterRequest {
+  string name = 1;
+}
+
+message PauseKafkaClusterResponse {
+  KafkaCluster kafka_cluster = 1;
+}
+
+message ResumeKafkaClusterRequest {
+  string name = 1;
+}
+
+message ResumeKafkaClusterResponse {
+  KafkaCluster kafka_cluster = 1;
+}
+
+message ListClusterProviderEventsRequest {
+  string name = 1;
+  PageRequest page = 2;
+}
+
+message ListClusterProviderEventsResponse {
+  repeated ClusterProviderEvent events = 1;
+  PageResponse page = 2;
+}
+
+service KafkaClusterService {
+  rpc CreateKafkaCluster(CreateKafkaClusterRequest) returns (CreateKafkaClusterResponse) {
+    option (google.api.http) = {
+      post: "/v1/kafka/clusters"
+      body: "*"
+    };
+  }
+  rpc GetKafkaCluster(GetKafkaClusterRequest) returns (GetKafkaClusterResponse) {
+    option (google.api.http) = {get: "/v1/kafka/clusters/{name}"};
+  }
+  rpc ListKafkaClusters(ListKafkaClustersRequest) returns (ListKafkaClustersResponse) {
+    option (google.api.http) = {get: "/v1/kafka/clusters"};
+  }
+  rpc UpdateKafkaCluster(UpdateKafkaClusterRequest) returns (UpdateKafkaClusterResponse) {
+    option (google.api.http) = {
+      patch: "/v1/kafka/clusters/{name}"
+      body: "*"
+    };
+  }
+  rpc DeleteKafkaCluster(DeleteKafkaClusterRequest) returns (DeleteKafkaClusterResponse) {
+    option (google.api.http) = {delete: "/v1/kafka/clusters/{name}"};
+  }
+  rpc PauseKafkaCluster(PauseKafkaClusterRequest) returns (PauseKafkaClusterResponse) {
+    option (google.api.http) = {post: "/v1/kafka/clusters/{name}:pause"};
+  }
+  rpc ResumeKafkaCluster(ResumeKafkaClusterRequest) returns (ResumeKafkaClusterResponse) {
+    option (google.api.http) = {post: "/v1/kafka/clusters/{name}:resume"};
+  }
+  rpc ListClusterProviderEvents(ListClusterProviderEventsRequest) returns (ListClusterProviderEventsResponse) {
+    option (google.api.http) = {get: "/v1/kafka/clusters/{name}/provider-events"};
+  }
+}
+
+// ============================================================================
+// Kafka Topic
+// ============================================================================
+
+// A Kafka Topic is one generated topic of an Async Channel, placed on one
+// Kafka Cluster. It tracks reconciliation with the real topic. Formerly
+// "Topic Claim". Franz creates and deletes these; clients do not — every field
+// here is set by Franz. Consumption is changed through SetConsumption.
+message KafkaTopic {
+  // Franz-generated Kafka topic name (also the real name in the cluster).
+  string name = 1;
+  string orn = 2;
+
+  // Owning Async Channel.
+  string async_channel = 3;
+  // Cluster this topic is placed on.
+  string kafka_cluster = 4;
+
+  KafkaTopicState state = 5;
+
+  // Whether consumers may read this topic. When DISABLED the topic is drained:
+  // producers stop writing to it and its traffic share drops to zero, while the
+  // topic and its data are retained.
+  Consumption consumption = 6;
+
+  // Per-topic Kafka configuration (retention, cleanup policy, ...). Keys set here
+  // win over the cluster configuration in the merge. Does NOT carry partition
+  // count or replication factor — those are the dedicated fields below.
+  map<string, string> topic_configuration = 7;
+
+  // Desired Kafka partition count for the real topic. May only increase.
+  int32 partitions = 8;
+  // Desired replication factor for the real topic.
+  int32 replication_factor = 9;
+
+  // Intended share of channel traffic routed to this shard. Franz defaults to an
+  // equal split across the shards whose consumption is ENABLED; a drained shard
+  // is zero. Producers weight their routing by this value. It is an intention,
+  // not a measurement.
+  TrafficShare traffic_share = 10;
+
+  // Bumped whenever Franz changes this topic's desired state. Agents echo it
+  // when reporting work so Franz can reject stale reports.
+  int64 generation = 11;
+
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+}
+
+// A proportion of channel traffic, e.g. value 45, unit "percent".
+message TrafficShare {
+  double value = 1;
+  string unit = 2;
+}
+
+enum KafkaTopicState {
+  KAFKA_TOPIC_STATE_UNSPECIFIED = 0;
+  KAFKA_TOPIC_STATE_PENDING = 1;
+  KAFKA_TOPIC_STATE_READY = 2;
+  KAFKA_TOPIC_STATE_PAUSED = 3;
+  KAFKA_TOPIC_STATE_ERROR = 4;
+  KAFKA_TOPIC_STATE_DELETED = 5;
+}
+
+enum Consumption {
+  CONSUMPTION_UNSPECIFIED = 0;
+  CONSUMPTION_ENABLED = 1;
+  CONSUMPTION_DISABLED = 2;
+}
+
+message GetKafkaTopicRequest {
+  string name = 1;
+}
+
+message GetKafkaTopicResponse {
+  KafkaTopic kafka_topic = 1;
+}
+
+message ListKafkaTopicsRequest {
+  PageRequest page = 1;
+  // Filter to one channel. Optional.
+  string async_channel = 2;
+  // Filter to one cluster. Optional.
+  string kafka_cluster = 3;
+}
+
+message ListKafkaTopicsResponse {
+  repeated KafkaTopic kafka_topics = 1;
+  PageResponse page = 2;
+}
+
+message SetConsumptionRequest {
+  string name = 1;
+  Consumption consumption = 2;
+}
+
+message SetConsumptionResponse {
+  KafkaTopic kafka_topic = 1;
+}
+
+service KafkaTopicService {
+  rpc GetKafkaTopic(GetKafkaTopicRequest) returns (GetKafkaTopicResponse) {
+    option (google.api.http) = {get: "/v1/kafka/topics/{name}"};
+  }
+  rpc ListKafkaTopics(ListKafkaTopicsRequest) returns (ListKafkaTopicsResponse) {
+    option (google.api.http) = {get: "/v1/kafka/topics"};
+  }
+  rpc SetConsumption(SetConsumptionRequest) returns (SetConsumptionResponse) {
+    option (google.api.http) = {
+      post: "/v1/kafka/topics/{name}:setConsumption"
+      body: "*"
+    };
+  }
+}
