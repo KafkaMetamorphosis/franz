@@ -1,65 +1,145 @@
-# 08 — Resource management in the console
+# 08 — Resource management & agent provisioning schema
 
-Status: ⬜ not started
-Depends on: [03](./03-kafka-cluster.md) · [04](./04-agent-registry.md) · [06](./06-web-console-bootstrap.md)
-Specs: `001-ux/README`, `001-ux/demo/agents.html`, `001-ux/demo/kafka-clusters.html`, `003-franz/003.3-kafka-cluster`, `003-franz/003.9-agents`
-Proto: `UpdateKafkaClusterRequest` / `UpdateAgentRequest` (FieldMask)
+Status: 🚧 in progress
+Executed by: codex (pending)
+Depends on: [03](./03-kafka-cluster.md) · [04](./04-agent-registry.md) · [06](./06-web-console-bootstrap.md) · [07](./07-local-kafka-docker-agent.md)
+Specs: `003-franz/003.9-agents` (amended — provisioning-label schema), `004-local-kafka-docker-agent/README` (amended — `kafka-image`, self-declared schema), `003-franz/003.3-kafka-cluster`, `001-ux/README`
+Proto: `agent.proto` — new `ProvisioningLabelSpec`; `Agent` / `CreateAgentRequest` / `UpdateAgentRequest` gain `provisioning_labels`
 
 ## Goal
 
-Close the console gap left by deliverable 06: an operator can **create, read,
-update and delete** every resource the console shows, entirely from the browser.
-06 shipped list / register / detail / lifecycle for Agents and Kafka Clusters but
-**no edit path** — the backend `Update*` RPCs (03.4, 04.3) have no UI. This
-deliverable adds editing and makes CRUD complete for those two resources.
+Make the resources the console owns (Agents, Kafka Clusters) **fully manageable
+from the browser**, and make provisioning-label entry **schema-driven** instead of
+free-text guesswork.
 
-Scope is the resources the console owns **today** (Agents, Kafka Clusters).
-Async Channel / Client / Policy / Indicator management ships with their own
-features (10, 14, 15, 13) and follows the pattern this deliverable establishes.
+Two threads:
 
-## What is already there (06) vs. what this adds
+1. **Edit / full CRUD** — 06 shipped list / register / detail / lifecycle but no
+   edit path, though `UpdateAgent` (04.3) and `UpdateKafkaCluster` (03.4, incl.
+   `cluster_provider_agent`) exist and are tested. 08 adds the edit pages.
+2. **Agent provisioning-label schema** — an agent advertises which
+   `franz.provisioning/*` labels its recipes understand, with allowed values and
+   defaults. The console renders cluster forms from that schema: pick a provider
+   agent → its provisioning fields appear, pre-filled and constrained. The
+   local-kafka-docker-agent self-declares its schema on registration.
 
-| Resource | Create | Read | Update | Delete | Lifecycle |
-|---|---|---|---|---|---|
-| Agent | ✅ 06.4 | ✅ 06.4 | **08 (new)** | ✅ 06.4 | ✅ 06.4 (pause/resume/rotate) |
-| Kafka Cluster | ✅ 06.5 | ✅ 06.5 | **08 (new)** | ✅ 06.5 | ✅ 06.5 (pause/resume) |
+The schema is **advisory** — a console UX aid. Franz stores and serves it but
+does **not** validate `KafkaCluster.labels` against it at write time; the
+`cluster_provider_agent` link stays an unvalidated string (`003.9`), and the
+agent remains the sole authority on what it does with labels.
+
+## Design
+
+### Proto (`agent.proto`)
+
+```proto
+message ProvisioningLabelSpec {
+  string key = 1;                     // e.g. "franz.provisioning/kafka-image"
+  string description = 2;
+  repeated string allowed_values = 3; // empty ⇒ free text
+  string default_value = 4;
+  bool   required = 5;                // console-enforced only
+}
+
+message Agent {
+  // ...existing fields 1–7...
+  repeated ProvisioningLabelSpec provisioning_labels = 8;
+}
+
+message CreateAgentRequest {
+  // ...name, type, labels...
+  repeated ProvisioningLabelSpec provisioning_labels = 4;
+}
+
+message UpdateAgentRequest {
+  // ...name, type, labels...
+  repeated ProvisioningLabelSpec provisioning_labels = 5;
+  google.protobuf.FieldMask update_mask = 4;   // add "provisioning_labels"
+}
+```
+
+### `local-docker` recipe — `franz.provisioning/kafka-image`
+
+| Label | Meaning | Default |
+|---|---|---|
+| `franz.provisioning/kafka-image` | full image ref for an **apache/kafka-compatible** image (tag, digest, or registry mirror) | — |
+| `franz.provisioning/kafka-version` | tag sugar when `kafka-image` is unset | `3.7.0` ⇒ `apache/kafka:3.7.0` |
+
+Precedence: `kafka-image` wins; else `apache/kafka:<kafka-version>`. The resolved
+ref already feeds `recipe.Spec.Image` and the hash, so a change recreates the
+container (volume kept).
+
+### Local agent self-declared schema
+
+`EnsureRegistered` (07) sends `provisioning_labels` on `CreateAgent` and refreshes
+them via `UpdateAgent` on the reuse path:
+
+| key | allowed_values | default | required |
+|---|---|---|---|
+| `franz.provisioning/deployment-type` | `["local-docker"]` | `local-docker` | yes |
+| `franz.provisioning/kafka-version` | — | `3.7.0` | no |
+| `franz.provisioning/kafka-image` | — | — | no |
 
 ## Tasks
 
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
-| 08.1 | `useUpdateAgent(name)` / `useUpdateKafkaCluster(name)` TanStack Query mutations — build `update_mask` from the **changed** fields only (`fieldmask` canonical proto paths), `PATCH` via the typed client, invalidate the detail + list queries on success, surface `ApiError` (400 immutable-field, 404, 409) to the form | proto, 03.4, 04.3 | ⬜ | |
-| 08.2 | **Agent edit** — from the detail page, an "Edit" affordance opens a form for the mutable fields only: `type` (select — `CLUSTER_PROVIDER` / `RESOURCE_PROVIDER` / `TELEMETRY_AGENT`) and `labels` (reuse `LabelEditor`). `name`, `frn`, `status`, timestamps are read-only. Cancel restores; Save sends `update_mask=type,labels` (or the subset touched) | `003.9`, `001-ux/demo/agents.html` | ⬜ | |
-| 08.3 | **Kafka Cluster edit** — same shape, mutable fields: `connection_strings` (add / remove / edit bootstrap URL rows + type), `labels`, `cluster_configuration` (key/value editor), `cluster_provider_agent` (agent picker, may be cleared). `name`, `frn`, `state`, `provider_status`, timestamps read-only | `003.3`, `001-ux/demo/kafka-clusters.html` | ⬜ | |
-| 08.4 | Re-assignment warning — when `cluster_provider_agent` is changed (or cleared) on a cluster that already has one, the form shows an inline caution ("the current provider will tear its substrate down; the new provider will re-provision") and requires an explicit confirm before Save. Wording only — the hand-off itself is 05's behaviour | `003.3`, 05 | ⬜ | |
-| 08.5 | Empty / invalid input handled client-side before submit: cluster `connection_strings` must keep ≥1 non-empty bootstrap URL; agent `type` cannot be set to `UNSPECIFIED`; a no-op Save (nothing changed) is disabled | `003.3`, `003.9` | ⬜ | |
-| 08.6 | Concurrency — a Save that returns 409 (`FAILED_PRECONDITION` / stale) refetches the resource and asks the operator to re-apply; no silent overwrite | ADR-API-005 (lost updates) | ⬜ | |
-| 08.7 | Component tests (vitest) — mask contains only changed fields, immutable fields absent from the form, `type=UNSPECIFIED` blocked, re-assignment confirm gate, 409 refetch path | — | ⬜ | |
-| 08.8 | E2E smoke (Playwright) extends 06.7 — sign in → register an agent → edit its labels + type, reload, changes persisted → register a cluster → edit its `cluster_configuration`, reload, persisted | — | ⬜ | |
+| 08.1 | **Proto** — `ProvisioningLabelSpec`; `Agent` / `CreateAgentRequest` / `UpdateAgentRequest` `provisioning_labels`; `buf generate` (Go + OpenAPI + console `schema.d.ts`); `buf lint` / `buf breaking` (additive-only) | proto, `003.9` | ⬜ | |
+| 08.2 | **Domain + storage (deliverable 04)** — `agent.ProvisioningLabelSpec` value type + validation (`key` non-empty and `franz.` -prefixed, no dup keys, `default_value` ∈ `allowed_values` when both set); `agent` table `provisioning_labels jsonb` (edit `V1__init.sql`); repo read/write | `003.9`, `003.12` | ⬜ | |
+| 08.3 | **`agents.Service` + handler** — Create accepts `provisioning_labels`; Update honours the `provisioning_labels` mask path (replace wholesale); `GetAgent` / `ListAgents` return it; unit + REST tests | `003.9` | ⬜ | |
+| 08.4 | **`useUpdateAgent` / `useUpdateKafkaCluster` hooks** — build `update_mask` from changed fields only (camelCase JSON paths, comma-joined), invalidate detail + list, surface `ApiError` (400 immutable, 404, 409) | proto, 03.4, 04.3 | ⬜ | |
+| 08.5 | **Agent edit page** (`/agents/:name/edit`, "Edit" button on detail) — form for `type` (select) and `labels` (`LabelEditor`), plus a **provisioning-label schema editor**: repeatable rows (key, description, allowed values (comma), default, required). `name` / `frn` / `status` / timestamps read-only. Save sends only the touched mask paths | `003.9`, `001-ux/demo/agents.html` | ⬜ | |
+| 08.6 | **Schema-driven provisioning fields** — shared component: given an agent's `provisioning_labels`, render one control per spec (`allowed_values` ⇒ `<select>`, else text), pre-filled with `default_value`, required ones marked; emits a `Record<string,string>` merged into `KafkaCluster.labels`. Falls back to today's fixed `deployment-type` + `kafka-version` inputs when the selected agent has no schema | `003.3` | ⬜ | |
+| 08.7 | **Cluster register form** — use 08.6: choosing `cluster_provider_agent` swaps in that agent's provisioning fields; other labels stay in the generic `LabelEditor` | `003.3`, `001-ux/demo/register-kafka-cluster.html` | ⬜ | |
+| 08.8 | **Cluster edit page** (`/kafka/clusters/:name/edit`, "Edit" button on detail) — `connection_strings` (bootstrap URLs of the one entry; type stays `PLAINTEXT`), `labels` (generic editor + the 08.6 provisioning fields), `cluster_configuration` (key=value textarea), `cluster_provider_agent` (agent picker). `name` / `frn` / `state` / `provider_status` / timestamps read-only | `003.3`, `001-ux/demo/kafka-clusters.html` | ⬜ | |
+| 08.9 | **Re-assignment confirm** — changing (or clearing) `cluster_provider_agent` on a cluster that already has one shows an inline caution and requires an explicit confirm before Save. Wording only — the hand-off is 05's behaviour | `003.3`, 05 | ⬜ | |
+| 08.10 | **Client-side guards** — cluster `connection_strings` keeps ≥1 non-empty bootstrap URL; agent `type` not settable to `UNSPECIFIED`; required provisioning labels must be filled; a no-op Save is disabled; a 409 refetches and asks the operator to re-apply (no silent overwrite) | `003.3`, `003.9`, ADR-API-005 | ⬜ | |
+| 08.11 | **`local-docker` recipe** — `franz.provisioning/kafka-image` (precedence over `kafka-version`); recipe tests for both paths and the hash change; ADR-004 label table updated in code comments/docs pointers | `004` | ⬜ | |
+| 08.12 | **Local agent self-declares its schema** — `EnsureRegistered` sends `provisioning_labels` on create and refreshes on the reuse path; unit test against the bufconn stub | `004`, 07 | ⬜ | |
+| 08.13 | **Tests** — vitest: mask holds only changed fields, immutable fields absent, `type=UNSPECIFIED` blocked, schema field rendering (select vs text, defaults, required), re-assignment gate, 409 refetch. Playwright (extends 06.7): register agent with a provisioning schema → register cluster, provisioning fields pre-filled from the agent → edit cluster config + labels → reload, persisted → edit agent type → reload, persisted | — | ⬜ | |
 
 ## Done when
 
-- From the browser only: register an Agent, edit its `type` and `labels`, and
-  the change round-trips (reload shows it); same for a Kafka Cluster's
-  `connection_strings`, `labels`, `cluster_configuration`, and provider agent.
-- The edit forms never present an immutable field as editable, and never send one
-  in the `update_mask`.
+- From the browser only: register an Agent (with a provisioning-label schema),
+  register a Kafka Cluster pointing at it and see the provisioning fields
+  pre-filled from the agent, then edit the cluster's `connection_strings` /
+  `labels` / `cluster_configuration` / provider and the agent's `type` /
+  `labels` / schema — every change round-trips (reload shows it).
+- Edit forms never present an immutable field as editable or send one in a mask.
 - Changing a cluster's provider agent is gated behind an explicit confirm.
-- `make test` (vitest) and the extended Playwright smoke pass; CI green.
+- `make agent` registers the local agent with a `deployment-type` /
+  `kafka-version` / `kafka-image` schema; a cluster can pin
+  `franz.provisioning/kafka-image` and the broker comes up on that image.
+- `go build/test/vet`, `buf lint`/`breaking`, `make test` (vitest), the extended
+  Playwright smoke — all green; CI green.
 
 ## Notes
 
 - Lifecycle transitions (`pause` / `resume` / `delete` / `rotateToken`) stay as
-  the dedicated actions 06 already built — they are **not** folded into the edit
-  form. `state` / `status` are never in an `update_mask` (03 note, `003.9`).
-- No new proto, no backend change — `UpdateAgent` and `UpdateKafkaCluster` (with
-  `cluster_provider_agent` in its mask) already exist and are tested.
+  the dedicated actions 06 built — not folded into the edit form. `state` /
+  `status` are never in an `update_mask`.
+- `provisioning_labels` is additive proto — `buf breaking` must stay clean.
 - Realms are not console-managed (single seeded `default`, no `RealmService`
-  CRUD) — out of scope until an auth/realm feature exists.
-- The `001-ux` prototype is the visual reference; `register-*.html` still shows
-  removed fields (`context_selector`, `UXD-007`) — build against the current
-  `.proto`.
+  CRUD) — out of scope.
+- Async Channel / Client / Policy / Indicator management ships with their own
+  features (11 / 15 / 14 / 13), following the edit-page + schema patterns here.
+- `kafka-image` must be an apache/kafka-compatible image (same KRaft env
+  contract the recipe renders) — not an arbitrary Kafka distribution.
+
+### Spec amendments made for this deliverable (docs repo)
+
+- `003-franz/003.9-agents.md` — new "Provisioning-label schema" section; `Key
+  fields` row; `CreateAgent`/`UpdateAgent` now also carry `provisioning_labels`;
+  invariant that it is advisory and server-unvalidated against clusters.
+- `004-local-kafka-docker-agent/README.md` — `franz.provisioning/kafka-image`
+  row in the label table; note that the agent self-declares its provisioning
+  schema at registration.
 
 ### Decisions (asked)
 
-_(none yet — fill in when the deliverable is run)_
+- **Scope** — user chose to expand 08 to the full schema feature (not split).
+- **Schema is advisory** — Franz stores/serves, console renders, no write-time
+  enforcement on `KafkaCluster`.
+- **Edit lives on separate `/…/edit` pages** with an "Edit" button on detail.
+- **`connection_strings` edit** — bootstrap URLs of the single entry only.
+- **17 assumptions from trackers 03/04/05** — all ratified as-is.

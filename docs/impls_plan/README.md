@@ -33,7 +33,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [05](./05-agent-interaction-cluster-provider.md) | Agent interaction (Cluster Provider) | 02 · 03 · 04 | ✅ |
 | [06](./06-web-console-bootstrap.md) | Web console bootstrap | 03 · 04 · 05 | ✅ |
 | [07](./07-local-kafka-docker-agent.md) | local-kafka-docker-agent | 05 · 06 | ✅ |
-| [08](./08-resource-management-ui.md) | Resource management in the console (edit / full CRUD) | 03 · 04 · 06 | ⬜ |
+| [08](./08-resource-management-ui.md) | Resource management & agent provisioning schema | 03 · 04 · 06 · 07 | 🚧 |
 
 ## Rest of the control plane
 
