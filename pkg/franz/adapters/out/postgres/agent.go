@@ -91,6 +91,12 @@ func (r *AgentRepo) Get(ctx context.Context, realmID uuid.UUID, name string) (*a
 		realmID, name))
 }
 
+// GetByTokenHash resolves a token hash to its agent across realms.
+func (r *AgentRepo) GetByTokenHash(ctx context.Context, tokenHash string) (*agent.Agent, error) {
+	return scanAgent(r.db.Pool().QueryRow(ctx,
+		`SELECT `+agentColumns+` FROM agent WHERE token_hash=$1`, tokenHash))
+}
+
 // List returns one page ordered by name, optionally filtered by type. DELETED
 // agents are excluded. The type filter is pushed to SQL, so pagination is exact.
 func (r *AgentRepo) List(ctx context.Context, q out.AgentQuery) (out.AgentPage, error) {

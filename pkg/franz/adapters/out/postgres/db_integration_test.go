@@ -10,6 +10,7 @@ import (
 
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/adapters/out/postgres"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
+	"github.com/KafkaMetamorphosis/franz/pkg/internal/dbtest"
 )
 
 // dsn returns the test database DSN, or skips the test. Point it at a disposable
@@ -27,6 +28,7 @@ func openTestDB(t *testing.T) *postgres.DB {
 		t.Fatalf("open: %v", err)
 	}
 	t.Cleanup(db.Close)
+	dbtest.Lock(t, db.Pool()) // serialise across all DB integration tests
 	if err := db.Migrate(context.Background()); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}

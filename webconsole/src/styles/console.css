@@ -1,0 +1,57 @@
+/* Console additions on top of the ported prototype stylesheet. */
+
+.app-error {
+  margin-bottom: 18px;
+  padding: 12px 14px;
+  border: 1px solid #e6a99a;
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius);
+  background: #fdf1ef;
+  color: #7a1c0a;
+}
+.app-error code { font-size: 12px; }
+
+.token-reveal {
+  margin-top: 6px;
+  padding: 14px;
+  border: 1px solid #9ccf66;
+  border-left: 3px solid var(--green);
+  border-radius: var(--radius);
+  background: #f2f8ec;
+}
+.token-reveal code {
+  display: block;
+  margin: 8px 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.token-reveal .field-note { color: #4a6b1f; }
+
+.detail-grid { display: grid; grid-template-columns: 200px 1fr; gap: 10px 18px; }
+.detail-grid dt { color: var(--muted); font-weight: 700; }
+.detail-grid dd { margin: 0; }
+
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline li {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid #eaeded;
+}
+.timeline li:last-child { border-bottom: 0; }
+.timeline time { color: var(--muted); font-size: 12px; }
+
+.inline-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.empty-note { padding: 20px; color: var(--muted); }
+.loading-note { padding: 20px; color: var(--muted); }
+
+.status.error::before { background: var(--danger); }
+.status.info::before { background: var(--blue); }
+
+.copy-button { margin-left: 8px; padding: 4px 8px; font-weight: 700; font-size: 12px; }

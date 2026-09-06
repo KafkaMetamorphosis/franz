@@ -178,6 +178,34 @@ func (r *ClusterRepo) List(ctx context.Context, q out.ClusterQuery) (out.Cluster
 	return page, nil
 }
 
+// ListByProviderAgent returns every cluster in the realm owned by agentName,
+// DELETED rows included, ordered by name.
+func (r *ClusterRepo) ListByProviderAgent(
+	ctx context.Context, realmID uuid.UUID, agentName string,
+) ([]*cluster.Cluster, error) {
+	rows, err := r.db.Pool().Query(ctx,
+		`SELECT `+clusterColumns+` FROM kafka_cluster
+		 WHERE realm_id=$1 AND cluster_provider_agent=$2 ORDER BY name ASC`,
+		realmID, agentName)
+	if err != nil {
+		return nil, errs.Internalf("list clusters by provider agent").Wrap(err)
+	}
+	defer rows.Close()
+
+	var out []*cluster.Cluster
+	for rows.Next() {
+		c, err := scanCluster(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errs.Internalf("iterate clusters by provider agent").Wrap(err)
+	}
+	return out, nil
+}
+
 // Mutate loads the row FOR UPDATE, runs mutate, and persists the result in one
 // transaction.
 func (r *ClusterRepo) Mutate(

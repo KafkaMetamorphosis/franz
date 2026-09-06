@@ -27,11 +27,17 @@ func seededRealm(t *testing.T, db *postgres.DB) realm.Realm {
 	return r
 }
 
-// cleanupClusters removes every kafka_cluster row so a re-run starts clean.
+// cleanupClusters removes every kafka_cluster row (and its child
+// cluster_provider_event rows) so a re-run starts clean.
 func cleanupClusters(t *testing.T, db *postgres.DB) {
 	t.Helper()
-	if _, err := db.Pool().Exec(context.Background(), `DELETE FROM kafka_cluster`); err != nil {
-		t.Fatalf("cleanup: %v", err)
+	for _, stmt := range []string{
+		`DELETE FROM cluster_provider_event`,
+		`DELETE FROM kafka_cluster`,
+	} {
+		if _, err := db.Pool().Exec(context.Background(), stmt); err != nil {
+			t.Fatalf("cleanup (%s): %v", stmt, err)
+		}
 	}
 }
 

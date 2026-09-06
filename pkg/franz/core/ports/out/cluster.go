@@ -43,6 +43,11 @@ type ClusterRepository interface {
 	// rolls the transaction back and is returned as-is. errs.NotFound if absent.
 	Mutate(ctx context.Context, realmID uuid.UUID, name string,
 		mutate func(*cluster.Cluster) error) (*cluster.Cluster, error)
+
+	// ListByProviderAgent returns every cluster in the realm whose
+	// cluster_provider_agent equals agentName, DELETED rows included (the agent
+	// needs the REMOVED assignment). Not paginated — an agent's fleet is bounded.
+	ListByProviderAgent(ctx context.Context, realmID uuid.UUID, agentName string) ([]*cluster.Cluster, error)
 }
 
 // ClusterTopicGuard reports whether a cluster still hosts live Kafka Topics, so

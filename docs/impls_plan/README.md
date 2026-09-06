@@ -30,9 +30,9 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [02](./02-domain-foundations.md) | Domain foundations (`003.1`) | 01 | ✅ |
 | [03](./03-kafka-cluster.md) | Kafka Cluster | 02 | ✅ |
 | [04](./04-agent-registry.md) | Agent registry | 02 | ✅ |
-| [05](./05-agent-interaction-cluster-provider.md) | Agent interaction (Cluster Provider) | 02 · 03 · 04 | ⬜ |
-| [06](./06-web-console-bootstrap.md) | Web console bootstrap | 03 · 04 · 05 | ⬜ |
-| [07](./07-local-kafka-docker-agent.md) | local-kafka-docker-agent | 05 · 06 | ⬜ |
+| [05](./05-agent-interaction-cluster-provider.md) | Agent interaction (Cluster Provider) | 02 · 03 · 04 | ✅ |
+| [06](./06-web-console-bootstrap.md) | Web console bootstrap | 03 · 04 · 05 | ✅ |
+| [07](./07-local-kafka-docker-agent.md) | local-kafka-docker-agent | 05 · 06 | ✅ |
 
 ## Rest of the control plane
 
@@ -85,6 +85,24 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-06 · **07** local-kafka-docker-agent · `cmd/local-kafka-agent` +
+  `pkg/localkafka/{assign,stream,recipe,docker,reconcile,probe}` — connects as a
+  CLUSTER_PROVIDER, watches assignments, renders the `local-docker` recipe,
+  brings up an apache/kafka KRaft container, converges + reports status.
+  franz-go readiness probe. Fake-driver unit tests + a real-Docker e2e
+  (`make agent-e2e`, opt-in). `make agent TOKEN=…`. Executed by claude.
+- 2026-09-06 · **06** Web console bootstrap · Vite/React/TS console
+  (`webconsole/`) — shell, Login stub, Agents + Kafka Clusters screens; typed
+  REST client generated from a `buf`-emitted OpenAPI spec; TanStack Query;
+  4s provider-status poll. Vitest + Playwright (scoped-down) smoke. Two new CI
+  jobs. Executed by claude.
+- 2026-09-06 · **05** Agent interaction (Cluster Provider) · agent-auth
+  interceptor, `streamhub` connected-agent registry, `provider` domain +
+  usecase, `clusters.Service` publishes assignment deltas, `ClusterProviderService`
+  handler (WatchClusterAssignments stream + ReportClusterStatus),
+  `cluster_provider_event` table + nightly prune, `provider_status` on
+  `GetKafkaCluster`, `ListClusterProviderEvents`. bufconn e2e + postgres
+  integration green. Executed by claude.
 - 2026-09-06 · **04** Agent registry · `core/domain/agent` (type + status
   machine), `pkg/shared/token` (bearer-token mint/hash), `agents.Service`
   (Create mints token, RotateToken), `AgentService` gRPC+REST, `agent`

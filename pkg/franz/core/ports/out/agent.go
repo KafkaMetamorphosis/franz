@@ -29,4 +29,9 @@ type AgentRepository interface {
 	List(ctx context.Context, q AgentQuery) (AgentPage, error)
 	Mutate(ctx context.Context, realmID uuid.UUID, name string,
 		mutate func(*agent.Agent) error) (*agent.Agent, error)
+
+	// GetByTokenHash resolves a bearer-token hash to its agent across all realms
+	// (the token itself carries no realm). errs.NotFound if no agent has that
+	// hash. Used by the agent-auth interceptor (005.2).
+	GetByTokenHash(ctx context.Context, tokenHash string) (*agent.Agent, error)
 }

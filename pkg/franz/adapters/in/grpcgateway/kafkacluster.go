@@ -9,6 +9,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/cluster"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/frn"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/in"
 	franzv1 "github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1"
 	"github.com/KafkaMetamorphosis/franz/pkg/shared/fieldmask"
@@ -18,16 +19,47 @@ import (
 // interface, mapping proto ⇄ domain and domain errors → gRPC status.
 type kafkaClusterHandler struct {
 	franzv1.UnimplementedKafkaClusterServiceServer
-	svc   in.KafkaClusterService
-	codec frn.Codec
+	svc      in.KafkaClusterService
+	provider in.ClusterProviderService
+	codec    frn.Codec
 }
 
 // RegisterKafkaClusterService mounts the KafkaClusterService on both the gRPC
 // server and the in-process REST gateway.
-func RegisterKafkaClusterService(s *Server, svc in.KafkaClusterService, codec frn.Codec) error {
-	h := &kafkaClusterHandler{svc: svc, codec: codec}
+func RegisterKafkaClusterService(s *Server, svc in.KafkaClusterService, prov in.ClusterProviderService, codec frn.Codec) error {
+	h := &kafkaClusterHandler{svc: svc, provider: prov, codec: codec}
 	franzv1.RegisterKafkaClusterServiceServer(s.grpc, h)
 	return franzv1.RegisterKafkaClusterServiceHandlerServer(context.Background(), s.gw, h)
+}
+
+// ListClusterProviderEvents returns provider-status history for a cluster.
+func (h *kafkaClusterHandler) ListClusterProviderEvents(
+	ctx context.Context, req *franzv1.ListClusterProviderEventsRequest,
+) (*franzv1.ListClusterProviderEventsResponse, error) {
+	page, err := h.provider.ListEvents(ctx, req.GetName(),
+		req.GetPage().GetPageSize(), req.GetPage().GetPageToken())
+	if err != nil {
+		return nil, ToError(err)
+	}
+	events := make([]*franzv1.ClusterProviderEvent, len(page.Events))
+	for i, e := range page.Events {
+		events[i] = franzv1.ClusterProviderEvent_builder{
+			ClusterFrn:     proto.String(h.codec.Render(e.ClusterFRN)),
+			Phase:          phaseToProto(e.Phase),
+			Reachable:      proto.Bool(e.Reachable),
+			Message:        proto.String(e.Message),
+			RecipeRef:      proto.String(e.RecipeRef),
+			ReportingAgent: proto.String(e.ReportingAgent),
+			OccurredAt:     timestamppb.New(e.OccurredAt),
+		}.Build()
+	}
+	return franzv1.ListClusterProviderEventsResponse_builder{
+		Events: events,
+		Page: franzv1.PageResponse_builder{
+			NextPageToken: proto.String(page.NextPageToken),
+			TotalSize:     proto.Int32(0),
+		}.Build(),
+	}.Build(), nil
 }
 
 func (h *kafkaClusterHandler) CreateKafkaCluster(
@@ -160,6 +192,7 @@ func (h *kafkaClusterHandler) toProto(c *cluster.Cluster) *franzv1.KafkaCluster 
 		ClusterConfiguration: c.Configuration,
 		ClusterProviderAgent: proto.String(c.ProviderAgent),
 		State:                stateToProto(c.State),
+		ProviderStatus:       providerStatusToProto(c.ProviderStatus),
 		CreatedAt:            timestamppb.New(c.CreatedAt),
 		UpdatedAt:            timestamppb.New(c.UpdatedAt),
 	}.Build()
@@ -193,6 +226,20 @@ func connTypeToProto(t cluster.ConnectionType) *franzv1.ConnectionType {
 		v = franzv1.ConnectionType_CONNECTION_TYPE_PLAINTEXT
 	}
 	return &v
+}
+
+func providerStatusToProto(s *provider.Status) *franzv1.ClusterProviderStatus {
+	if s == nil {
+		return nil
+	}
+	return franzv1.ClusterProviderStatus_builder{
+		Phase:          phaseToProto(s.Phase),
+		Reachable:      proto.Bool(s.Reachable),
+		Message:        proto.String(s.Message),
+		RecipeRef:      proto.String(s.RecipeRef),
+		ReportingAgent: proto.String(s.ReportingAgent),
+		ReportedAt:     timestamppb.New(s.ReportedAt),
+	}.Build()
 }
 
 func stateToProto(s cluster.State) *franzv1.KafkaClusterState {

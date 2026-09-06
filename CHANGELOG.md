@@ -7,6 +7,60 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **local-kafka-docker-agent** (impls_plan deliverable 07): `cmd/local-kafka-agent`
+  — the first Cluster Provider agent. It registers with Franz, watches
+  `WatchClusterAssignments` (reconnect + backoff, debounced into one reconcile),
+  renders the `local-docker` recipe (a single `apache/kafka` KRaft container per
+  cluster, `advertised.listeners` from the declared bootstrap URL,
+  allow-listed `cluster_configuration` → broker env, `franz.recipe-hash` label),
+  drives Docker via the Engine API SDK, and converges: create → recreate on hash
+  change (keeping the data volume) → stop on `PAUSED` → remove + volume on
+  `REMOVED` → drop orphans. Readiness is a `franz-go` `Ping`; a fresh broker is
+  retried so a normal boot goes `PROVISIONING → READY` without a transient
+  `DEGRADED`. Status is reported per state transition. `pkg/localkafka/{assign,
+  stream,recipe,docker,reconcile,probe}`. Fake-Docker unit tests in CI; a
+  real-Docker end-to-end (`make agent-e2e`, opt-in) verifies a client can
+  connect and create a topic against the provisioned broker. New Make targets
+  `agent` / `agent-e2e`. New deps: `github.com/twmb/franz-go`,
+  `github.com/docker/docker`.
+- **`make agent` self-registration** (local dev): with no `TOKEN=`, `make agent`
+  sets `FRANZ_REGISTER=1` and the agent seeds (or reuses) its own registration
+  with Franz on startup — `GetAgent` → `CreateAgent` if absent, else
+  `RotateAgentToken` — and uses the returned bearer token. Removes the manual
+  "register in the console, copy the token, pass `TOKEN=`" step.
+  `TOKEN=` / `AGENT_NAME=` still override. Local-dev only (`AgentService` is
+  unauthenticated there). `pkg/localkafka/register.go`.
+- **Web console bootstrap** (impls_plan deliverable 06): `webconsole/` — a
+  Vite + React + TypeScript operator console (separate static build, not
+  embedded). App shell ported from the `001-ux` prototype; Login stub; **Agents**
+  screens (list, register with one-time token reveal, detail with pause / resume
+  / delete / rotate-token); **Kafka Clusters** screens (list, register with a
+  provider-agent picker + `franz.provisioning/*` fields, detail showing intent
+  state + live provider status + the event timeline, polled every 4s). The
+  typed REST client is generated from the protos: `buf generate api` now also
+  emits `api/openapi/franz.swagger.json`, which `webconsole` turns into
+  `src/api/schema.d.ts` (`openapi-typescript` + `openapi-fetch`, wrapped by
+  TanStack Query). Vitest component tests + a scoped-down Playwright smoke.
+  Two new CI jobs (`webconsole`, `console-e2e`).
+- **`Makefile`** for local development: `make dev` starts Postgres, the control
+  plane, and the console together (Ctrl-C stops all); plus `make run`,
+  `make console`, `make gen`, `make test`, `make e2e`, `make lint`.
+- **Agent interaction — Cluster Provider** (impls_plan deliverable 05): the
+  Franz side of the `004-local-kafka-docker-agent` contract.
+  `core/domain/provider` (phase / status / assignment value objects,
+  `franz.provisioning/*` label filter); an agent-auth gRPC interceptor
+  (`adapters/in/grpcgateway/agentauth.go`, `WithAgentAuth`) that resolves
+  `authorization: Bearer <token>` to the agent for `ClusterProviderService`
+  calls only; an in-memory connected-agent stream registry
+  (`adapters/streamhub`); `core/usecases/provider` (initial assignments,
+  ownership-checked status intake, history); `clusters.Service` now publishes an
+  assignment delta to the owning agent on every cluster create/update/pause/
+  resume/delete; the `ClusterProviderService` handler
+  (`WatchClusterAssignments` server-stream — full set on open then deltas — and
+  `ReportClusterStatus`); a `cluster_provider_event` append table
+  (`adapters/out/postgres/provider.go`) with a nightly 30-day prune; and
+  `KafkaCluster.provider_status` + `ListClusterProviderEvents` on the console
+  API. `pkg/internal/dbtest` serialises the DB integration tests.
 - **Agent registry** (impls_plan deliverable 04): `core/domain/agent` (entity,
   `AgentType` organisational filter, `ACTIVE ↔ PAUSED → DELETED` status machine),
   `core/ports/{in,out}` + `core/usecases/agents`, a hand-written pgx adapter

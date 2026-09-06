@@ -3,12 +3,14 @@ package clusters
 import (
 	"context"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/google/uuid"
 
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/cluster"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/in"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/out"
@@ -90,9 +92,51 @@ func (m *memRepo) Mutate(_ context.Context, _ uuid.UUID, name string,
 	return &cp, nil
 }
 
+func (m *memRepo) ListByProviderAgent(_ context.Context, _ uuid.UUID, agentName string) ([]*cluster.Cluster, error) {
+	var out []*cluster.Cluster
+	for _, c := range m.rows {
+		if c.ProviderAgent == agentName {
+			cp := *c
+			out = append(out, &cp)
+		}
+	}
+	return out, nil
+}
+
 type guard struct{ n int }
 
 func (g guard) CountLiveTopics(context.Context, uuid.UUID) (int, error) { return g.n, nil }
+
+// capturePublisher records every assignment published, keyed by agent name.
+type capturePublisher struct {
+	mu   sync.Mutex
+	sent map[string][]provider.Assignment
+}
+
+func newCapturePublisher() *capturePublisher {
+	return &capturePublisher{sent: map[string][]provider.Assignment{}}
+}
+
+func (p *capturePublisher) PublishAssignment(agentName string, a provider.Assignment) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.sent[agentName] = append(p.sent[agentName], a)
+}
+
+func (p *capturePublisher) last(agentName string) (provider.Assignment, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	xs := p.sent[agentName]
+	if len(xs) == 0 {
+		return provider.Assignment{}, false
+	}
+	return xs[len(xs)-1], true
+}
+
+// noStatus is a ProviderStatusReader that always reports "no status yet".
+type noStatus struct{}
+
+func (noStatus) LatestStatus(context.Context, uuid.UUID) (*provider.Status, error) { return nil, nil }
 
 // --- helpers -----------------------------------------------------------
 
@@ -102,8 +146,14 @@ func ctxWithRealm() context.Context {
 }
 
 func mkService(topics int) (*Service, *memRepo) {
+	svc, repo, _ := mkServiceP(topics)
+	return svc, repo
+}
+
+func mkServiceP(topics int) (*Service, *memRepo, *capturePublisher) {
 	repo := newMemRepo()
-	return NewService(repo, guard{n: topics}), repo
+	pub := newCapturePublisher()
+	return NewService(repo, guard{n: topics}, noStatus{}, pub), repo, pub
 }
 
 func plainConns() []cluster.ConnectionString {
@@ -247,5 +297,75 @@ func TestListSelectorAndPagination(t *testing.T) {
 	}
 	if g, err := svc.Get(ctx, "a"); err != nil || g.State != cluster.StateDeleted {
 		t.Errorf("Get(deleted) = %+v %v", g, err)
+	}
+}
+
+func TestAssignmentPublishedOnLifecycle(t *testing.T) {
+	svc, _, pub := mkServiceP(0)
+	ctx := ctxWithRealm()
+
+	_, err := svc.Create(ctx, in.CreateClusterInput{
+		Name:              "east-1",
+		ConnectionStrings: plainConns(),
+		ProviderAgent:     "prov-1",
+		Labels:            map[string]string{"franz.provisioning/deployment-type": "local-docker"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	a, ok := pub.last("prov-1")
+	if !ok || a.Change != provider.ChangeSet {
+		t.Fatalf("create → %+v ok=%v, want SET", a, ok)
+	}
+	if a.Provisioning["franz.provisioning/deployment-type"] != "local-docker" {
+		t.Errorf("provisioning labels not carried: %v", a.Provisioning)
+	}
+
+	// editing a provisioning label pushes a SET delta
+	newLabels := map[string]string{"franz.provisioning/deployment-type": "local-docker", "franz.provisioning/kafka-version": "3.7.0"}
+	if _, err := svc.Update(ctx, in.UpdateClusterInput{Name: "east-1", Labels: &newLabels}); err != nil {
+		t.Fatal(err)
+	}
+	if a, _ := pub.last("prov-1"); a.Change != provider.ChangeSet || a.Provisioning["franz.provisioning/kafka-version"] != "3.7.0" {
+		t.Errorf("update → %+v, want SET with new label", a)
+	}
+
+	if _, err := svc.Pause(ctx, "east-1"); err != nil {
+		t.Fatal(err)
+	}
+	if a, _ := pub.last("prov-1"); a.Change != provider.ChangePaused {
+		t.Errorf("pause → %v, want PAUSED", a.Change)
+	}
+
+	if _, err := svc.Resume(ctx, "east-1"); err != nil {
+		t.Fatal(err)
+	}
+	if a, _ := pub.last("prov-1"); a.Change != provider.ChangeSet {
+		t.Errorf("resume → %v, want SET", a.Change)
+	}
+
+	if err := svc.Delete(ctx, "east-1"); err != nil {
+		t.Fatal(err)
+	}
+	if a, _ := pub.last("prov-1"); a.Change != provider.ChangeRemoved {
+		t.Errorf("delete → %v, want REMOVED", a.Change)
+	}
+}
+
+func TestAssignmentReassignPublishesRemovedToOldAgent(t *testing.T) {
+	svc, _, pub := mkServiceP(0)
+	ctx := ctxWithRealm()
+
+	_, _ = svc.Create(ctx, in.CreateClusterInput{Name: "east-1", ConnectionStrings: plainConns(), ProviderAgent: "prov-1"})
+
+	newAgent := "prov-2"
+	if _, err := svc.Update(ctx, in.UpdateClusterInput{Name: "east-1", ProviderAgent: &newAgent}); err != nil {
+		t.Fatal(err)
+	}
+	if a, ok := pub.last("prov-1"); !ok || a.Change != provider.ChangeRemoved {
+		t.Errorf("old agent → %+v, want REMOVED", a)
+	}
+	if a, ok := pub.last("prov-2"); !ok || a.Change != provider.ChangeSet {
+		t.Errorf("new agent → %+v, want SET", a)
 	}
 }
