@@ -1819,6 +1819,13 @@
         "updateMask": {
           "type": "string",
           "description": "Fields to update; unset fields are left unchanged."
+        },
+        "provisioningLabels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ProvisioningLabelSpec"
+          }
         }
       }
     },
@@ -2078,6 +2085,14 @@
         "updatedAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "provisioningLabels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ProvisioningLabelSpec"
+          },
+          "description": "Advisory schema: the franz.provisioning/* labels this agent's recipes\nunderstand, with allowed values and defaults. Franz stores and serves it\nfor the console to render resource forms; it never validates another\nresource's labels against it. See 003.9."
         }
       },
       "description": "An agent is a program registered with Franz that connects to the fleet API\nover gRPC, pulls work, and reports results. Franz never calls an agent."
@@ -2352,6 +2367,13 @@
           "type": "object",
           "additionalProperties": {
             "type": "string"
+          }
+        },
+        "provisioningLabels": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ProvisioningLabelSpec"
           }
         }
       }
@@ -3282,6 +3304,34 @@
         }
       },
       "description": "A statement matches a client when its FRN matches client_frn (if set) OR its\nlabels satisfy the selector (if set); at least one must be set. Both\nclient_frn and the label-selector values accept `*` as a wildcard."
+    },
+    "v1ProvisioningLabelSpec": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Reserved-label key, e.g. \"franz.provisioning/kafka-image\". Must be\nfranz.-prefixed."
+        },
+        "description": {
+          "type": "string"
+        },
+        "allowedValues": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Allowed values; empty means free text."
+        },
+        "defaultValue": {
+          "type": "string",
+          "description": "Pre-filled in the console form. When allowed_values is set, must be one of\nthem."
+        },
+        "required": {
+          "type": "boolean",
+          "description": "The console requires a value; Franz does not enforce it."
+        }
+      },
+      "description": "ProvisioningLabelSpec describes one franz.provisioning/* label an agent's\nrecipe reads. Advisory — a console UX aid only (003.9, ADR-API-008)."
     },
     "v1ResumeAgentResponse": {
       "type": "object",

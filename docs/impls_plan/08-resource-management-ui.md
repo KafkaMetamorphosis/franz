@@ -1,7 +1,7 @@
 # 08 — Resource management & agent provisioning schema
 
 Status: 🚧 in progress
-Executed by: codex (pending)
+Executed by: claude (claude-sonnet-5) — codex out of quota (usage limit resets 2026-09-28)
 Depends on: [03](./03-kafka-cluster.md) · [04](./04-agent-registry.md) · [06](./06-web-console-bootstrap.md) · [07](./07-local-kafka-docker-agent.md)
 Specs: `003-franz/003.9-agents` (amended — provisioning-label schema), `004-local-kafka-docker-agent/README` (amended — `kafka-image`, self-declared schema), `003-franz/003.3-kafka-cluster`, `001-ux/README`
 Proto: `agent.proto` — new `ProvisioningLabelSpec`; `Agent` / `CreateAgentRequest` / `UpdateAgentRequest` gain `provisioning_labels`
@@ -84,9 +84,9 @@ them via `UpdateAgent` on the reuse path:
 
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
-| 08.1 | **Proto** — `ProvisioningLabelSpec`; `Agent` / `CreateAgentRequest` / `UpdateAgentRequest` `provisioning_labels`; `buf generate` (Go + OpenAPI + console `schema.d.ts`); `buf lint` / `buf breaking` (additive-only) | proto, `003.9` | ⬜ | |
-| 08.2 | **Domain + storage (deliverable 04)** — `agent.ProvisioningLabelSpec` value type + validation (`key` non-empty and `franz.` -prefixed, no dup keys, `default_value` ∈ `allowed_values` when both set); `agent` table `provisioning_labels jsonb` (edit `V1__init.sql`); repo read/write | `003.9`, `003.12` | ⬜ | |
-| 08.3 | **`agents.Service` + handler** — Create accepts `provisioning_labels`; Update honours the `provisioning_labels` mask path (replace wholesale); `GetAgent` / `ListAgents` return it; unit + REST tests | `003.9` | ⬜ | |
+| 08.1 | **Proto** — `ProvisioningLabelSpec`; `Agent` / `CreateAgentRequest` / `UpdateAgentRequest` `provisioning_labels`; `buf generate` (Go + OpenAPI + console `schema.d.ts`); `buf lint` clean, change additive-only (`buf breaking` can't run locally — baseline predates the buf.yaml, same as the rest of the stack) | proto, `003.9` | ✅ | 2026-09-06 |
+| 08.2 | **Domain + storage (deliverable 04)** — `agent.ProvisioningLabelSpec` value type + `ValidateProvisioningLabels` (`key` non-empty and `franz.` -prefixed, no dup keys, `default_value` ∈ `allowed_values` when both set); `agent.provisioning_labels jsonb` in `V1__init.sql`; postgres repo read/write via a local `provisioningLabelRow` DTO (domain stays tag-free) | `003.9`, `003.12` | ✅ | 2026-09-06 |
+| 08.3 | **`agents.Service` + handler** — Create accepts `provisioning_labels`; Update honours the `provisioning_labels` mask path (replace wholesale); `GetAgent` / `ListAgents` return it; domain + handler + postgres tests | `003.9` | ✅ | 2026-09-06 |
 | 08.4 | **`useUpdateAgent` / `useUpdateKafkaCluster` hooks** — build `update_mask` from changed fields only (camelCase JSON paths, comma-joined), invalidate detail + list, surface `ApiError` (400 immutable, 404, 409) | proto, 03.4, 04.3 | ⬜ | |
 | 08.5 | **Agent edit page** (`/agents/:name/edit`, "Edit" button on detail) — form for `type` (select) and `labels` (`LabelEditor`), plus a **provisioning-label schema editor**: repeatable rows (key, description, allowed values (comma), default, required). `name` / `frn` / `status` / timestamps read-only. Save sends only the touched mask paths | `003.9`, `001-ux/demo/agents.html` | ⬜ | |
 | 08.6 | **Schema-driven provisioning fields** — shared component: given an agent's `provisioning_labels`, render one control per spec (`allowed_values` ⇒ `<select>`, else text), pre-filled with `default_value`, required ones marked; emits a `Record<string,string>` merged into `KafkaCluster.labels`. Falls back to today's fixed `deployment-type` + `kafka-version` inputs when the selected agent has no schema | `003.3` | ⬜ | |

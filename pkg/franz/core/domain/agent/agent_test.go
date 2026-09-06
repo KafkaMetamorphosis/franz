@@ -14,7 +14,7 @@ func testRealm() realm.Realm {
 }
 
 func TestNew(t *testing.T) {
-	a, err := New(testRealm(), "provisioner-1", TypeClusterProvider, map[string]string{"team": "infra"}, "hash")
+	a, err := New(testRealm(), "provisioner-1", TypeClusterProvider, map[string]string{"team": "infra"}, nil, "hash")
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
@@ -28,19 +28,19 @@ func TestNew(t *testing.T) {
 
 func TestNewValidation(t *testing.T) {
 	r := testRealm()
-	if _, err := New(r, "Bad Name", TypeCustom, nil, "h"); err == nil {
+	if _, err := New(r, "Bad Name", TypeCustom, nil, nil, "h"); err == nil {
 		t.Error("bad name should fail")
 	}
-	if _, err := New(r, "ok", Type("BOGUS"), nil, "h"); errs.KindOf(err) != errs.InvalidArgument {
+	if _, err := New(r, "ok", Type("BOGUS"), nil, nil, "h"); errs.KindOf(err) != errs.InvalidArgument {
 		t.Errorf("bad type = %v", err)
 	}
-	if _, err := New(r, "ok", "", nil, "h"); errs.KindOf(err) != errs.InvalidArgument {
+	if _, err := New(r, "ok", "", nil, nil, "h"); errs.KindOf(err) != errs.InvalidArgument {
 		t.Errorf("unspecified type = %v", err)
 	}
 }
 
 func TestSetType(t *testing.T) {
-	a, _ := New(testRealm(), "a", TypeCustom, nil, "h")
+	a, _ := New(testRealm(), "a", TypeCustom, nil, nil, "h")
 	if err := a.SetType(TypeTelemetryAgent); err != nil || a.Type != TypeTelemetryAgent {
 		t.Fatalf("SetType: %v type=%v", err, a.Type)
 	}
@@ -50,7 +50,7 @@ func TestSetType(t *testing.T) {
 }
 
 func TestStatusMachine(t *testing.T) {
-	a, _ := New(testRealm(), "a", TypeCustom, nil, "h")
+	a, _ := New(testRealm(), "a", TypeCustom, nil, nil, "h")
 
 	if err := a.Pause(); err != nil || a.Status != StatusPaused {
 		t.Fatalf("Pause: %v", err)
@@ -72,7 +72,7 @@ func TestStatusMachine(t *testing.T) {
 }
 
 func TestRotateToken(t *testing.T) {
-	a, _ := New(testRealm(), "a", TypeCustom, nil, "h1")
+	a, _ := New(testRealm(), "a", TypeCustom, nil, nil, "h1")
 	a.RotateToken("h2")
 	if a.TokenHash != "h2" {
 		t.Errorf("token hash = %q", a.TokenHash)

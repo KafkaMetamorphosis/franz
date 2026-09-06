@@ -25,17 +25,61 @@ func NewAgentRepo(db *DB) *AgentRepo { return &AgentRepo{db: db} }
 
 var _ out.AgentRepository = (*AgentRepo)(nil)
 
-const agentColumns = `id, realm_id, name, frn, type, labels, status, token_hash,
-	created_at, updated_at`
+const agentColumns = `id, realm_id, name, frn, type, labels, provisioning_labels,
+	status, token_hash, created_at, updated_at`
+
+// provisioningLabelRow is the on-disk shape of one agent.ProvisioningLabelSpec.
+// Kept local to the adapter so the domain type carries no serialisation tags.
+type provisioningLabelRow struct {
+	Key           string   `json:"key"`
+	Description   string   `json:"description,omitempty"`
+	AllowedValues []string `json:"allowed_values,omitempty"`
+	DefaultValue  string   `json:"default_value,omitempty"`
+	Required      bool     `json:"required,omitempty"`
+}
+
+func marshalProvisioningLabels(specs []agent.ProvisioningLabelSpec) []byte {
+	rows := make([]provisioningLabelRow, 0, len(specs))
+	for _, s := range specs {
+		rows = append(rows, provisioningLabelRow{
+			Key: s.Key, Description: s.Description, AllowedValues: s.AllowedValues,
+			DefaultValue: s.DefaultValue, Required: s.Required,
+		})
+	}
+	b, _ := json.Marshal(rows)
+	return b
+}
+
+func unmarshalProvisioningLabels(raw []byte) ([]agent.ProvisioningLabelSpec, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var rows []provisioningLabelRow
+	if err := json.Unmarshal(raw, &rows); err != nil {
+		return nil, errs.Internalf("decode provisioning_labels").Wrap(err)
+	}
+	if len(rows) == 0 {
+		return nil, nil
+	}
+	specs := make([]agent.ProvisioningLabelSpec, len(rows))
+	for i, row := range rows {
+		specs[i] = agent.ProvisioningLabelSpec{
+			Key: row.Key, Description: row.Description, AllowedValues: row.AllowedValues,
+			DefaultValue: row.DefaultValue, Required: row.Required,
+		}
+	}
+	return specs, nil
+}
 
 func scanAgent(sc rowScanner) (*agent.Agent, error) {
 	var (
-		a           agent.Agent
-		frnPath     string
-		typ, status string
-		labelsRaw   []byte
+		a             agent.Agent
+		frnPath       string
+		typ, status   string
+		labelsRaw     []byte
+		provLabelsRaw []byte
 	)
-	err := sc.Scan(&a.ID, &a.RealmID, &a.Name, &frnPath, &typ, &labelsRaw,
+	err := sc.Scan(&a.ID, &a.RealmID, &a.Name, &frnPath, &typ, &labelsRaw, &provLabelsRaw,
 		&status, &a.TokenHash, &a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -54,6 +98,9 @@ func scanAgent(sc rowScanner) (*agent.Agent, error) {
 	if err := json.Unmarshal(labelsRaw, &a.Labels); err != nil {
 		return nil, errs.Internalf("decode labels").Wrap(err)
 	}
+	if a.ProvisioningLabels, err = unmarshalProvisioningLabels(provLabelsRaw); err != nil {
+		return nil, err
+	}
 	return &a, nil
 }
 
@@ -67,12 +114,13 @@ func (r *AgentRepo) Create(ctx context.Context, a *agent.Agent) error {
 		a.ID = id
 	}
 	labels, _ := json.Marshal(nonNilMap(a.Labels))
+	provLabels := marshalProvisioningLabels(a.ProvisioningLabels)
 
 	stored, err := scanAgent(r.db.Pool().QueryRow(ctx, `
-		INSERT INTO agent (id, realm_id, name, frn, type, labels, status, token_hash)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+		INSERT INTO agent (id, realm_id, name, frn, type, labels, provisioning_labels, status, token_hash)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
 		RETURNING `+agentColumns,
-		a.ID, a.RealmID, a.Name, a.FRN.Path(), string(a.Type), labels,
+		a.ID, a.RealmID, a.Name, a.FRN.Path(), string(a.Type), labels, provLabels,
 		string(a.Status), a.TokenHash))
 	if err != nil {
 		if isUniqueViolation(err) {
@@ -156,12 +204,13 @@ func (r *AgentRepo) Mutate(
 			return err
 		}
 		labels, _ := json.Marshal(nonNilMap(a.Labels))
+		provLabels := marshalProvisioningLabels(a.ProvisioningLabels)
 		updated, err := scanAgent(tx.QueryRow(ctx, `
 			UPDATE agent SET
-				type=$1, labels=$2, status=$3, token_hash=$4, updated_at=now()
-			WHERE id=$5
+				type=$1, labels=$2, provisioning_labels=$3, status=$4, token_hash=$5, updated_at=now()
+			WHERE id=$6
 			RETURNING `+agentColumns,
-			string(a.Type), labels, string(a.Status), a.TokenHash, a.ID))
+			string(a.Type), labels, provLabels, string(a.Status), a.TokenHash, a.ID))
 		if err != nil {
 			return err
 		}

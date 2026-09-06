@@ -33,9 +33,10 @@ func (h *agentHandler) CreateAgent(
 	ctx context.Context, req *franzv1.CreateAgentRequest,
 ) (*franzv1.CreateAgentResponse, error) {
 	created, err := h.svc.Create(ctx, in.CreateAgentInput{
-		Name:   req.GetName(),
-		Type:   agentTypeFromProto(req.GetType()),
-		Labels: req.GetLabels(),
+		Name:               req.GetName(),
+		Type:               agentTypeFromProto(req.GetType()),
+		Labels:             req.GetLabels(),
+		ProvisioningLabels: provisioningLabelsFromProto(req.GetProvisioningLabels()),
 	})
 	if err != nil {
 		return nil, ToError(err)
@@ -96,6 +97,9 @@ func (h *agentHandler) UpdateAgent(
 		case "labels":
 			v := req.GetLabels()
 			input.Labels = &v
+		case "provisioning_labels":
+			v := provisioningLabelsFromProto(req.GetProvisioningLabels())
+			input.ProvisioningLabels = &v
 		default:
 			return nil, ToError(errs.InvalidField("update_mask", "field "+p+" is not updatable"))
 		}
@@ -150,14 +154,49 @@ func (h *agentHandler) RotateAgentToken(
 
 func (h *agentHandler) toProto(a *agent.Agent) *franzv1.Agent {
 	return franzv1.Agent_builder{
-		Name:      proto.String(a.Name),
-		Frn:       proto.String(h.codec.Render(a.FRN)),
-		Type:      agentTypeToProto(a.Type),
-		Labels:    a.Labels,
-		Status:    agentStatusToProto(a.Status),
-		CreatedAt: timestamppb.New(a.CreatedAt),
-		UpdatedAt: timestamppb.New(a.UpdatedAt),
+		Name:               proto.String(a.Name),
+		Frn:                proto.String(h.codec.Render(a.FRN)),
+		Type:               agentTypeToProto(a.Type),
+		Labels:             a.Labels,
+		ProvisioningLabels: provisioningLabelsToProto(a.ProvisioningLabels),
+		Status:             agentStatusToProto(a.Status),
+		CreatedAt:          timestamppb.New(a.CreatedAt),
+		UpdatedAt:          timestamppb.New(a.UpdatedAt),
 	}.Build()
+}
+
+func provisioningLabelsFromProto(in []*franzv1.ProvisioningLabelSpec) []agent.ProvisioningLabelSpec {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]agent.ProvisioningLabelSpec, len(in))
+	for i, s := range in {
+		out[i] = agent.ProvisioningLabelSpec{
+			Key:           s.GetKey(),
+			Description:   s.GetDescription(),
+			AllowedValues: s.GetAllowedValues(),
+			DefaultValue:  s.GetDefaultValue(),
+			Required:      s.GetRequired(),
+		}
+	}
+	return out
+}
+
+func provisioningLabelsToProto(specs []agent.ProvisioningLabelSpec) []*franzv1.ProvisioningLabelSpec {
+	if len(specs) == 0 {
+		return nil
+	}
+	out := make([]*franzv1.ProvisioningLabelSpec, len(specs))
+	for i, s := range specs {
+		out[i] = franzv1.ProvisioningLabelSpec_builder{
+			Key:           proto.String(s.Key),
+			Description:   proto.String(s.Description),
+			AllowedValues: s.AllowedValues,
+			DefaultValue:  proto.String(s.DefaultValue),
+			Required:      proto.Bool(s.Required),
+		}.Build()
+	}
+	return out
 }
 
 func agentTypeFromProto(t franzv1.AgentType) agent.Type {
