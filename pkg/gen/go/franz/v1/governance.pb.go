@@ -232,7 +232,7 @@ func (x IndicatorHealth) Number() protoreflect.EnumNumber {
 type Policy struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Orn         *string                `protobuf:"bytes,2,opt,name=orn"`
+	xxx_hidden_Frn         *string                `protobuf:"bytes,2,opt,name=frn"`
 	xxx_hidden_Indicator   *string                `protobuf:"bytes,3,opt,name=indicator"`
 	xxx_hidden_Matcher     *Matcher               `protobuf:"bytes,4,opt,name=matcher"`
 	xxx_hidden_Limit       *Limit                 `protobuf:"bytes,5,opt,name=limit"`
@@ -283,10 +283,10 @@ func (x *Policy) GetName() string {
 	return ""
 }
 
-func (x *Policy) GetOrn() string {
+func (x *Policy) GetFrn() string {
 	if x != nil {
-		if x.xxx_hidden_Orn != nil {
-			return *x.xxx_hidden_Orn
+		if x.xxx_hidden_Frn != nil {
+			return *x.xxx_hidden_Frn
 		}
 		return ""
 	}
@@ -366,8 +366,8 @@ func (x *Policy) SetName(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 11)
 }
 
-func (x *Policy) SetOrn(v string) {
-	x.xxx_hidden_Orn = &v
+func (x *Policy) SetFrn(v string) {
+	x.xxx_hidden_Frn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 11)
 }
 
@@ -417,7 +417,7 @@ func (x *Policy) HasName() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *Policy) HasOrn() bool {
+func (x *Policy) HasFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -485,9 +485,9 @@ func (x *Policy) ClearName() {
 	x.xxx_hidden_Name = nil
 }
 
-func (x *Policy) ClearOrn() {
+func (x *Policy) ClearFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_Orn = nil
+	x.xxx_hidden_Frn = nil
 }
 
 func (x *Policy) ClearIndicator() {
@@ -530,7 +530,7 @@ type Policy_builder struct {
 
 	Name *string
 	// Assigned by Franz.
-	Orn *string
+	Frn *string
 	// Indicator name published by a Telemetry Agent.
 	Indicator *string
 	Matcher   *Matcher
@@ -552,9 +552,9 @@ func (b0 Policy_builder) Build() *Policy {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 11)
 		x.xxx_hidden_Name = b.Name
 	}
-	if b.Orn != nil {
+	if b.Frn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 11)
-		x.xxx_hidden_Orn = b.Orn
+		x.xxx_hidden_Frn = b.Frn
 	}
 	if b.Indicator != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 11)
@@ -900,7 +900,7 @@ func (b0 Action_builder) Build() *Action {
 type PolicyAction struct {
 	state                     protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_OccurredAt     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=occurred_at,json=occurredAt"`
-	xxx_hidden_ResourceOrn    *string                `protobuf:"bytes,2,opt,name=resource_orn,json=resourceOrn"`
+	xxx_hidden_ResourceFrn    *string                `protobuf:"bytes,2,opt,name=resource_frn,json=resourceFrn"`
 	xxx_hidden_IndicatorValue *string                `protobuf:"bytes,3,opt,name=indicator_value,json=indicatorValue"`
 	xxx_hidden_Action         *Action                `protobuf:"bytes,4,opt,name=action"`
 	xxx_hidden_Result         *string                `protobuf:"bytes,5,opt,name=result"`
@@ -942,10 +942,10 @@ func (x *PolicyAction) GetOccurredAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *PolicyAction) GetResourceOrn() string {
+func (x *PolicyAction) GetResourceFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ResourceOrn != nil {
-			return *x.xxx_hidden_ResourceOrn
+		if x.xxx_hidden_ResourceFrn != nil {
+			return *x.xxx_hidden_ResourceFrn
 		}
 		return ""
 	}
@@ -983,8 +983,8 @@ func (x *PolicyAction) SetOccurredAt(v *timestamppb.Timestamp) {
 	x.xxx_hidden_OccurredAt = v
 }
 
-func (x *PolicyAction) SetResourceOrn(v string) {
-	x.xxx_hidden_ResourceOrn = &v
+func (x *PolicyAction) SetResourceFrn(v string) {
+	x.xxx_hidden_ResourceFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 5)
 }
 
@@ -1009,7 +1009,7 @@ func (x *PolicyAction) HasOccurredAt() bool {
 	return x.xxx_hidden_OccurredAt != nil
 }
 
-func (x *PolicyAction) HasResourceOrn() bool {
+func (x *PolicyAction) HasResourceFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -1041,9 +1041,9 @@ func (x *PolicyAction) ClearOccurredAt() {
 	x.xxx_hidden_OccurredAt = nil
 }
 
-func (x *PolicyAction) ClearResourceOrn() {
+func (x *PolicyAction) ClearResourceFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_ResourceOrn = nil
+	x.xxx_hidden_ResourceFrn = nil
 }
 
 func (x *PolicyAction) ClearIndicatorValue() {
@@ -1064,7 +1064,7 @@ type PolicyAction_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	OccurredAt     *timestamppb.Timestamp
-	ResourceOrn    *string
+	ResourceFrn    *string
 	IndicatorValue *string
 	Action         *Action
 	// Resulting revision or a note.
@@ -1076,9 +1076,9 @@ func (b0 PolicyAction_builder) Build() *PolicyAction {
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_OccurredAt = b.OccurredAt
-	if b.ResourceOrn != nil {
+	if b.ResourceFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 5)
-		x.xxx_hidden_ResourceOrn = b.ResourceOrn
+		x.xxx_hidden_ResourceFrn = b.ResourceFrn
 	}
 	if b.IndicatorValue != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 5)
@@ -1348,7 +1348,7 @@ func (b0 Indicator_builder) Build() *Indicator {
 // shape is telemetry.proto's IndicatorSample.
 type IndicatorSampleView struct {
 	state                     protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_ResourceOrn    *string                `protobuf:"bytes,1,opt,name=resource_orn,json=resourceOrn"`
+	xxx_hidden_ResourceFrn    *string                `protobuf:"bytes,1,opt,name=resource_frn,json=resourceFrn"`
 	xxx_hidden_ResourceEntity Entity                 `protobuf:"varint,2,opt,name=resource_entity,json=resourceEntity,enum=franz.v1.Entity"`
 	xxx_hidden_Value          *string                `protobuf:"bytes,3,opt,name=value"`
 	xxx_hidden_SampleAt       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=sample_at,json=sampleAt"`
@@ -1383,10 +1383,10 @@ func (x *IndicatorSampleView) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *IndicatorSampleView) GetResourceOrn() string {
+func (x *IndicatorSampleView) GetResourceFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ResourceOrn != nil {
-			return *x.xxx_hidden_ResourceOrn
+		if x.xxx_hidden_ResourceFrn != nil {
+			return *x.xxx_hidden_ResourceFrn
 		}
 		return ""
 	}
@@ -1419,8 +1419,8 @@ func (x *IndicatorSampleView) GetSampleAt() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *IndicatorSampleView) SetResourceOrn(v string) {
-	x.xxx_hidden_ResourceOrn = &v
+func (x *IndicatorSampleView) SetResourceFrn(v string) {
+	x.xxx_hidden_ResourceFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 4)
 }
 
@@ -1438,7 +1438,7 @@ func (x *IndicatorSampleView) SetSampleAt(v *timestamppb.Timestamp) {
 	x.xxx_hidden_SampleAt = v
 }
 
-func (x *IndicatorSampleView) HasResourceOrn() bool {
+func (x *IndicatorSampleView) HasResourceFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -1466,9 +1466,9 @@ func (x *IndicatorSampleView) HasSampleAt() bool {
 	return x.xxx_hidden_SampleAt != nil
 }
 
-func (x *IndicatorSampleView) ClearResourceOrn() {
+func (x *IndicatorSampleView) ClearResourceFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
-	x.xxx_hidden_ResourceOrn = nil
+	x.xxx_hidden_ResourceFrn = nil
 }
 
 func (x *IndicatorSampleView) ClearResourceEntity() {
@@ -1488,7 +1488,7 @@ func (x *IndicatorSampleView) ClearSampleAt() {
 type IndicatorSampleView_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	ResourceOrn    *string
+	ResourceFrn    *string
 	ResourceEntity *Entity
 	Value          *string
 	SampleAt       *timestamppb.Timestamp
@@ -1498,9 +1498,9 @@ func (b0 IndicatorSampleView_builder) Build() *IndicatorSampleView {
 	m0 := &IndicatorSampleView{}
 	b, x := &b0, m0
 	_, _ = b, x
-	if b.ResourceOrn != nil {
+	if b.ResourceFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 4)
-		x.xxx_hidden_ResourceOrn = b.ResourceOrn
+		x.xxx_hidden_ResourceFrn = b.ResourceFrn
 	}
 	if b.ResourceEntity != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 4)
@@ -3893,7 +3893,7 @@ func (b0 DeleteIndicatorResponse_builder) Build() *DeleteIndicatorResponse {
 type ListIndicatorSamplesRequest struct {
 	state                  protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Indicator   *string                `protobuf:"bytes,1,opt,name=indicator"`
-	xxx_hidden_ResourceOrn *string                `protobuf:"bytes,2,opt,name=resource_orn,json=resourceOrn"`
+	xxx_hidden_ResourceFrn *string                `protobuf:"bytes,2,opt,name=resource_frn,json=resourceFrn"`
 	xxx_hidden_From        *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=from"`
 	xxx_hidden_To          *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=to"`
 	xxx_hidden_Page        *PageRequest           `protobuf:"bytes,5,opt,name=page"`
@@ -3938,10 +3938,10 @@ func (x *ListIndicatorSamplesRequest) GetIndicator() string {
 	return ""
 }
 
-func (x *ListIndicatorSamplesRequest) GetResourceOrn() string {
+func (x *ListIndicatorSamplesRequest) GetResourceFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ResourceOrn != nil {
-			return *x.xxx_hidden_ResourceOrn
+		if x.xxx_hidden_ResourceFrn != nil {
+			return *x.xxx_hidden_ResourceFrn
 		}
 		return ""
 	}
@@ -3974,8 +3974,8 @@ func (x *ListIndicatorSamplesRequest) SetIndicator(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 5)
 }
 
-func (x *ListIndicatorSamplesRequest) SetResourceOrn(v string) {
-	x.xxx_hidden_ResourceOrn = &v
+func (x *ListIndicatorSamplesRequest) SetResourceFrn(v string) {
+	x.xxx_hidden_ResourceFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 5)
 }
 
@@ -3998,7 +3998,7 @@ func (x *ListIndicatorSamplesRequest) HasIndicator() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
 }
 
-func (x *ListIndicatorSamplesRequest) HasResourceOrn() bool {
+func (x *ListIndicatorSamplesRequest) HasResourceFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -4031,9 +4031,9 @@ func (x *ListIndicatorSamplesRequest) ClearIndicator() {
 	x.xxx_hidden_Indicator = nil
 }
 
-func (x *ListIndicatorSamplesRequest) ClearResourceOrn() {
+func (x *ListIndicatorSamplesRequest) ClearResourceFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
-	x.xxx_hidden_ResourceOrn = nil
+	x.xxx_hidden_ResourceFrn = nil
 }
 
 func (x *ListIndicatorSamplesRequest) ClearFrom() {
@@ -4053,7 +4053,7 @@ type ListIndicatorSamplesRequest_builder struct {
 
 	Indicator *string
 	// Optional: restrict to one resource.
-	ResourceOrn *string
+	ResourceFrn *string
 	From        *timestamppb.Timestamp
 	To          *timestamppb.Timestamp
 	Page        *PageRequest
@@ -4067,9 +4067,9 @@ func (b0 ListIndicatorSamplesRequest_builder) Build() *ListIndicatorSamplesReque
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 5)
 		x.xxx_hidden_Indicator = b.Indicator
 	}
-	if b.ResourceOrn != nil {
+	if b.ResourceFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 5)
-		x.xxx_hidden_ResourceOrn = b.ResourceOrn
+		x.xxx_hidden_ResourceFrn = b.ResourceFrn
 	}
 	x.xxx_hidden_From = b.From
 	x.xxx_hidden_To = b.To
@@ -4163,7 +4163,7 @@ func (b0 ListIndicatorSamplesResponse_builder) Build() *ListIndicatorSamplesResp
 
 type DryRunPolicyResponse_Match struct {
 	state                     protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_ResourceOrn    *string                `protobuf:"bytes,1,opt,name=resource_orn,json=resourceOrn"`
+	xxx_hidden_ResourceFrn    *string                `protobuf:"bytes,1,opt,name=resource_frn,json=resourceFrn"`
 	xxx_hidden_IndicatorValue *string                `protobuf:"bytes,2,opt,name=indicator_value,json=indicatorValue"`
 	xxx_hidden_WouldTrigger   bool                   `protobuf:"varint,3,opt,name=would_trigger,json=wouldTrigger"`
 	XXX_raceDetectHookData    protoimpl.RaceDetectHookData
@@ -4197,10 +4197,10 @@ func (x *DryRunPolicyResponse_Match) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-func (x *DryRunPolicyResponse_Match) GetResourceOrn() string {
+func (x *DryRunPolicyResponse_Match) GetResourceFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ResourceOrn != nil {
-			return *x.xxx_hidden_ResourceOrn
+		if x.xxx_hidden_ResourceFrn != nil {
+			return *x.xxx_hidden_ResourceFrn
 		}
 		return ""
 	}
@@ -4224,8 +4224,8 @@ func (x *DryRunPolicyResponse_Match) GetWouldTrigger() bool {
 	return false
 }
 
-func (x *DryRunPolicyResponse_Match) SetResourceOrn(v string) {
-	x.xxx_hidden_ResourceOrn = &v
+func (x *DryRunPolicyResponse_Match) SetResourceFrn(v string) {
+	x.xxx_hidden_ResourceFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 3)
 }
 
@@ -4239,7 +4239,7 @@ func (x *DryRunPolicyResponse_Match) SetWouldTrigger(v bool) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 3)
 }
 
-func (x *DryRunPolicyResponse_Match) HasResourceOrn() bool {
+func (x *DryRunPolicyResponse_Match) HasResourceFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -4260,9 +4260,9 @@ func (x *DryRunPolicyResponse_Match) HasWouldTrigger() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
 }
 
-func (x *DryRunPolicyResponse_Match) ClearResourceOrn() {
+func (x *DryRunPolicyResponse_Match) ClearResourceFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
-	x.xxx_hidden_ResourceOrn = nil
+	x.xxx_hidden_ResourceFrn = nil
 }
 
 func (x *DryRunPolicyResponse_Match) ClearIndicatorValue() {
@@ -4278,7 +4278,7 @@ func (x *DryRunPolicyResponse_Match) ClearWouldTrigger() {
 type DryRunPolicyResponse_Match_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
-	ResourceOrn    *string
+	ResourceFrn    *string
 	IndicatorValue *string
 	WouldTrigger   *bool
 }
@@ -4287,9 +4287,9 @@ func (b0 DryRunPolicyResponse_Match_builder) Build() *DryRunPolicyResponse_Match
 	m0 := &DryRunPolicyResponse_Match{}
 	b, x := &b0, m0
 	_, _ = b, x
-	if b.ResourceOrn != nil {
+	if b.ResourceFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 3)
-		x.xxx_hidden_ResourceOrn = b.ResourceOrn
+		x.xxx_hidden_ResourceFrn = b.ResourceFrn
 	}
 	if b.IndicatorValue != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 3)
@@ -4309,7 +4309,7 @@ const file_franz_v1_governance_proto_rawDesc = "" +
 	"\x19franz/v1/governance.proto\x12\bfranz.v1\x1a\x1cgoogle/api/annotations.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15franz/v1/common.proto\"\xb4\x03\n" +
 	"\x06Policy\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
-	"\x03orn\x18\x02 \x01(\tR\x03orn\x12\x1c\n" +
+	"\x03frn\x18\x02 \x01(\tR\x03frn\x12\x1c\n" +
 	"\tindicator\x18\x03 \x01(\tR\tindicator\x12+\n" +
 	"\amatcher\x18\x04 \x01(\v2\x11.franz.v1.MatcherR\amatcher\x12%\n" +
 	"\x05limit\x18\x05 \x01(\v2\x0f.franz.v1.LimitR\x05limit\x12*\n" +
@@ -4334,7 +4334,7 @@ const file_franz_v1_governance_proto_rawDesc = "" +
 	"\fPolicyAction\x12;\n" +
 	"\voccurred_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"occurredAt\x12!\n" +
-	"\fresource_orn\x18\x02 \x01(\tR\vresourceOrn\x12'\n" +
+	"\fresource_frn\x18\x02 \x01(\tR\vresourceFrn\x12'\n" +
 	"\x0findicator_value\x18\x03 \x01(\tR\x0eindicatorValue\x12(\n" +
 	"\x06action\x18\x04 \x01(\v2\x10.franz.v1.ActionR\x06action\x12\x16\n" +
 	"\x06result\x18\x05 \x01(\tR\x06result\"\xaf\x02\n" +
@@ -4348,7 +4348,7 @@ const file_franz_v1_governance_proto_rawDesc = "" +
 	"\x0elast_sample_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\flastSampleAt\x12/\n" +
 	"\x13staleness_threshold\x18\a \x01(\tR\x12stalenessThreshold\"\xc2\x01\n" +
 	"\x13IndicatorSampleView\x12!\n" +
-	"\fresource_orn\x18\x01 \x01(\tR\vresourceOrn\x129\n" +
+	"\fresource_frn\x18\x01 \x01(\tR\vresourceFrn\x129\n" +
 	"\x0fresource_entity\x18\x02 \x01(\x0e2\x10.franz.v1.EntityR\x0eresourceEntity\x12\x14\n" +
 	"\x05value\x18\x03 \x01(\tR\x05value\x127\n" +
 	"\tsample_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bsampleAt\"\xf9\x01\n" +
@@ -4394,7 +4394,7 @@ const file_franz_v1_governance_proto_rawDesc = "" +
 	"\x14DryRunPolicyResponse\x12>\n" +
 	"\amatches\x18\x01 \x03(\v2$.franz.v1.DryRunPolicyResponse.MatchR\amatches\x1ax\n" +
 	"\x05Match\x12!\n" +
-	"\fresource_orn\x18\x01 \x01(\tR\vresourceOrn\x12'\n" +
+	"\fresource_frn\x18\x01 \x01(\tR\vresourceFrn\x12'\n" +
 	"\x0findicator_value\x18\x02 \x01(\tR\x0eindicatorValue\x12#\n" +
 	"\rwould_trigger\x18\x03 \x01(\bR\fwouldTrigger\"Y\n" +
 	"\x18ListPolicyActionsRequest\x12\x12\n" +
@@ -4437,7 +4437,7 @@ const file_franz_v1_governance_proto_rawDesc = "" +
 	"\x17DeleteIndicatorResponse\"\xe5\x01\n" +
 	"\x1bListIndicatorSamplesRequest\x12\x1c\n" +
 	"\tindicator\x18\x01 \x01(\tR\tindicator\x12!\n" +
-	"\fresource_orn\x18\x02 \x01(\tR\vresourceOrn\x12.\n" +
+	"\fresource_frn\x18\x02 \x01(\tR\vresourceFrn\x12.\n" +
 	"\x04from\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x04from\x12*\n" +
 	"\x02to\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x02to\x12)\n" +
 	"\x04page\x18\x05 \x01(\v2\x15.franz.v1.PageRequestR\x04page\"\x83\x01\n" +

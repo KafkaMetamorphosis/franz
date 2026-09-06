@@ -26,7 +26,7 @@ message PublishIndicatorSamplesResponse {
 message IndicatorSample {
   string indicator = 1;
   // The resource the sample describes.
-  string resource_orn = 2;
+  string resource_frn = 2;
   Entity resource_entity = 3;
   // Value encoded per the indicator's unit ("168Gi", "3200", "true", ...).
   string value = 4;
@@ -46,7 +46,7 @@ message ConsumerGroupObservation {
   string group = 1;
   // The client Franz should attribute this group to (resolved from the group
   // name or from metadata the client set).
-  string client_orn = 2;
+  string client_frn = 2;
   string owner = 3;
   string async_channel = 4;
   string kafka_topic = 5;

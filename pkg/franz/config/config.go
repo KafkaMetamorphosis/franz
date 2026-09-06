@@ -20,10 +20,12 @@ import (
 
 // Config is the fully-resolved Franz configuration.
 type Config struct {
-	HTTPPort       int      `koanf:"http_port"`
-	GRPCPort       int      `koanf:"grpc_port"`
-	LogLevel       string   `koanf:"log_level"`
-	BootstrapRealm string   `koanf:"bootstrap_realm"`
+	HTTPPort       int    `koanf:"http_port"`
+	GRPCPort       int    `koanf:"grpc_port"`
+	LogLevel       string `koanf:"log_level"`
+	BootstrapRealm string `koanf:"bootstrap_realm"`
+	// ResourcePrefix is the FRN prefix (003.1). Default "frn"; fixed at bootstrap.
+	ResourcePrefix string   `koanf:"resource_prefix"`
 	DB             DBConfig `koanf:"db"`
 }
 
@@ -35,6 +37,9 @@ type DBConfig struct {
 	User     string `koanf:"user"`
 	Password string `koanf:"password"`
 	SSLMode  string `koanf:"sslmode"`
+	// AutoMigrate runs the embedded (Flyway-compatible) migrations on boot. On by
+	// default for local/dev; set false where Flyway owns schema changes (003.12).
+	AutoMigrate bool `koanf:"auto_migrate"`
 }
 
 // DSN renders a lib/pq-style connection string.
@@ -50,12 +55,14 @@ var defaults = map[string]any{
 	"grpc_port":       9090,
 	"log_level":       "info",
 	"bootstrap_realm": "default",
+	"resource_prefix": "frn",
 	"db.host":         "localhost",
 	"db.port":         5432,
 	"db.name":         "franz",
 	"db.user":         "franz",
 	"db.password":     "franz",
 	"db.sslmode":      "disable",
+	"db.auto_migrate": true,
 }
 
 // Load builds a Config from: built-in defaults, then the YAML file at path (if it

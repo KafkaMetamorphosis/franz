@@ -16,7 +16,7 @@ the state model, and the drain operation.
 
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
-| 09.1 | `kafka_topic` table — `async_channel_id` FK, `kafka_cluster_id` FK **nullable** (unplaced), `topic_configuration` + `materialized_configuration` `jsonb`, `partitions int`, `replication_factor int`, `state text` + CHECK, `consumption text` + CHECK, `traffic_share_value numeric` + `traffic_share_unit text`, `generation bigint`, `orn` unique | `003.12` | ⬜ | |
+| 09.1 | `kafka_topic` table — `async_channel_id` FK, `kafka_cluster_id` FK **nullable** (unplaced), `topic_configuration` + `materialized_configuration` `jsonb`, `partitions int`, `replication_factor int`, `state text` + CHECK, `consumption text` + CHECK, `traffic_share_value numeric` + `traffic_share_unit text`, `generation bigint`, `frn` unique | `003.12` | ⬜ | |
 | 09.2 | Domain: `KafkaTopic`, `KafkaTopicState` (`PENDING` / `READY` / `PAUSED` / `ERROR` / `DELETED`), `Consumption` orthogonal to `state`, `TrafficShare` | `003.6` | ⬜ | |
 | 09.3 | Config materialisation: `materialized_configuration = cluster_configuration ⊕ topic_configuration`, computed and **frozen** at create/desired-state-change; a later `cluster_configuration` edit does not touch it; `partitions` / `replication_factor` are dedicated fields, seeded from cluster defaults | `003.6`, `003.3` | ⬜ | |
 | 09.4 | Usecases: `GetKafkaTopic`, `ListKafkaTopics` (filter by `async_channel` / `kafka_cluster`), `SetConsumption` — `DISABLED` sets `traffic_share = 0` and re-normalises the channel's other `ENABLED` shards to an equal split; `ENABLED` restores | `003.6` | ⬜ | |

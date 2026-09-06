@@ -1,5 +1,5 @@
 // Package shared holds domain-agnostic helpers reused across Franz and the
-// in-module agents (label selectors, ORN, logging, …).
+// in-module agents (label selectors, FRN, logging, …).
 package shared
 
 import (

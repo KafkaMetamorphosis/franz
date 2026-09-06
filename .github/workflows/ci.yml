@@ -63,4 +63,6 @@ jobs:
       - name: go test
         env:
           FRANZ_DB__HOST: localhost
+          # Enables the postgres adapter integration tests (they self-skip when unset).
+          FRANZ_TEST_DB_DSN: postgres://franz:franz@localhost:5432/franz?sslmode=disable
         run: go test ./...

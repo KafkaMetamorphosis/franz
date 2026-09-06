@@ -12,7 +12,7 @@ import "franz/v1/common.proto";
 message Agent {
   string name = 1;
   // Assigned by Franz.
-  string orn = 2;
+  string frn = 2;
 
   // Organisational filter only; does not change how the agent connects.
   AgentType type = 3;

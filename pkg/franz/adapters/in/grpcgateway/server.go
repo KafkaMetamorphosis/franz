@@ -29,18 +29,52 @@ type Server struct {
 	lis  net.Listener
 }
 
+// Option customises the server at construction.
+type Option func(*options)
+
+type options struct {
+	unary  []grpc.UnaryServerInterceptor
+	stream []grpc.StreamServerInterceptor
+	httpMW []func(http.Handler) http.Handler
+}
+
+// WithAuthenticator installs a's realm-resolving interceptors on every inbound
+// path — gRPC unary, gRPC stream, and the gateway HTTP mux (deliverable 02.10).
+func WithAuthenticator(a *Authenticator) Option {
+	return func(o *options) {
+		o.unary = append(o.unary, a.UnaryInterceptor)
+		o.stream = append(o.stream, a.StreamInterceptor)
+		o.httpMW = append(o.httpMW, a.HTTPMiddleware)
+	}
+}
+
 // New constructs the server. Register gRPC services on Grpc() and gateway
 // handlers on Gateway() before calling Start.
-func New(grpcPort, httpPort int, log *slog.Logger) *Server {
-	gs := grpc.NewServer()
+func New(grpcPort, httpPort int, log *slog.Logger, opts ...Option) *Server {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
+
+	gs := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(o.unary...),
+		grpc.ChainStreamInterceptor(o.stream...),
+	)
 	gw := runtime.NewServeMux()
+
+	// Realm/auth middleware wraps the gateway only; /healthz must stay reachable
+	// without touching the database.
+	var gwHandler http.Handler = gw
+	for i := len(o.httpMW) - 1; i >= 0; i-- {
+		gwHandler = o.httpMW[i](gwHandler)
+	}
 
 	root := http.NewServeMux()
 	root.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
-	root.Handle("/", gw)
+	root.Handle("/", gwHandler)
 
 	return &Server{
 		grpcPort: grpcPort,

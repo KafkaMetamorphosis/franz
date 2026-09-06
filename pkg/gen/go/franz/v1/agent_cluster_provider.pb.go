@@ -188,7 +188,7 @@ type ClusterAssignment struct {
 	state                           protoimpl.MessageState   `protogen:"opaque.v1"`
 	xxx_hidden_Change               ClusterAssignment_Change `protobuf:"varint,1,opt,name=change,enum=franz.v1.ClusterAssignment_Change"`
 	xxx_hidden_ClusterName          *string                  `protobuf:"bytes,2,opt,name=cluster_name,json=clusterName"`
-	xxx_hidden_ClusterOrn           *string                  `protobuf:"bytes,3,opt,name=cluster_orn,json=clusterOrn"`
+	xxx_hidden_ClusterFrn           *string                  `protobuf:"bytes,3,opt,name=cluster_frn,json=clusterFrn"`
 	xxx_hidden_ConnectionStrings    *[]*ConnectionString     `protobuf:"bytes,4,rep,name=connection_strings,json=connectionStrings"`
 	xxx_hidden_ClusterConfiguration map[string]string        `protobuf:"bytes,5,rep,name=cluster_configuration,json=clusterConfiguration" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_Provisioning         map[string]string        `protobuf:"bytes,6,rep,name=provisioning" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
@@ -242,10 +242,10 @@ func (x *ClusterAssignment) GetClusterName() string {
 	return ""
 }
 
-func (x *ClusterAssignment) GetClusterOrn() string {
+func (x *ClusterAssignment) GetClusterFrn() string {
 	if x != nil {
-		if x.xxx_hidden_ClusterOrn != nil {
-			return *x.xxx_hidden_ClusterOrn
+		if x.xxx_hidden_ClusterFrn != nil {
+			return *x.xxx_hidden_ClusterFrn
 		}
 		return ""
 	}
@@ -285,8 +285,8 @@ func (x *ClusterAssignment) SetClusterName(v string) {
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 6)
 }
 
-func (x *ClusterAssignment) SetClusterOrn(v string) {
-	x.xxx_hidden_ClusterOrn = &v
+func (x *ClusterAssignment) SetClusterFrn(v string) {
+	x.xxx_hidden_ClusterFrn = &v
 	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 6)
 }
 
@@ -316,7 +316,7 @@ func (x *ClusterAssignment) HasClusterName() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
 }
 
-func (x *ClusterAssignment) HasClusterOrn() bool {
+func (x *ClusterAssignment) HasClusterFrn() bool {
 	if x == nil {
 		return false
 	}
@@ -333,9 +333,9 @@ func (x *ClusterAssignment) ClearClusterName() {
 	x.xxx_hidden_ClusterName = nil
 }
 
-func (x *ClusterAssignment) ClearClusterOrn() {
+func (x *ClusterAssignment) ClearClusterFrn() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 2)
-	x.xxx_hidden_ClusterOrn = nil
+	x.xxx_hidden_ClusterFrn = nil
 }
 
 type ClusterAssignment_builder struct {
@@ -343,7 +343,7 @@ type ClusterAssignment_builder struct {
 
 	Change      *ClusterAssignment_Change
 	ClusterName *string
-	ClusterOrn  *string
+	ClusterFrn  *string
 	// Desired-state inputs the agent's recipe consumes.
 	ConnectionStrings    []*ConnectionString
 	ClusterConfiguration map[string]string
@@ -363,9 +363,9 @@ func (b0 ClusterAssignment_builder) Build() *ClusterAssignment {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 6)
 		x.xxx_hidden_ClusterName = b.ClusterName
 	}
-	if b.ClusterOrn != nil {
+	if b.ClusterFrn != nil {
 		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 6)
-		x.xxx_hidden_ClusterOrn = b.ClusterOrn
+		x.xxx_hidden_ClusterFrn = b.ClusterFrn
 	}
 	x.xxx_hidden_ConnectionStrings = &b.ConnectionStrings
 	x.xxx_hidden_ClusterConfiguration = b.ClusterConfiguration
@@ -637,8 +637,8 @@ const file_franz_v1_agent_cluster_provider_proto_rawDesc = "" +
 	"\x11ClusterAssignment\x12:\n" +
 	"\x06change\x18\x01 \x01(\x0e2\".franz.v1.ClusterAssignment.ChangeR\x06change\x12!\n" +
 	"\fcluster_name\x18\x02 \x01(\tR\vclusterName\x12\x1f\n" +
-	"\vcluster_orn\x18\x03 \x01(\tR\n" +
-	"clusterOrn\x12I\n" +
+	"\vcluster_frn\x18\x03 \x01(\tR\n" +
+	"clusterFrn\x12I\n" +
 	"\x12connection_strings\x18\x04 \x03(\v2\x1a.franz.v1.ConnectionStringR\x11connectionStrings\x12j\n" +
 	"\x15cluster_configuration\x18\x05 \x03(\v25.franz.v1.ClusterAssignment.ClusterConfigurationEntryR\x14clusterConfiguration\x12Q\n" +
 	"\fprovisioning\x18\x06 \x03(\v2-.franz.v1.ClusterAssignment.ProvisioningEntryR\fprovisioning\x1aG\n" +

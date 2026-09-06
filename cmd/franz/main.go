@@ -1,6 +1,6 @@
 // Command franz is the control-plane binary. It builds an fx.App that assembles
-// config, the gRPC + grpc-gateway servers, and (from deliverable 02 on) the
-// usecases and adapters.
+// config, Postgres, the realm bootstrap, and the gRPC + grpc-gateway servers.
+// Entity services are added from deliverable 03 on.
 package main
 
 import (
@@ -11,7 +11,10 @@ import (
 	"go.uber.org/fx/fxevent"
 
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/adapters/in/grpcgateway"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/adapters/out/postgres"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/config"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/frn"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/out"
 	"github.com/KafkaMetamorphosis/franz/pkg/shared"
 )
 
@@ -20,21 +23,59 @@ func main() {
 		fx.Provide(
 			func() (config.Config, error) { return config.Load("config.yaml") },
 			func(c config.Config) *slog.Logger { return shared.NewLogger(c.LogLevel) },
-			func(c config.Config, log *slog.Logger) *grpcgateway.Server {
-				return grpcgateway.New(c.GRPCPort, c.HTTPPort, log)
+			func(c config.Config) (frn.Codec, error) { return frn.NewCodec(c.ResourcePrefix) },
+			newDB,
+			fx.Annotate(postgres.NewRealmRepo, fx.As(new(out.RealmRepository))),
+			func(r out.RealmRepository) *grpcgateway.Authenticator {
+				return grpcgateway.NewAuthenticator(r)
 			},
+			newServer,
 		),
 		fx.WithLogger(func(log *slog.Logger) fxevent.Logger {
 			return &fxevent.SlogLogger{Logger: log}
 		}),
+		// Force the FRN codec early so an invalid resource_prefix fails the boot
+		// before anything else starts.
+		fx.Invoke(func(frn.Codec) {}),
 		fx.Invoke(registerServer),
 	).Run()
 }
 
-func registerServer(lc fx.Lifecycle, s *grpcgateway.Server, log *slog.Logger, c config.Config) {
+// newDB opens the pool, runs the embedded migrations on boot when
+// db.auto_migrate is set, and closes the pool on shutdown.
+func newDB(lc fx.Lifecycle, c config.Config, log *slog.Logger) (*postgres.DB, error) {
+	db, err := postgres.New(context.Background(), c.DB.DSN())
+	if err != nil {
+		return nil, err
+	}
 	lc.Append(fx.Hook{
 		OnStart: func(ctx context.Context) error {
-			log.Info("franz starting", "bootstrap_realm", c.BootstrapRealm)
+			if !c.DB.AutoMigrate {
+				return nil
+			}
+			log.Info("applying migrations")
+			return db.Migrate(ctx)
+		},
+		OnStop: func(context.Context) error {
+			db.Close()
+			return nil
+		},
+	})
+	return db, nil
+}
+
+// newServer builds the inbound adapter with the realm-resolving interceptors
+// installed on every path (deliverable 02.10).
+func newServer(c config.Config, log *slog.Logger, auth *grpcgateway.Authenticator) *grpcgateway.Server {
+	return grpcgateway.New(c.GRPCPort, c.HTTPPort, log, grpcgateway.WithAuthenticator(auth))
+}
+
+func registerServer(lc fx.Lifecycle, s *grpcgateway.Server, log *slog.Logger, c config.Config, codec frn.Codec) {
+	lc.Append(fx.Hook{
+		OnStart: func(ctx context.Context) error {
+			log.Info("franz starting",
+				"bootstrap_realm", c.BootstrapRealm,
+				"resource_prefix", codec.Prefix())
 			return s.Start(ctx)
 		},
 		OnStop: func(ctx context.Context) error {
