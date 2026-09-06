@@ -7,6 +7,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Kafka Cluster** (impls_plan deliverable 03): the first full
+  `domain → ports → postgres → grpc-gateway` vertical slice —
+  `core/domain/cluster` (entity + `ACTIVE ↔ PAUSED → DELETED` state machine),
+  `core/ports/in.KafkaClusterService` / `core/ports/out.ClusterRepository`,
+  `core/usecases/clusters`, a hand-written pgx adapter
+  (`adapters/out/postgres/cluster.go`, `Mutate` = `SELECT … FOR UPDATE` in one
+  transaction), and the `KafkaClusterService` gRPC + REST handler
+  (`adapters/in/grpcgateway/kafkacluster.go`, `/v1/kafka/clusters` with
+  `:pause` / `:resume`). New `kafka_cluster` table (`migrations/V1__init.sql`).
+  Soft delete; `(realm_id, name)` unconditionally unique; label-selector `List`
+  with opaque pagination. `ListClusterProviderEvents` is left `Unimplemented`
+  until deliverable 05.
+- `pkg/shared/fieldmask`: `CanonicalPaths` helper; `update_mask` added to the
+  immutable set.
 - **Project scaffolding** (impls_plan deliverable 01): Go module
   `github.com/KafkaMetamorphosis/franz` rooted at `franz/`; hexagonal package
   skeleton (`cmd/franz`, `pkg/franz/core/{domain,usecases,ports}`,
