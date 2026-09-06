@@ -22,17 +22,21 @@ make dev     # Postgres + control plane (:8080) + console (:5173); Ctrl-C stops 
 Or run the pieces separately: `make run` (control plane only), `make console`
 (console only, expects the gateway on :8080). `make help` lists every target.
 
-To actually see a cluster reach `READY`: run `make agent` (needs Docker). With no
-`TOKEN=` it self-registers with Franz as `local-kafka-agent` (creating the agent
-if absent, rotating its token if it already exists) — no console step needed.
-Then register a Kafka Cluster with
+To actually see a cluster reach `READY`: run `make agent` (needs Docker). It uses
+the `local-kafka-agent` registration + fixed dev token that `make deps` seeds
+(`franz/local/`), so there is no console step. Then register a Kafka Cluster with
 `franz.provisioning/deployment-type=local-docker` and
 `cluster_provider_agent=local-kafka-agent` — a broker comes up in Docker and the
 cluster detail page turns green.
 
 Pass `make agent TOKEN=<token> AGENT_NAME=<agent>` to use a token you minted in
-the console instead of self-registering. Self-register is local-dev only: Franz's
-`AgentService` is unauthenticated there.
+the console instead.
+
+The seeded agent advertises a provisioning-label schema
+(`deployment-type` / `kafka-version` / `kafka-image`), so the cluster form
+pre-fills and constrains those fields once you pick the agent. Set
+`franz.provisioning/kafka-image` on a cluster to pin a full image ref
+(e.g. `apache/kafka:3.9.0` or a registry mirror) instead of only a version.
 
 ## Scripts
 

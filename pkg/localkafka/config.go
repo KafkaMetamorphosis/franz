@@ -31,15 +31,11 @@ type Config struct {
 	// ResyncInterval forces a periodic reconcile even without a stream delta, so
 	// drift (a container someone stopped by hand) is corrected.
 	ResyncInterval time.Duration
-	// Register is a local-dev convenience (FRANZ_REGISTER=1): when set and no
-	// FRANZ_TOKEN is given, the agent seeds/reuses its own registration in Franz
-	// on startup (GetAgent → CreateAgent or RotateAgentToken) and uses the token
-	// that call returns. Not for production — Franz's AgentService is
-	// unauthenticated in local dev.
-	Register bool
 }
 
-// LoadConfig reads the agent config from the environment.
+// LoadConfig reads the agent config from the environment. The agent's
+// registration is assumed to already exist (seeded — see local/seed/, or
+// created in the console); FRANZ_TOKEN is its bearer token.
 func LoadConfig() (Config, error) {
 	c := Config{
 		Endpoint:            env("FRANZ_ENDPOINT", "localhost:9090"),
@@ -49,10 +45,9 @@ func LoadConfig() (Config, error) {
 		KafkaVersionDefault: env("FRANZ_KAFKA_VERSION", "3.7.0"),
 		ReconnectBackoffMax: 30 * time.Second,
 		ResyncInterval:      60 * time.Second,
-		Register:            os.Getenv("FRANZ_REGISTER") == "1",
 	}
-	if c.Token == "" && !c.Register {
-		return Config{}, fmt.Errorf("set FRANZ_TOKEN (bearer token from CreateAgent) or FRANZ_REGISTER=1 to self-register")
+	if c.Token == "" {
+		return Config{}, fmt.Errorf("FRANZ_TOKEN is required (the agent's bearer token)")
 	}
 	return c, nil
 }

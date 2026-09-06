@@ -20,8 +20,8 @@ slice. It establishes the pattern every other entity follows.
 | 03.3 | `ports/out.KafkaClusterRepository` + postgres adapter — CRUD, `List` with selector + typed filters + pagination, soft-delete filter (`state != 'DELETED'` by default; `Get` still returns deleted) | `003.3`, `003.12` | ✅ | 2026-09-06 |
 | 03.4 | Usecases: Create (assign FRN), Get, List, Update (FieldMask; `SELECT … FOR UPDATE`), Delete (soft), Pause, Resume | `003.3` | ✅ | 2026-09-06 |
 | 03.5 | `adapters/in/grpcgateway` — `KafkaClusterService` handlers + REST `/v1/kafka/clusters` (+ `:pause` / `:resume`) | `003.3`, proto | ✅ | 2026-09-06 |
-| 03.6 | Delete guard: reject with `FAILED_PRECONDITION` when the cluster still hosts non-deleted `kafka_topic` rows (no-op until 09 creates that table) | `003.3` | ✅ | 2026-09-06 |
-| 03.7 | `cluster_configuration` edits do not touch existing topics (materialisation is 08's concern; nothing to do here beyond storing the map) | `003.3` | ✅ | 2026-09-06 |
+| 03.6 | Delete guard: reject with `FAILED_PRECONDITION` when the cluster still hosts non-deleted `kafka_topic` rows (no-op until 10 creates that table) | `003.3` | ✅ | 2026-09-06 |
+| 03.7 | `cluster_configuration` edits do not touch existing topics (materialisation is 09's concern; nothing to do here beyond storing the map) | `003.3` | ✅ | 2026-09-06 |
 | 03.8 | Integration tests — lifecycle, `FOR UPDATE` serialises concurrent updates, selector `List`, soft-deleted rows hidden from `List` but returned by `Get`, name not reusable after delete | — | ✅ | 2026-09-06 |
 
 ## Done when
@@ -33,7 +33,7 @@ slice. It establishes the pattern every other entity follows.
 
 ## Notes
 
-- This slice's repo/usecase/handler shape is copied by 04, 09, 10, 14.
+- This slice's repo/usecase/handler shape is copied by 04, 10, 11, 15.
 - `state` is only ever changed via pause/resume/delete — never in an Update mask.
 
 ### What landed
@@ -46,7 +46,7 @@ slice. It establishes the pattern every other entity follows.
 | Application service | `pkg/franz/core/usecases/clusters` |
 | Postgres adapter | `pkg/franz/adapters/out/postgres/cluster.go` (hand-written pgx; `Mutate` = `SELECT … FOR UPDATE` in one txn) |
 | gRPC + REST handler | `pkg/franz/adapters/in/grpcgateway/kafkacluster.go` (`RegisterKafkaClusterService`) |
-| Delete-guard stub | `pkg/franz/adapters/out/stub` (`NoTopicGuard`, replaced in 09) |
+| Delete-guard stub | `pkg/franz/adapters/out/stub` (`NoTopicGuard`, replaced in 10) |
 | Migration | `migrations/V1__init.sql` — `kafka_cluster` |
 | Shared | `pkg/shared/fieldmask` gained `CanonicalPaths` + `update_mask` in the immutable set |
 

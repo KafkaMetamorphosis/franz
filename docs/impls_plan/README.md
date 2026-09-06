@@ -33,19 +33,20 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [05](./05-agent-interaction-cluster-provider.md) | Agent interaction (Cluster Provider) | 02 · 03 · 04 | ✅ |
 | [06](./06-web-console-bootstrap.md) | Web console bootstrap | 03 · 04 · 05 | ✅ |
 | [07](./07-local-kafka-docker-agent.md) | local-kafka-docker-agent | 05 · 06 | ✅ |
+| [08](./08-resource-management-ui.md) | Resource management & agent provisioning schema | 03 · 04 · 06 · 07 | ✅ |
 
 ## Rest of the control plane
 
 | # | Deliverable | Depends on | Status |
 |---|---|---|---|
-| [08](./08-access-policy-engine.md) | Access-policy engine | 02 | ⬜ |
-| [09](./09-kafka-topic.md) | Kafka Topic (read model) | 02 · 03 | ⬜ |
-| [10](./10-async-channel.md) | Async Channel + access-policy wiring | 02 · 08 · 09 | ⬜ |
-| [11](./11-placement.md) | Placement & selection | 03 · 10 | ⬜ |
-| [12](./12-telemetry-ingest.md) | Telemetry ingest | 02 · 13 | ⬜ |
-| [13](./13-governance.md) | Governance (non-placement actions) | 02 · 03 · 09 · 10 · 12 | ⬜ |
-| [14](./14-client.md) | Client | 02 · 10 · 12 | ⬜ |
-| [15](./15-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 11 | ⛔ |
+| [09](./09-access-policy-engine.md) | Access-policy engine | 02 | ⬜ |
+| [10](./10-kafka-topic.md) | Kafka Topic (read model) | 02 · 03 | ⬜ |
+| [11](./11-async-channel.md) | Async Channel + access-policy wiring | 02 · 09 · 10 | ⬜ |
+| [12](./12-placement.md) | Placement & selection | 03 · 11 | ⬜ |
+| [13](./13-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ⬜ |
+| [14](./14-governance.md) | Governance (non-placement actions) | 02 · 03 · 10 · 11 · 13 | ⬜ |
+| [15](./15-client.md) | Client | 02 · 11 · 13 | ⬜ |
+| [16](./16-migration-and-data-movement.md) | Migration & data movement | 10 · 11 · 12 | ⛔ |
 
 ## Decisions already locked (`DECISIONS.md` ADR-API-005)
 
@@ -66,7 +67,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 | Blocked | On |
 |---|---|
-| **15** migration flow, and the real moves it unblocks (placed-shard relocation, cluster-delete-with-live-topics, re-shard execution, governance placement/taint actions) | `003.13` OQ1–2 — data-copy mechanism + RPC surface |
+| **16** migration flow, and the real moves it unblocks (placed-shard relocation, cluster-delete-with-live-topics, re-shard execution, governance placement/taint actions) | `003.13` OQ1–2 — data-copy mechanism + RPC surface |
 | Real API authorization | `003.2` model undecided (stub for now) |
 | Control-plane event log | `003.11` OQ4 — design not started |
 | SDK / client library (shard routing) | routing-key ADR not written |
@@ -85,6 +86,19 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-06 · **08** Resource management & agent provisioning schema ·
+  `Agent.provisioning_labels` (advisory schema, ADR-API-008) through proto →
+  deliverable-04 backend → console. Console edit pages for Agent + Kafka Cluster
+  (`/…/edit`), schema-driven provisioning fields on the cluster forms,
+  re-assignment confirm gate, 409 reload-and-re-apply. `local-docker` recipe
+  gains `franz.provisioning/kafka-image`. **`franz/local/`** added — a
+  docker-compose + DB seed that installs the `local-kafka-agent` registration
+  (schema + fixed dev token) before Franz starts, replacing the `FRANZ_REGISTER`
+  self-register path from 07 (`pkg/localkafka/register.go` removed). codex out of
+  quota → claude implemented it all.
+- 2026-09-06 · **plan** · inserted deliverable **08 — resource management in the
+  console**; renumbered the former 08–15 to **09–16**. All cross-references and
+  `Depends on` columns updated. No code or shipped deliverable (01–07) affected.
 - 2026-09-06 · **07** local-kafka-docker-agent · `cmd/local-kafka-agent` +
   `pkg/localkafka/{assign,stream,recipe,docker,reconcile,probe}` — connects as a
   CLUSTER_PROVIDER, watches assignments, renders the `local-docker` recipe,

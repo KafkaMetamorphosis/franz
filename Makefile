@@ -11,10 +11,15 @@ SHELL := bash
 .DEFAULT_GOAL := help
 
 FRANZ_BIN   := bin/franz
-COMPOSE     := docker compose
+COMPOSE     := docker compose -f local/docker-compose.yml
 NPM         := npm --prefix webconsole
 GATEWAY_URL := http://localhost:8080
 CONSOLE_URL := http://localhost:5173
+
+# The fixed local-dev bearer token the seed installs for local-kafka-agent.
+# Not a secret — see local/seed/01-local-agent.sql. Override with TOKEN=.
+DEV_AGENT_TOKEN := frnat_local-dev-do-not-use-in-production
+AGENT_NAME      ?= local-kafka-agent
 
 .PHONY: help
 help: ## Show this help
@@ -24,15 +29,14 @@ help: ## Show this help
 # --- dependencies -----------------------------------------------------------
 
 .PHONY: deps
-deps: ## Start Postgres and wait for it to be ready
-	@$(COMPOSE) up -d --wait postgres 2>/dev/null || { \
-		$(COMPOSE) up -d postgres; \
-		echo "waiting for Postgres…"; \
-		for i in $$(seq 1 30); do \
-			$(COMPOSE) exec -T postgres pg_isready -U franz -d franz >/dev/null 2>&1 && break; \
-			sleep 1; \
-		done; }
-	@echo "Postgres ready on localhost:5432"
+deps: ## Start Postgres, apply migrations, seed local-dev fixtures
+	@$(COMPOSE) up -d --wait postgres
+	@$(COMPOSE) run --rm --quiet-pull seed >/dev/null
+	@echo "Postgres ready + migrated + seeded on localhost:5432"
+
+.PHONY: seed
+seed: ## Re-run the local/seed/*.sql scripts (idempotent)
+	@$(COMPOSE) run --rm --quiet-pull seed
 
 .PHONY: deps-down
 deps-down: ## Stop Postgres (keep the data volume)
@@ -74,12 +78,10 @@ console: webconsole/node_modules ## Run the web console dev server (proxies /v1 
 	@echo "→ web console: $(CONSOLE_URL)"
 	@$(NPM) run dev
 
-AGENT_NAME ?= local-kafka-agent
-
 .PHONY: agent
-agent: ## Run the local-kafka-docker-agent (self-registers with Franz; override with TOKEN=/NAME=)
+agent: ## Run the local-kafka-docker-agent (uses the seeded dev token; override TOKEN=/AGENT_NAME=)
 	@FRANZ_ENDPOINT=localhost:9090 FRANZ_AGENT_NAME=$(AGENT_NAME) \
-		$(if $(TOKEN),FRANZ_TOKEN=$(TOKEN),FRANZ_REGISTER=1) \
+		FRANZ_TOKEN=$(if $(TOKEN),$(TOKEN),$(DEV_AGENT_TOKEN)) \
 		go run ./cmd/local-kafka-agent
 
 .PHONY: dev

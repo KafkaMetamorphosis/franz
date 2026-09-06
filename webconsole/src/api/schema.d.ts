@@ -506,6 +506,7 @@ export interface components {
             labels?: {
                 [key: string]: string;
             };
+            provisioningLabels?: components["schemas"]["v1ProvisioningLabelSpec"][];
             type?: components["schemas"]["v1AgentType"];
             /** @description Fields to update; unset fields are left unchanged. */
             updateMask?: string;
@@ -625,6 +626,13 @@ export interface components {
                 [key: string]: string;
             };
             name?: string;
+            /**
+             * @description Advisory schema: the franz.provisioning/* labels this agent's recipes
+             *     understand, with allowed values and defaults. Franz stores and serves it
+             *     for the console to render resource forms; it never validates another
+             *     resource's labels against it. See 003.9.
+             */
+            provisioningLabels?: components["schemas"]["v1ProvisioningLabelSpec"][];
             status?: components["schemas"]["v1AgentStatus"];
             type?: components["schemas"]["v1AgentType"];
             /** Format: date-time */
@@ -784,6 +792,7 @@ export interface components {
                 [key: string]: string;
             };
             name?: string;
+            provisioningLabels?: components["schemas"]["v1ProvisioningLabelSpec"][];
             type?: components["schemas"]["v1AgentType"];
         };
         v1CreateAgentResponse: {
@@ -1211,6 +1220,27 @@ export interface components {
         v1Principal: {
             clientFrn?: string;
             labels?: string;
+        };
+        /**
+         * @description ProvisioningLabelSpec describes one franz.provisioning/* label an agent's
+         *     recipe reads. Advisory — a console UX aid only (003.9, ADR-API-008).
+         */
+        v1ProvisioningLabelSpec: {
+            /** @description Allowed values; empty means free text. */
+            allowedValues?: string[];
+            /**
+             * @description Pre-filled in the console form. When allowed_values is set, must be one of
+             *     them.
+             */
+            defaultValue?: string;
+            description?: string;
+            /**
+             * @description Reserved-label key, e.g. "franz.provisioning/kafka-image". Must be
+             *     franz.-prefixed.
+             */
+            key?: string;
+            /** @description The console requires a value; Franz does not enforce it. */
+            required?: boolean;
         };
         v1ResumeAgentResponse: {
             agent?: components["schemas"]["v1Agent"];

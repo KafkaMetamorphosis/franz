@@ -32,7 +32,7 @@ func (s *Service) Create(ctx context.Context, input in.CreateAgentInput) (in.Cre
 	if err != nil {
 		return in.CreatedAgent{}, errs.Internalf("mint agent token").Wrap(err)
 	}
-	a, err := agent.New(r, input.Name, input.Type, input.Labels, hash)
+	a, err := agent.New(r, input.Name, input.Type, input.Labels, input.ProvisioningLabels, hash)
 	if err != nil {
 		return in.CreatedAgent{}, err
 	}
@@ -86,6 +86,11 @@ func (s *Service) Update(ctx context.Context, input in.UpdateAgentInput) (*agent
 		}
 		if input.Labels != nil {
 			a.Labels = *input.Labels
+		}
+		if input.ProvisioningLabels != nil {
+			if err := a.SetProvisioningLabels(*input.ProvisioningLabels); err != nil {
+				return err
+			}
 		}
 		return nil
 	})

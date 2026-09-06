@@ -62,6 +62,10 @@ CREATE TABLE IF NOT EXISTS agent (
                    CHECK (type IN ('CLUSTER_PROVIDER', 'RESOURCE_PROVIDER',
                                    'TELEMETRY_AGENT', 'CUSTOM')),
     labels     jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    -- Advisory schema of the franz.provisioning/* labels this agent's recipes
+    -- read (003.9, ADR-API-008). Array of {key, description, allowed_values,
+    -- default_value, required}. Franz never enforces it against a resource.
+    provisioning_labels jsonb NOT NULL DEFAULT '[]'::jsonb,
     status     text        NOT NULL DEFAULT 'ACTIVE'
                    CHECK (status IN ('ACTIVE', 'PAUSED', 'DELETED')),
     token_hash text        NOT NULL,

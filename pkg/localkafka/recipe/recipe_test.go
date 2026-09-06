@@ -80,6 +80,26 @@ func TestRenderVersionAndHash(t *testing.T) {
 	}
 }
 
+func TestRenderKafkaImageOverridesVersion(t *testing.T) {
+	a := base()
+	a.Provisioning[KafkaVersionLabel] = "3.8.0"
+	a.Provisioning[KafkaImageLabel] = "registry.example.com/apache/kafka:3.9.0"
+
+	s, err := Render("a", a, "3.7.0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.Image != "registry.example.com/apache/kafka:3.9.0" {
+		t.Fatalf("image = %q, kafka-image should win over kafka-version", s.Image)
+	}
+
+	// a different image ref changes the hash → the container is recreated
+	base1, _ := Render("a", base(), "3.7.0")
+	if s.Hash() == base1.Hash() {
+		t.Error("hash must change with the image ref")
+	}
+}
+
 func TestRenderAllowlistAndBrokers(t *testing.T) {
 	a := base()
 	a.Configuration = map[string]string{"num.partitions": "6", "totally.unknown": "x"}

@@ -25,7 +25,7 @@ func TestAgentRepoLifecycle(t *testing.T) {
 	r := seededRealm(t, db)
 	ctx := context.Background()
 
-	a, err := agent.New(r, "prov-1", agent.TypeClusterProvider, map[string]string{"team": "infra"}, "hash-1")
+	a, err := agent.New(r, "prov-1", agent.TypeClusterProvider, map[string]string{"team": "infra"}, nil, "hash-1")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,7 +36,7 @@ func TestAgentRepoLifecycle(t *testing.T) {
 		t.Error("timestamps not populated")
 	}
 
-	dup, _ := agent.New(r, "prov-1", agent.TypeCustom, nil, "h")
+	dup, _ := agent.New(r, "prov-1", agent.TypeCustom, nil, nil, "h")
 	if err := repo.Create(ctx, dup); errs.KindOf(err) != errs.AlreadyExists {
 		t.Fatalf("dup = %v", err)
 	}
@@ -44,6 +44,29 @@ func TestAgentRepoLifecycle(t *testing.T) {
 	got, err := repo.Get(ctx, r.ID, "prov-1")
 	if err != nil || got.FRN.String() != "frn:default:agent:prov-1" || got.Type != agent.TypeClusterProvider || got.TokenHash != "hash-1" {
 		t.Fatalf("round-trip: %+v (%v)", got, err)
+	}
+
+	// provisioning-label schema round-trips + is replaced wholesale via Mutate
+	if _, err := repo.Mutate(ctx, r.ID, "prov-1", func(a *agent.Agent) error {
+		return a.SetProvisioningLabels([]agent.ProvisioningLabelSpec{
+			{Key: "franz.provisioning/deployment-type", AllowedValues: []string{"local-docker"}, DefaultValue: "local-docker", Required: true},
+			{Key: "franz.provisioning/kafka-image", Description: "full image ref"},
+		})
+	}); err != nil {
+		t.Fatalf("set provisioning labels: %v", err)
+	}
+	got, _ = repo.Get(ctx, r.ID, "prov-1")
+	if len(got.ProvisioningLabels) != 2 || got.ProvisioningLabels[0].DefaultValue != "local-docker" ||
+		!got.ProvisioningLabels[0].Required || got.ProvisioningLabels[1].Key != "franz.provisioning/kafka-image" {
+		t.Fatalf("provisioning labels round-trip: %+v", got.ProvisioningLabels)
+	}
+	if _, err := repo.Mutate(ctx, r.ID, "prov-1", func(a *agent.Agent) error {
+		return a.SetProvisioningLabels(nil)
+	}); err != nil {
+		t.Fatalf("clear provisioning labels: %v", err)
+	}
+	if got, _ = repo.Get(ctx, r.ID, "prov-1"); len(got.ProvisioningLabels) != 0 {
+		t.Errorf("provisioning labels not cleared: %+v", got.ProvisioningLabels)
 	}
 
 	// rotate token via Mutate
@@ -69,7 +92,7 @@ func TestAgentRepoLifecycle(t *testing.T) {
 	if del, err := repo.Get(ctx, r.ID, "prov-1"); err != nil || del.Status != agent.StatusDeleted {
 		t.Errorf("Get(deleted) = %+v %v", del, err)
 	}
-	reuse, _ := agent.New(r, "prov-1", agent.TypeCustom, nil, "h")
+	reuse, _ := agent.New(r, "prov-1", agent.TypeCustom, nil, nil, "h")
 	if err := repo.Create(ctx, reuse); errs.KindOf(err) != errs.AlreadyExists {
 		t.Errorf("recreate deleted name = %v", err)
 	}
@@ -90,7 +113,7 @@ func TestAgentRepoListTypeFilter(t *testing.T) {
 		{"b", agent.TypeTelemetryAgent},
 		{"c", agent.TypeClusterProvider},
 	} {
-		x, _ := agent.New(r, tc.name, tc.typ, nil, "h")
+		x, _ := agent.New(r, tc.name, tc.typ, nil, nil, "h")
 		if err := repo.Create(ctx, x); err != nil {
 			t.Fatal(err)
 		}
@@ -127,7 +150,7 @@ func TestAgentDeleteLeavesClusterProviderStringDangling(t *testing.T) {
 	r := seededRealm(t, db)
 	ctx := context.Background()
 
-	a, _ := agent.New(r, "prov-1", agent.TypeClusterProvider, nil, "h")
+	a, _ := agent.New(r, "prov-1", agent.TypeClusterProvider, nil, nil, "h")
 	if err := agentRepo.Create(ctx, a); err != nil {
 		t.Fatal(err)
 	}
