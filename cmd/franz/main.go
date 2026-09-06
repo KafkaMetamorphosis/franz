@@ -17,6 +17,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/frn"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/in"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/out"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/agents"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/clusters"
 	"github.com/KafkaMetamorphosis/franz/pkg/shared"
 )
@@ -33,6 +34,8 @@ func main() {
 			fx.Annotate(func() stub.NoTopicGuard { return stub.NoTopicGuard{} },
 				fx.As(new(out.ClusterTopicGuard))),
 			fx.Annotate(clusters.NewService, fx.As(new(in.KafkaClusterService))),
+			fx.Annotate(postgres.NewAgentRepo, fx.As(new(out.AgentRepository))),
+			fx.Annotate(agents.NewService, fx.As(new(in.AgentService))),
 			func(r out.RealmRepository) *grpcgateway.Authenticator {
 				return grpcgateway.NewAuthenticator(r)
 			},
@@ -76,10 +79,13 @@ func newDB(lc fx.Lifecycle, c config.Config, log *slog.Logger) (*postgres.DB, er
 func newServer(
 	c config.Config, log *slog.Logger,
 	auth *grpcgateway.Authenticator, codec frn.Codec,
-	clusterSvc in.KafkaClusterService,
+	clusterSvc in.KafkaClusterService, agentSvc in.AgentService,
 ) (*grpcgateway.Server, error) {
 	s := grpcgateway.New(c.GRPCPort, c.HTTPPort, log, grpcgateway.WithAuthenticator(auth))
 	if err := grpcgateway.RegisterKafkaClusterService(s, clusterSvc, codec); err != nil {
+		return nil, err
+	}
+	if err := grpcgateway.RegisterAgentService(s, agentSvc, codec); err != nil {
 		return nil, err
 	}
 	return s, nil

@@ -29,7 +29,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [01](./01-project-scaffolding.md) | Project scaffolding | — | ✅ |
 | [02](./02-domain-foundations.md) | Domain foundations (`003.1`) | 01 | ✅ |
 | [03](./03-kafka-cluster.md) | Kafka Cluster | 02 | ✅ |
-| [04](./04-agent-registry.md) | Agent registry | 02 | ⬜ |
+| [04](./04-agent-registry.md) | Agent registry | 02 | ✅ |
 | [05](./05-agent-interaction-cluster-provider.md) | Agent interaction (Cluster Provider) | 02 · 03 · 04 | ⬜ |
 | [06](./06-web-console-bootstrap.md) | Web console bootstrap | 03 · 04 · 05 | ⬜ |
 | [07](./07-local-kafka-docker-agent.md) | local-kafka-docker-agent | 05 · 06 | ⬜ |
@@ -85,6 +85,10 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-06 · **04** Agent registry · `core/domain/agent` (type + status
+  machine), `pkg/shared/token` (bearer-token mint/hash), `agents.Service`
+  (Create mints token, RotateToken), `AgentService` gRPC+REST, `agent`
+  migration. Unit + Postgres integration + REST e2e green. Executed by claude.
 - 2026-09-06 · **03** Kafka Cluster · first full vertical slice — domain state
   machine, `ClusterRepository` (pgx, `SELECT … FOR UPDATE`), `clusters.Service`,
   `KafkaClusterService` gRPC+REST handler, `kafka_cluster` migration. Unit +

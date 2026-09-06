@@ -7,6 +7,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Agent registry** (impls_plan deliverable 04): `core/domain/agent` (entity,
+  `AgentType` organisational filter, `ACTIVE ↔ PAUSED → DELETED` status machine),
+  `core/ports/{in,out}` + `core/usecases/agents`, a hand-written pgx adapter
+  (`adapters/out/postgres/agent.go`, type filter pushed to SQL), and the
+  `AgentService` gRPC + REST handler (`/v1/kafka/agents` with `:pause` /
+  `:resume` / `:rotateToken`). `CreateAgent` mints a one-time bearer token
+  (`pkg/shared/token`: `frnat_` + 32 random bytes; only the sha256 is stored);
+  `RotateAgentToken` replaces it. New `agent` table with a `token_hash` column.
+  Registration is inert — no connection, no work protocol (that is a later ADR).
 - **Kafka Cluster** (impls_plan deliverable 03): the first full
   `domain → ports → postgres → grpc-gateway` vertical slice —
   `core/domain/cluster` (entity + `ACTIVE ↔ PAUSED → DELETED` state machine),
