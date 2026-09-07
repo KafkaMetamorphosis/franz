@@ -11,6 +11,10 @@ import { ClusterList } from "./pages/clusters/ClusterList";
 import { ClusterRegister } from "./pages/clusters/ClusterRegister";
 import { ClusterDetail } from "./pages/clusters/ClusterDetail";
 import { ClusterEdit } from "./pages/clusters/ClusterEdit";
+import { ChannelList } from "./pages/channels/ChannelList";
+import { ChannelRegister } from "./pages/channels/ChannelRegister";
+import { ChannelDetail } from "./pages/channels/ChannelDetail";
+import { ChannelEdit } from "./pages/channels/ChannelEdit";
 
 export function App() {
   const { session } = useAuth();
@@ -36,6 +40,10 @@ export function App() {
         <Route path="/kafka/clusters/register" element={<ClusterRegister />} />
         <Route path="/kafka/clusters/:name" element={<ClusterDetail />} />
         <Route path="/kafka/clusters/:name/edit" element={<ClusterEdit />} />
+        <Route path="/async-channels" element={<ChannelList />} />
+        <Route path="/async-channels/register" element={<ChannelRegister />} />
+        <Route path="/async-channels/:name" element={<ChannelDetail />} />
+        <Route path="/async-channels/:name/edit" element={<ChannelEdit />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
