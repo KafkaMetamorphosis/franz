@@ -6,6 +6,8 @@ package channels
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/accesspolicy"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/channel"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
@@ -19,12 +21,28 @@ import (
 // Service implements in.AsyncChannelService.
 type Service struct {
 	repo out.AsyncChannelRepository
+	// notifier pushes partition-assignment deltas to the in-scope Resource
+	// Provider agents when a channel operation changes its shards' desired state
+	// (005 ADR §1.3). Optional — nil in tests that do not exercise the agent wire.
+	notifier out.PartitionNotifier
 }
 
 var _ in.AsyncChannelService = (*Service)(nil)
 
-// NewService wires the service to its repository.
-func NewService(repo out.AsyncChannelRepository) *Service { return &Service{repo: repo} }
+// NewService wires the service to its repository and the partition notifier.
+func NewService(repo out.AsyncChannelRepository, notifier out.PartitionNotifier) *Service {
+	return &Service{repo: repo, notifier: notifier}
+}
+
+// notifyShards forwards a shard change to the Resource Provider agents that
+// hold the shards' clusters in scope. Best-effort: an agent that is not
+// connected picks the change up on its next reconnect resync.
+func (s *Service) notifyShards(ctx context.Context, realmID uuid.UUID, shards []*topic.KafkaTopic) {
+	if s.notifier == nil || len(shards) == 0 {
+		return
+	}
+	s.notifier.ShardsChanged(ctx, realmID, shards)
+}
 
 // Create registers a new channel (state ACTIVE, FRN assigned). It writes only
 // the channel row — placement materialises the shards (ADR-API-009).
@@ -95,9 +113,11 @@ func (s *Service) SetAccessPolicy(
 	})
 }
 
-// Delete soft-deletes the channel and cascades DELETED to every shard.
+// Delete soft-deletes the channel and cascades DELETED to every shard. The
+// shards go out as REMOVED assignments so the agents delete the real topics.
 func (s *Service) Delete(ctx context.Context, name string) error {
 	r := realm.MustFromContext(ctx)
+	var deleted []*topic.KafkaTopic
 	_, err := s.repo.MutateWithShards(ctx, r.ID, name,
 		func(c *channel.AsyncChannel, shards []*topic.KafkaTopic) error {
 			if err := c.Delete(); err != nil {
@@ -108,15 +128,22 @@ func (s *Service) Delete(ctx context.Context, name string) error {
 					_ = sh.SetState(topic.StateDeleted)
 				}
 			}
+			deleted = shards
 			return nil
 		})
-	return err
+	if err != nil {
+		return err
+	}
+	s.notifyShards(ctx, r.ID, deleted)
+	return nil
 }
 
-// Pause moves the channel to PAUSED and pauses every non-deleted shard.
+// Pause moves the channel to PAUSED and pauses every non-deleted shard. The
+// shards go out as PAUSED assignments so the agents stop managing them.
 func (s *Service) Pause(ctx context.Context, name string) (*channel.AsyncChannel, error) {
 	r := realm.MustFromContext(ctx)
-	return s.repo.MutateWithShards(ctx, r.ID, name,
+	var paused []*topic.KafkaTopic
+	c, err := s.repo.MutateWithShards(ctx, r.ID, name,
 		func(c *channel.AsyncChannel, shards []*topic.KafkaTopic) error {
 			if err := c.Pause(); err != nil {
 				return err
@@ -126,14 +153,22 @@ func (s *Service) Pause(ctx context.Context, name string) (*channel.AsyncChannel
 					_ = sh.SetState(topic.StatePaused)
 				}
 			}
+			paused = shards
 			return nil
 		})
+	if err != nil {
+		return nil, err
+	}
+	s.notifyShards(ctx, r.ID, paused)
+	return c, nil
 }
 
-// Resume moves the channel to ACTIVE and returns every paused shard to PENDING.
+// Resume moves the channel to ACTIVE and returns every paused shard to PENDING,
+// re-offering them to the agents as SET.
 func (s *Service) Resume(ctx context.Context, name string) (*channel.AsyncChannel, error) {
 	r := realm.MustFromContext(ctx)
-	return s.repo.MutateWithShards(ctx, r.ID, name,
+	var resumed []*topic.KafkaTopic
+	c, err := s.repo.MutateWithShards(ctx, r.ID, name,
 		func(c *channel.AsyncChannel, shards []*topic.KafkaTopic) error {
 			if err := c.Resume(); err != nil {
 				return err
@@ -143,6 +178,12 @@ func (s *Service) Resume(ctx context.Context, name string) (*channel.AsyncChanne
 					_ = sh.SetState(topic.StatePending)
 				}
 			}
+			resumed = shards
 			return nil
 		})
+	if err != nil {
+		return nil, err
+	}
+	s.notifyShards(ctx, r.ID, resumed)
+	return c, nil
 }

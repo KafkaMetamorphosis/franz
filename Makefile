@@ -16,10 +16,12 @@ NPM         := npm --prefix webconsole
 GATEWAY_URL := http://localhost:8080
 CONSOLE_URL := http://localhost:5173
 
-# The fixed local-dev bearer token the seed installs for local-kafka-agent.
-# Not a secret — see local/seed/01-local-agent.sql. Override with TOKEN=.
+# The fixed local-dev bearer tokens the seed installs. Not secrets — see
+# local/seed/. Override either with TOKEN=.
 DEV_AGENT_TOKEN := frnat_local-dev-do-not-use-in-production
+DEV_GS_TOKEN    := frnat_local-dev-gregor-samsa
 AGENT_NAME      ?= local-kafka-agent
+GS_AGENT_NAME   ?= gregor-samsa
 
 .PHONY: help
 help: ## Show this help
@@ -85,6 +87,12 @@ agent: ## Run the local-kafka-docker-agent (uses the seeded dev token; override 
 		FRANZ_TOKEN=$(if $(TOKEN),$(TOKEN),$(DEV_AGENT_TOKEN)) \
 		go run ./cmd/localkafkaagent
 
+.PHONY: gregorsamsa
+gregorsamsa: ## Run Gregor Samsa, the Resource Provider agent (uses the seeded dev token; override TOKEN=/GS_AGENT_NAME=)
+	@FRANZ_ENDPOINT=localhost:9090 FRANZ_AGENT_NAME=$(GS_AGENT_NAME) \
+		FRANZ_TOKEN=$(if $(TOKEN),$(TOKEN),$(DEV_GS_TOKEN)) \
+		go run ./cmd/gregorsamsa
+
 .PHONY: dev
 dev: deps build-franz webconsole/node_modules ## Run control plane + console together (Ctrl-C stops both)
 	@echo "──────────────────────────────────────────────"
@@ -121,6 +129,14 @@ agent-e2e: deps build-franz ## Real-Docker agent smoke: broker up in Docker, cli
 	trap 'kill $$(cat .franz.pid) 2>/dev/null; rm -f .franz.pid' EXIT INT TERM; \
 	until curl -sf $(GATEWAY_URL)/healthz >/dev/null; do sleep 0.3; done; \
 	FRANZ_AGENT_E2E=1 go test -count=1 -timeout 8m -run TestLocalDockerEndToEnd ./pkg/localkafkaagent/
+
+.PHONY: gregorsamsa-e2e
+gregorsamsa-e2e: deps build-franz ## Real-Docker Gregor Samsa smoke: broker up, seeded partition becomes a topic, config edit re-drives it, delete is safety-checked
+	@command -v docker >/dev/null || { echo "docker required"; exit 1; }
+	@FRANZ_DB__HOST=localhost ./$(FRANZ_BIN) & echo $$! > .franz.pid; \
+	trap 'kill $$(cat .franz.pid) 2>/dev/null; rm -f .franz.pid' EXIT INT TERM; \
+	until curl -sf $(GATEWAY_URL)/healthz >/dev/null; do sleep 0.3; done; \
+	FRANZ_GS_E2E=1 go test -count=1 -timeout 10m -run TestGregorSamsaEndToEnd ./pkg/gregorsamsa/
 
 .PHONY: lint
 lint: ## gofmt + go vet + console lint/typecheck

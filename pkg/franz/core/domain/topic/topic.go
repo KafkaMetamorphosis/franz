@@ -104,6 +104,15 @@ type KafkaTopic struct {
 	TrafficShare TrafficShare
 	Generation   int64
 
+	// ReconciledGeneration is the last generation a Resource Provider agent
+	// confirmed the real Kafka topic satisfies (005 ADR §1.5). nil until the
+	// first successful report; lagging `Generation` means the shard is not yet
+	// converged.
+	ReconciledGeneration *int64
+	// LastReconcileMessage is the detail from the newest agent report — the
+	// operator-facing "why is this shard in ERROR" (003.6 OQ5, first cut).
+	LastReconcileMessage string
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 

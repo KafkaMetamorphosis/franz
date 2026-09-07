@@ -103,7 +103,7 @@ func ctxWithRealm() context.Context {
 
 func TestCreateReturnsTokenAndStoresHash(t *testing.T) {
 	repo := newMemRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	ctx := ctxWithRealm()
 
 	got, err := svc.Create(ctx, in.CreateAgentInput{Name: "prov-1", Type: agent.TypeClusterProvider})
@@ -133,7 +133,7 @@ func TestCreateReturnsTokenAndStoresHash(t *testing.T) {
 
 func TestRotateTokenInvalidatesOld(t *testing.T) {
 	repo := newMemRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	ctx := ctxWithRealm()
 	created, _ := svc.Create(ctx, in.CreateAgentInput{Name: "a", Type: agent.TypeCustom})
 
@@ -157,7 +157,7 @@ func TestRotateTokenInvalidatesOld(t *testing.T) {
 
 func TestLifecycleAndUpdate(t *testing.T) {
 	repo := newMemRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	ctx := ctxWithRealm()
 	_, _ = svc.Create(ctx, in.CreateAgentInput{Name: "a", Type: agent.TypeCustom, Labels: map[string]string{"team": "x"}})
 
@@ -188,7 +188,7 @@ func TestLifecycleAndUpdate(t *testing.T) {
 
 func TestListTypeFilterAndPagination(t *testing.T) {
 	repo := newMemRepo()
-	svc := NewService(repo)
+	svc := NewService(repo, nil)
 	ctx := ctxWithRealm()
 	for _, tc := range []struct {
 		name string

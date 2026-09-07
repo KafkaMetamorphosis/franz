@@ -47,6 +47,14 @@ func (f *fakeTopicRepo) ResolveChannelID(context.Context, uuid.UUID, string) (uu
 }
 func (f *fakeTopicRepo) CountLiveTopics(context.Context, uuid.UUID) (int, error) { return 0, nil }
 
+func (f *fakeTopicRepo) ListByClusters(context.Context, uuid.UUID, []uuid.UUID) ([]*topic.KafkaTopic, error) {
+	panic("unused")
+}
+
+func (f *fakeTopicRepo) MutateByFRN(context.Context, uuid.UUID, string, func(*topic.KafkaTopic) error) (*topic.KafkaTopic, error) {
+	panic("unused")
+}
+
 func shard(name string, c topic.Consumption) *topic.KafkaTopic {
 	return &topic.KafkaTopic{Name: name, State: topic.StatePending, Consumption: c,
 		TrafficShare: topic.TrafficShare{Unit: topic.TrafficShareUnit}}
@@ -62,7 +70,7 @@ func TestSetConsumptionRebalance(t *testing.T) {
 		shard("c-1", topic.ConsumptionEnabled),
 		shard("c-2", topic.ConsumptionEnabled),
 	}}
-	svc := NewService(repo, nil)
+	svc := NewService(repo, nil, nil)
 
 	if _, err := svc.SetConsumption(ctxWithRealm(), "c-1", topic.ConsumptionDisabled); err != nil {
 		t.Fatal(err)
@@ -84,7 +92,7 @@ func TestSetConsumptionAllDisabled(t *testing.T) {
 		shard("c-0", topic.ConsumptionEnabled),
 		shard("c-1", topic.ConsumptionEnabled),
 	}}
-	svc := NewService(repo, nil)
+	svc := NewService(repo, nil, nil)
 	_, _ = svc.SetConsumption(ctxWithRealm(), "c-0", topic.ConsumptionDisabled)
 	_, _ = svc.SetConsumption(ctxWithRealm(), "c-1", topic.ConsumptionDisabled)
 	for _, s := range repo.shards {
@@ -96,7 +104,7 @@ func TestSetConsumptionAllDisabled(t *testing.T) {
 
 func TestSetConsumptionRejectsUnknownValue(t *testing.T) {
 	repo := &fakeTopicRepo{shards: []*topic.KafkaTopic{shard("c-0", topic.ConsumptionEnabled)}}
-	svc := NewService(repo, nil)
+	svc := NewService(repo, nil, nil)
 	if _, err := svc.SetConsumption(ctxWithRealm(), "c-0", "WAT"); errs.KindOf(err) != errs.InvalidArgument {
 		t.Fatalf("→ %v", err)
 	}
@@ -106,7 +114,7 @@ func TestSetConsumptionOnDeleted(t *testing.T) {
 	sh := shard("c-0", topic.ConsumptionEnabled)
 	sh.State = topic.StateDeleted
 	repo := &fakeTopicRepo{shards: []*topic.KafkaTopic{sh}}
-	svc := NewService(repo, nil)
+	svc := NewService(repo, nil, nil)
 	if _, err := svc.SetConsumption(ctxWithRealm(), "c-0", topic.ConsumptionDisabled); errs.KindOf(err) != errs.FailedPrecondition {
 		t.Fatalf("→ %v", err)
 	}

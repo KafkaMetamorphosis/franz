@@ -58,8 +58,8 @@ func TestClusterProviderE2E(t *testing.T) {
 	hub := streamhub.New()
 	codec := frn.MustCodec("frn")
 
-	clusterSvc := clusters.NewService(clusterRepo, stub.NoTopicGuard{}, eventRepo, hub)
-	agentSvc := agents.NewService(agentRepo)
+	clusterSvc := clusters.NewService(clusterRepo, stub.NoTopicGuard{}, eventRepo, hub, nil)
+	agentSvc := agents.NewService(agentRepo, nil)
 	providerSvc := provideruc.NewService(clusterRepo, eventRepo)
 
 	srv := grpcgateway.New(0, 0, slog.New(slog.NewTextHandler(io.Discard, nil)),

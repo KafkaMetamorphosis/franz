@@ -58,22 +58,35 @@ lands).
 
 ### See a Kafka broker come up
 
-In a second terminal:
+`make deps` seeds a whole local loop — no console step:
+
+- `local-kafka-agent` — a Cluster Provider agent (`local/seed/01-local-agent.sql`)
+- `local-1` — a Kafka Cluster wired to it, bootstrap `localhost:9092`,
+  `franz.placement/env=local` (`local/seed/02-local-cluster.sql`)
+- `gregor-samsa` — a Resource Provider agent scoped to that cluster
+  (`local/seed/03-gregor-samsa.sql`)
+
+In separate terminals:
 
 ```sh
-make agent      # the local-kafka-docker-agent (needs Docker)
+make agent        # local-kafka-docker-agent — brings local-1's broker up in Docker
+make gregorsamsa  # Gregor Samsa — reconciles async-channel partitions on local-1
 ```
 
-`make agent` uses the `local-kafka-agent` registration that `make deps` seeds
-(`local/seed/01-local-agent.sql`) — no console step. Then, in the console:
+`make agent` brings an `apache/kafka` container up for `local-1` and reports
+`PROVISIONING → READY`; the cluster detail page turns green. Connect any Kafka
+client at `localhost:9092`.
 
-1. **Kafka Clusters → Register** — give it a name, a bootstrap URL
-   (e.g. `localhost:19092`), pick `local-kafka-agent` as the provider. The
-   **Cluster configuration** section (Kafka version, brokers, `cluster_configuration`)
-   pre-fills from the agent's `franz.default-kafka-config/*` labels.
-2. The agent brings an `apache/kafka` container up in Docker and reports
-   `PROVISIONING → READY`; the cluster detail page turns green.
-3. Connect any Kafka client at the bootstrap URL you declared.
+`make gregorsamsa` connects and holds `local-1` in scope, but has **no work**
+until [placement (deliverable 13)](docs/impls_plan/13-placement.md) materialises
+shard rows — creating an Async Channel does not yet create them. Use
+`make gregorsamsa-e2e` to exercise it end-to-end today.
+
+To register another cluster from the console: **Kafka Clusters → Register** —
+name, bootstrap URL, pick `local-kafka-agent` as the provider (the **Cluster
+configuration** section pre-fills from its `franz.default-kafka-config/*`
+labels). Re-run `make seed` afterward, or add `franz.placement/env=local` in
+the console, to bring it into Gregor Samsa's scope too.
 
 ### Other targets
 
@@ -83,7 +96,8 @@ make console      # just the web console (expects the gateway on :8080)
 make gen          # regenerate protobuf stubs + OpenAPI + the console client
 make test         # Go + console unit tests
 make e2e          # Playwright console smoke against a live stack
-make agent-e2e    # real-Docker agent smoke (opt-in, local only)
+make agent-e2e    # real-Docker Cluster Provider smoke (opt-in, local only)
+make gregorsamsa-e2e  # real-Docker Resource Provider smoke (opt-in, local only)
 make lint         # gofmt + go vet + console lint/typecheck
 make seed         # re-run the local/seed/*.sql scripts (idempotent)
 make deps-reset   # drop the Postgres volume (next `make deps` re-seeds)

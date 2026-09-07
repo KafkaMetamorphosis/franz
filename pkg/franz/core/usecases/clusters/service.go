@@ -10,6 +10,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/scope"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/selector"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/in"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/out"
@@ -22,6 +23,10 @@ type Service struct {
 	guard      out.ClusterTopicGuard
 	providerRd out.ProviderStatusReader
 	publisher  out.AssignmentPublisher
+	// notifier re-resolves Resource Provider scope when a cluster's
+	// franz.placement/* labels move (005 ADR §1.2 "Scope is dynamic"). Optional —
+	// nil in tests that do not exercise the agent wire.
+	notifier out.PartitionNotifier
 }
 
 var _ in.KafkaClusterService = (*Service)(nil)
@@ -32,13 +37,20 @@ func NewService(
 	guard out.ClusterTopicGuard,
 	providerRd out.ProviderStatusReader,
 	publisher out.AssignmentPublisher,
+	notifier out.PartitionNotifier,
 ) *Service {
-	return &Service{repo: repo, guard: guard, providerRd: providerRd, publisher: publisher}
+	return &Service{
+		repo: repo, guard: guard, providerRd: providerRd,
+		publisher: publisher, notifier: notifier,
+	}
 }
 
 // Create registers a new cluster (state ACTIVE, FRN assigned).
 func (s *Service) Create(ctx context.Context, input in.CreateClusterInput) (*cluster.Cluster, error) {
 	r := realm.MustFromContext(ctx)
+	if err := scope.ValidateClusterLabels(input.Labels); err != nil {
+		return nil, err
+	}
 	c, err := cluster.New(r, input.Name, input.ConnectionStrings, input.Labels, input.Configuration, input.ProviderAgent)
 	if err != nil {
 		return nil, err
@@ -102,9 +114,18 @@ func (s *Service) List(ctx context.Context, input in.ListClustersInput) (in.Clus
 // resulting assignment change to the owning agent(s).
 func (s *Service) Update(ctx context.Context, input in.UpdateClusterInput) (*cluster.Cluster, error) {
 	r := realm.MustFromContext(ctx)
-	var oldAgent string
+	if input.Labels != nil {
+		if err := scope.ValidateClusterLabels(*input.Labels); err != nil {
+			return nil, err
+		}
+	}
+	var (
+		oldAgent     string
+		labelsBefore map[string]string
+	)
 	updated, err := s.repo.Mutate(ctx, r.ID, input.Name, func(c *cluster.Cluster) error {
 		oldAgent = c.ProviderAgent
+		labelsBefore = c.Labels
 		if err := c.EnsureMutable(); err != nil {
 			return err
 		}
@@ -140,6 +161,9 @@ func (s *Service) Update(ctx context.Context, input in.UpdateClusterInput) (*clu
 		return nil, err
 	}
 	s.publishTo(oldAgent, updated)
+	if s.notifier != nil && input.Labels != nil {
+		s.notifier.ClusterLabelsChanged(ctx, r.ID, updated.Name, labelsBefore, updated.Labels)
+	}
 	return updated, nil
 }
 

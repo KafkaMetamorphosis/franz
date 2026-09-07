@@ -120,7 +120,7 @@ func TestTopicServiceSetConsumptionRenormalises(t *testing.T) {
 	r := seededRealm(t, db)
 	ctx := realm.NewContext(context.Background(), r)
 	topicRepo := postgres.NewTopicRepo(db)
-	svc := topics.NewService(topicRepo, postgres.NewClusterRepo(db))
+	svc := topics.NewService(topicRepo, postgres.NewClusterRepo(db), nil)
 
 	chID := insertChannel(t, db, r, "orders")
 	for i := 0; i < 4; i++ {
@@ -227,7 +227,7 @@ func TestTopicGuardBlocksClusterDelete(t *testing.T) {
 
 	// DeleteKafkaCluster refuses while a topic lives on it (003.3 done-when)
 	var _ out.ClusterTopicGuard = topicRepo
-	svc := clusters.NewService(clusterRepo, topicRepo, postgres.NewProviderEventRepo(db), streamhub.New())
+	svc := clusters.NewService(clusterRepo, topicRepo, postgres.NewProviderEventRepo(db), streamhub.New(), nil)
 	if err := svc.Delete(ctx, "east-1"); errs.KindOf(err) != errs.FailedPrecondition {
 		t.Fatalf("Delete with live topic → %v, want FAILED_PRECONDITION", err)
 	}

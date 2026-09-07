@@ -31,7 +31,7 @@ var _ out.TopicRepository = (*TopicRepo)(nil)
 const topicCols = `id, realm_id, async_channel_id, kafka_cluster_id, name, frn,
 	topic_configuration, materialized_configuration, partitions, replication_factor,
 	state, consumption, traffic_share_value, traffic_share_unit, generation,
-	created_at, updated_at`
+	reconciled_generation, last_reconcile_message, created_at, updated_at`
 
 // topicSelectJoined is the read query: base columns qualified as `t.*` plus the
 // channel and cluster names the API renders.
@@ -39,7 +39,8 @@ const topicSelectJoined = `
 	SELECT t.id, t.realm_id, t.async_channel_id, t.kafka_cluster_id, t.name, t.frn,
 	       t.topic_configuration, t.materialized_configuration, t.partitions,
 	       t.replication_factor, t.state, t.consumption, t.traffic_share_value,
-	       t.traffic_share_unit, t.generation, t.created_at, t.updated_at,
+	       t.traffic_share_unit, t.generation, t.reconciled_generation,
+	       t.last_reconcile_message, t.created_at, t.updated_at,
 	       ac.name, COALESCE(kc.name, '')
 	FROM kafka_topic t
 	JOIN async_channel ac ON ac.id = t.async_channel_id
@@ -53,11 +54,13 @@ func scanTopic(sc rowScanner, joined bool) (*topic.KafkaTopic, error) {
 		frnPath, state, consume string
 		clusterID               pgtype.UUID
 		topicCfgRaw, matCfgRaw  []byte
+		reconciledGen           *int64
 	)
 	dest := []any{
 		&t.ID, &t.RealmID, &t.AsyncChannelID, &clusterID, &t.Name, &frnPath,
 		&topicCfgRaw, &matCfgRaw, &t.Partitions, &t.ReplicationFactor,
 		&state, &consume, &t.TrafficShare.Value, &t.TrafficShare.Unit, &t.Generation,
+		&reconciledGen, &t.LastReconcileMessage,
 		&t.CreatedAt, &t.UpdatedAt,
 	}
 	if joined {
@@ -76,6 +79,7 @@ func scanTopic(sc rowScanner, joined bool) (*topic.KafkaTopic, error) {
 	t.FRN = f
 	t.State = topic.State(state)
 	t.Consumption = topic.Consumption(consume)
+	t.ReconciledGeneration = reconciledGen
 	if clusterID.Valid {
 		id := uuid.UUID(clusterID.Bytes)
 		t.KafkaClusterID = &id
@@ -236,12 +240,14 @@ func persistTopicTx(ctx context.Context, tx pgx.Tx, t *topic.KafkaTopic) error {
 			kafka_cluster_id=$1, topic_configuration=$2,
 			materialized_configuration=$3, partitions=$4, replication_factor=$5,
 			state=$6, consumption=$7, traffic_share_value=$8,
-			traffic_share_unit=$9, generation=$10, updated_at=now()
-		WHERE id=$11
+			traffic_share_unit=$9, generation=$10, reconciled_generation=$11,
+			last_reconcile_message=$12, updated_at=now()
+		WHERE id=$13
 		RETURNING `+topicCols,
 		t.KafkaClusterID, topicCfg, matCfg, t.Partitions, t.ReplicationFactor,
 		string(t.State), string(t.Consumption), t.TrafficShare.Value,
-		t.TrafficShare.Unit, t.Generation, t.ID), false)
+		t.TrafficShare.Unit, t.Generation, t.ReconciledGeneration,
+		t.LastReconcileMessage, t.ID), false)
 	if err != nil {
 		return err
 	}
@@ -251,6 +257,65 @@ func persistTopicTx(ctx context.Context, tx pgx.Tx, t *topic.KafkaTopic) error {
 	}
 	*t = *updated
 	return nil
+}
+
+// ListByClusters returns every shard placed on any of clusterIDs, DELETED rows
+// included, ordered by name (005 ADR §1.3 — the agent needs the REMOVED
+// assignment for a soft-deleted partition).
+func (r *TopicRepo) ListByClusters(
+	ctx context.Context, realmID uuid.UUID, clusterIDs []uuid.UUID,
+) ([]*topic.KafkaTopic, error) {
+	if len(clusterIDs) == 0 {
+		return nil, nil
+	}
+	rows, err := r.db.Pool().Query(ctx,
+		topicSelectJoined+`
+		 WHERE t.realm_id=$1 AND t.kafka_cluster_id = ANY($2)
+		 ORDER BY t.name ASC`, realmID, clusterIDs)
+	if err != nil {
+		return nil, errs.Internalf("list kafka topics by cluster").Wrap(err)
+	}
+	defer rows.Close()
+
+	var out []*topic.KafkaTopic
+	for rows.Next() {
+		t, err := scanTopic(rows, true)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, t)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errs.Internalf("iterate kafka topics by cluster").Wrap(err)
+	}
+	return out, nil
+}
+
+// MutateByFRN loads the shard by its prefix-less FRN path FOR UPDATE, runs
+// mutate, and persists the result — one transaction, so a generation-gated
+// reconciliation report cannot race a desired-state change.
+func (r *TopicRepo) MutateByFRN(
+	ctx context.Context, realmID uuid.UUID, frnPath string,
+	mutate func(*topic.KafkaTopic) error,
+) (*topic.KafkaTopic, error) {
+	var result *topic.KafkaTopic
+	err := r.db.WithTx(ctx, func(tx pgx.Tx) error {
+		t, err := scanTopic(tx.QueryRow(ctx,
+			topicSelectJoined+`
+			 WHERE t.realm_id=$1 AND t.frn=$2 FOR UPDATE OF t`, realmID, frnPath), true)
+		if err != nil {
+			return err
+		}
+		if err := mutate(t); err != nil {
+			return err
+		}
+		if err := persistTopicTx(ctx, tx, t); err != nil {
+			return err
+		}
+		result = t
+		return nil
+	})
+	return result, err
 }
 
 // ResolveChannelID maps an Async Channel name to its id within the realm.

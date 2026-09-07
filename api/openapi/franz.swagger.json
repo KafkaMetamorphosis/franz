@@ -18,6 +18,9 @@
       "name": "ClusterProviderService"
     },
     {
+      "name": "ResourceProviderService"
+    },
+    {
       "name": "AsyncChannelService"
     },
     {

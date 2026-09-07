@@ -1,0 +1,125 @@
+edition = "2024";
+
+package franz.v1;
+
+import "franz/v1/kafka.proto";
+
+// Contract between a Resource Provider agent (Gregor Samsa) and Franz. The agent
+// authenticates with its registration bearer token (agent.proto
+// `CreateAgentResponse.token`), watches the async channel partitions its label
+// scope covers, and reports what it reconciled per partition. gRPC only — no
+// REST gateway. Semantics: 005-gregor-samsa.
+//
+// Scope is evaluated server-side: a Kafka Cluster is in scope for an agent iff,
+// for every `franz.placement-selector/<key>=<value>` on the agent, the cluster
+// carries `franz.placement/<key>=<value>` (005 ADR §1.2). An agent with no
+// selector labels is inert. The agent runs no selector logic of its own.
+
+message WatchPartitionAssignmentsRequest {}
+
+// One stream message: a single assignment change. On stream open Franz sends one
+// per in-scope partition, then one per change.
+message WatchPartitionAssignmentsResponse {
+  PartitionAssignment assignment = 1;
+}
+
+// The desired state of one async channel partition — the Franz-side record for
+// exactly one real Kafka topic (003.6) — and how it changed.
+message PartitionAssignment {
+  enum Change {
+    CHANGE_UNSPECIFIED = 0;
+    // Created or spec-changed — reconcile the Kafka topic to this desired state.
+    CHANGE_SET = 1;
+    // Owning channel paused — stop managing, leave the Kafka topic alone.
+    CHANGE_PAUSED = 2;
+    // Partition deleted or re-sharded away — delete the Kafka topic, subject to
+    // the deletion safety checks (005 ADR §1.4). Unless `reason` says otherwise.
+    CHANGE_REMOVED = 3;
+  }
+
+  // Why a CHANGE_REMOVED was emitted. Unset means an ordinary delete.
+  enum Reason {
+    REASON_UNSPECIFIED = 0;
+    // The cluster left this agent's label scope. Drop the partition from the
+    // desired set and do NOT touch Kafka — another agent now owns it.
+    REASON_SCOPE_LOSS = 1;
+  }
+
+  Change change = 1;
+  Reason reason = 2;
+
+  // The async channel partition's FRN — the reporting key.
+  string partition_frn = 3;
+  // Desired-state generation token (003.6). Echoed back in the report.
+  int64 generation = 4;
+  // Owning Async Channel name, for logs and telemetry labels.
+  string async_channel = 5;
+  // The physical Kafka topic name to act on.
+  string topic_name = 6;
+  // Target Kafka Cluster name and how to reach it (which AdminClient to use).
+  string kafka_cluster = 7;
+  repeated ConnectionString connection_strings = 8;
+  // The target cluster's FRN — the resource key for cluster-level telemetry
+  // samples (005 ADR §2.1). Carried explicitly so the agent never has to
+  // reconstruct an FRN from its parts.
+  string kafka_cluster_frn = 12;
+
+  // materialized_configuration — the full merged topic-config map to apply.
+  // Frozen at placement (003.6); apply exactly this. Empty on PAUSED / REMOVED.
+  map<string, string> desired_config = 9;
+  // Desired partition count (increase-only). Zero on PAUSED / REMOVED.
+  int32 partitions = 10;
+  // Desired replication factor. Zero on PAUSED / REMOVED.
+  int32 replication_factor = 11;
+}
+
+// What the agent read back off the broker after reconciling.
+message AppliedTopicState {
+  int32 partitions = 1;
+  int32 replication_factor = 2;
+  map<string, string> config = 3;
+}
+
+enum ReconciliationOutcome {
+  RECONCILIATION_OUTCOME_UNSPECIFIED = 0;
+  // The Kafka topic did not exist and was created.
+  RECONCILIATION_OUTCOME_CREATED = 1;
+  // The Kafka topic existed and was altered to match.
+  RECONCILIATION_OUTCOME_UPDATED = 2;
+  // The Kafka topic already matched — no Kafka write was issued.
+  RECONCILIATION_OUTCOME_NOOP = 3;
+  // The Kafka topic was deleted (or was already gone — idempotent).
+  RECONCILIATION_OUTCOME_DELETED = 4;
+  // Reconciliation failed; `message` carries the detail.
+  RECONCILIATION_OUTCOME_ERROR = 5;
+}
+
+// One reconcile outcome, keyed by the async channel partition (005 ADR §1.5).
+message PartitionReconciliationReport {
+  string partition_frn = 1;
+  // The generation from the assignment this report satisfies. Franz applies the
+  // report only when it still matches the row's current generation.
+  int64 generation = 2;
+  ReconciliationOutcome outcome = 3;
+  // Human-readable detail; required on RECONCILIATION_OUTCOME_ERROR.
+  string message = 4;
+  // The state read back off the broker. Present on every non-ERROR outcome and
+  // on ERROR when a read succeeded.
+  AppliedTopicState applied_config = 5;
+}
+
+message ReportPartitionReconciliationRequest {
+  PartitionReconciliationReport report = 1;
+}
+
+message ReportPartitionReconciliationResponse {
+  // False when the report was acknowledged but not applied because its
+  // `generation` is stale — Franz has already re-emitted the assignment with the
+  // current generation and expects a fresh report.
+  bool applied = 1;
+}
+
+service ResourceProviderService {
+  rpc WatchPartitionAssignments(WatchPartitionAssignmentsRequest) returns (stream WatchPartitionAssignmentsResponse);
+  rpc ReportPartitionReconciliation(ReportPartitionReconciliationRequest) returns (ReportPartitionReconciliationResponse);
+}

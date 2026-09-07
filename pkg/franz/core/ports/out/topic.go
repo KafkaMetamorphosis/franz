@@ -53,4 +53,17 @@ type TopicRepository interface {
 	// CountLiveTopics is the ClusterTopicGuard query — non-deleted shards on a
 	// cluster (003.3 delete guard).
 	CountLiveTopics(ctx context.Context, clusterID uuid.UUID) (int, error)
+
+	// ListByClusters returns every shard placed on any of clusterIDs, DELETED
+	// rows included so a Resource Provider agent gets the REMOVED assignment
+	// that tells it to delete the real topic (005 ADR §1.3). Empty clusterIDs
+	// returns no rows. Not paginated — an agent's in-scope set is bounded.
+	ListByClusters(ctx context.Context, realmID uuid.UUID, clusterIDs []uuid.UUID) ([]*topic.KafkaTopic, error)
+
+	// MutateByFRN loads the shard identified by its prefix-less FRN path FOR
+	// UPDATE, runs mutate, and persists the result — one transaction, so a
+	// generation-gated reconciliation report cannot race a desired-state change.
+	// errs.NotFound if there is no such shard in the realm.
+	MutateByFRN(ctx context.Context, realmID uuid.UUID, frnPath string,
+		mutate func(*topic.KafkaTopic) error) (*topic.KafkaTopic, error)
 }

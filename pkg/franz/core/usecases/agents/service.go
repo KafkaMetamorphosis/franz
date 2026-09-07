@@ -8,6 +8,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/agent"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/scope"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/in"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/out"
 	"github.com/KafkaMetamorphosis/franz/pkg/shared/pagetoken"
@@ -17,17 +18,26 @@ import (
 // Service implements in.AgentService.
 type Service struct {
 	repo out.AgentRepository
+	// notifier re-resolves Resource Provider scope when an agent's
+	// franz.placement-selector/* labels move (005 ADR §1.2 "Scope is dynamic").
+	// Optional — nil in tests that do not exercise the agent wire.
+	notifier out.PartitionNotifier
 }
 
 var _ in.AgentService = (*Service)(nil)
 
-// NewService wires the service to its repository.
-func NewService(repo out.AgentRepository) *Service { return &Service{repo: repo} }
+// NewService wires the service to its repository and the partition notifier.
+func NewService(repo out.AgentRepository, notifier out.PartitionNotifier) *Service {
+	return &Service{repo: repo, notifier: notifier}
+}
 
 // Create registers an agent and returns its one-time bearer token.
 func (s *Service) Create(ctx context.Context, input in.CreateAgentInput) (in.CreatedAgent, error) {
 	r := realm.MustFromContext(ctx)
 
+	if err := scope.ValidateAgentLabels(input.Labels); err != nil {
+		return in.CreatedAgent{}, err
+	}
 	plaintext, hash, err := token.Generate()
 	if err != nil {
 		return in.CreatedAgent{}, errs.Internalf("mint agent token").Wrap(err)
@@ -72,10 +82,19 @@ func (s *Service) List(ctx context.Context, input in.ListAgentsInput) (in.AgentP
 	}, nil
 }
 
-// Update applies the masked fields under a row lock.
+// Update applies the masked fields under a row lock. A change to the reserved
+// franz.placement-selector/* labels moves the agent's Resource Provider scope,
+// so the notifier re-resolves it (005 ADR §1.2).
 func (s *Service) Update(ctx context.Context, input in.UpdateAgentInput) (*agent.Agent, error) {
 	r := realm.MustFromContext(ctx)
-	return s.repo.Mutate(ctx, r.ID, input.Name, func(a *agent.Agent) error {
+	if input.Labels != nil {
+		if err := scope.ValidateAgentLabels(*input.Labels); err != nil {
+			return nil, err
+		}
+	}
+	var labelsBefore map[string]string
+	updated, err := s.repo.Mutate(ctx, r.ID, input.Name, func(a *agent.Agent) error {
+		labelsBefore = a.Labels
 		if err := a.EnsureMutable(); err != nil {
 			return err
 		}
@@ -89,6 +108,13 @@ func (s *Service) Update(ctx context.Context, input in.UpdateAgentInput) (*agent
 		}
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
+	if s.notifier != nil && input.Labels != nil {
+		s.notifier.AgentSelectorChanged(ctx, r.ID, updated.Name, labelsBefore, updated.Labels)
+	}
+	return updated, nil
 }
 
 // Delete soft-deletes the agent. A cluster that still names this agent in

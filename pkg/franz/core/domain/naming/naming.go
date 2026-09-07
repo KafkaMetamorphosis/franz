@@ -34,3 +34,14 @@ func Validate(name string) error {
 
 // Valid reports whether name is well-formed.
 func Valid(name string) bool { return Validate(name) == nil }
+
+// LabelNamePattern is the `<name>` half of a reserved label key (003.1
+// "Reserved labels"), which follows Kubernetes label conventions and — unlike a
+// resource name — allows upper case.
+const LabelNamePattern = `^[A-Za-z0-9]([A-Za-z0-9._-]*[A-Za-z0-9])?$`
+
+var labelNameRe = regexp.MustCompile(LabelNamePattern)
+
+// ValidLabelName reports whether name is a well-formed reserved-label name. The
+// ≤63-character cap is the caller's to apply.
+func ValidLabelName(name string) bool { return labelNameRe.MatchString(name) }

@@ -10,6 +10,12 @@ import "franz/v1/governance.proto";
 service TelemetryService {
   // Publish a batch of indicator samples.
   rpc PublishIndicatorSamples(PublishIndicatorSamplesRequest) returns (PublishIndicatorSamplesResponse);
+  // Publish batches over one long-lived client stream. Same payload and
+  // semantics as PublishIndicatorSamples; the response is sent once, when the
+  // agent half-closes, and totals every accepted sample. Added for agents that
+  // sweep continuously (005-gregor-samsa §2.2) so they do not pay a connection
+  // per batch. The unary form stays for one-shot publishers.
+  rpc StreamIndicatorSamples(stream StreamIndicatorSamplesRequest) returns (StreamIndicatorSamplesResponse);
   // Report consumer groups observed on the substrate, linking each to a client.
   rpc ReportConsumerGroups(ReportConsumerGroupsRequest) returns (ReportConsumerGroupsResponse);
 }
@@ -20,6 +26,15 @@ message PublishIndicatorSamplesRequest {
 }
 
 message PublishIndicatorSamplesResponse {
+  int32 accepted = 1;
+}
+
+message StreamIndicatorSamplesRequest {
+  string agent = 1;
+  repeated IndicatorSample samples = 2;
+}
+
+message StreamIndicatorSamplesResponse {
   int32 accepted = 1;
 }
 

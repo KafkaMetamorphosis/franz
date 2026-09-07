@@ -7,6 +7,40 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Gregor Samsa — Resource Provider agent** (impls_plan deliverable 12): the
+  second agent-interaction contract and its reference implementation (005 ADR
+  Parts 1 + 2). New gRPC `ResourceProviderService` (`agent_resource_provider.proto`,
+  no REST gateway): `WatchPartitionAssignments` (server stream — full in-scope
+  set on open, deltas after) and `ReportPartitionReconciliation` (unary,
+  generation-gated — a stale report is acknowledged but does not move the row to
+  `READY`). **Scope** is a pure server-side conjunction of exact label pairs —
+  a cluster is in scope iff it carries `franz.placement/<k>=<v>` for every
+  `franz.placement-selector/<k>=<v>` on the agent; an empty selector matches
+  **nothing**. Scope is dynamic: agent-selector, cluster-label and channel/shard
+  changes emit `SET` for newly-in-scope partitions and `REMOVED` (`SCOPE_LOSS`)
+  for departed ones. `kafka_topic` gains `reconciled_generation` /
+  `last_reconcile_message`; `RecordReconciliation` maps `CREATED`/`UPDATED`/`NOOP`
+  → `READY`, `DELETED` → `DELETED`, `ERROR` → `ERROR`. The `gregorsamsa` agent
+  (`cmd/gregorsamsa`, plain packages, no `fx`) holds one cached Kafka
+  `AdminClient` (franz-go `kadm`, with an in-memory fake) per in-scope cluster,
+  reconciles sequentially per cluster / parallel across clusters (create · alter
+  · increase-only partitions · RF-decrease → `ERROR`), guards deletion with two
+  hard checks (unconsumed data, committed consumer offsets), and sweeps
+  topic/broker telemetry (default 60s + a sample right after each reconcile).
+  **Telemetry**: additive `StreamIndicatorSamples` client-streaming RPC on
+  `TelemetryService`; a minimal `indicator_sample` append table (30-day nightly
+  prune) that deliverable 14 will adopt. `agentauth.go` widened to the Resource
+  Provider + Telemetry services. `streamhub` generalised to a typed `fanout[T]`.
+  `pkg/franz/core/domain/{scope,indicator}`, `domain/topic/reconcile.go`,
+  `usecases/{resourceprovider,telemetry}`,
+  `adapters/{in/grpcgateway/{resourceprovider,telemetry},out/postgres/indicator}`,
+  `pkg/gregorsamsa/*`. `Makefile`: `gregorsamsa` + `gregorsamsa-e2e`
+  (`FRANZ_GS_E2E=1`, real Docker — written, not run in CI). `local/seed/` now
+  registers a `local-1` Kafka Cluster (wired to `local-kafka-agent`,
+  `franz.placement/env=local`) alongside the `gregor-samsa` agent
+  (`franz.placement-selector/env=local`), so the whole local loop —
+  `make dev` + `make agent` + `make gregorsamsa` — has a cluster in scope with
+  no console step.
 - **Async Channel console screens** (impls_plan deliverable 19): the web console
   can now manage Async Channels end to end — `/async-channels` list (name + FRN,
   type, channel partitions, labels, state), `/async-channels/register`
