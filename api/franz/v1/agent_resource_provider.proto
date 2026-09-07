@@ -17,10 +17,27 @@ import "franz/v1/kafka.proto";
 
 message WatchPartitionAssignmentsRequest {}
 
-// One stream message: a single assignment change. On stream open Franz sends one
-// per in-scope partition, then one per change.
+// One stream message. On stream open Franz sends a single `scope` message first
+// (the clusters this agent's `franz.placement-selector/*` labels currently
+// match), then one `assignment` per in-scope async channel partition, then one
+// `assignment` per change.
 message WatchPartitionAssignmentsResponse {
   PartitionAssignment assignment = 1;
+  // Set only on the first message of a (re)connected stream. Informational — it
+  // lets the agent log which clusters it is responsible for even when none of
+  // them has a placed async-channel shard yet.
+  StreamScope scope = 2;
+}
+
+// The Kafka Clusters in a Resource Provider agent's label scope at the moment
+// its stream opened (005 ADR §1.2).
+message StreamScope {
+  message Cluster {
+    string name = 1;
+    string kafka_cluster_frn = 2;
+    repeated ConnectionString connection_strings = 3;
+  }
+  repeated Cluster clusters = 1;
 }
 
 // The desired state of one async channel partition — the Franz-side record for

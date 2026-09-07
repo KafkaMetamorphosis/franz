@@ -7,6 +7,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Resource Provider scope visibility**: `WatchPartitionAssignments` now sends a
+  `StreamScope` message as the first message of every (re)connected stream —
+  the Kafka Clusters the agent's `franz.placement-selector/*` labels currently
+  match, with each cluster's FRN and bootstrap. Franz logs
+  `resource-provider stream open` with the in-scope cluster names and placed
+  async-channel-shard count; Gregor Samsa logs `clusters in scope` (or a warning
+  when the scope is empty) and `connected to Kafka cluster` / `cannot reach
+  Kafka cluster` per cluster. Makes "is the agent watching my cluster?"
+  answerable from the logs even when nothing is placed yet. Additive proto field
+  `WatchPartitionAssignmentsResponse.scope`; new
+  `ResourceProviderService.InScopeClusters` port method.
+
 - **Placement & selection** (impls_plan deliverable 13): Franz now decides which
   Kafka Cluster each async-channel shard lives on, and materialises the shard
   rows (`003.7`, ADR-API-009). New pure domain package

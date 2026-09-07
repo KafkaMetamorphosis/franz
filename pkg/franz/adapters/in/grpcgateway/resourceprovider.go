@@ -2,6 +2,7 @@ package grpcgateway
 
 import (
 	"context"
+	"log/slog"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -25,6 +26,7 @@ type resourceProviderHandler struct {
 	svc   in.ResourceProviderService
 	hub   *streamhub.Hub
 	codec frn.Codec
+	log   *slog.Logger
 }
 
 // RegisterResourceProviderService mounts the service on the gRPC server only.
@@ -32,7 +34,7 @@ func RegisterResourceProviderService(
 	s *Server, svc in.ResourceProviderService, hub *streamhub.Hub, codec frn.Codec,
 ) {
 	franzv1.RegisterResourceProviderServiceServer(s.grpc,
-		&resourceProviderHandler{svc: svc, hub: hub, codec: codec})
+		&resourceProviderHandler{svc: svc, hub: hub, codec: codec, log: s.log})
 }
 
 // WatchPartitionAssignments streams the agent its in-scope async channel
@@ -49,10 +51,31 @@ func (h *resourceProviderHandler) WatchPartitionAssignments(
 	deltas, unsubscribe := h.hub.SubscribePartitions(ag.Name)
 	defer unsubscribe()
 
+	// The scope snapshot goes first, so the agent can log which clusters it is
+	// responsible for even when none of them has a placed async-channel shard.
+	scoped, err := h.svc.InScopeClusters(ctx)
+	if err != nil {
+		return ToError(err)
+	}
+	if err := stream.Send(h.scopeResponse(scoped)); err != nil {
+		return err
+	}
+
 	initial, err := h.svc.InitialPartitionAssignments(ctx)
 	if err != nil {
 		return ToError(err)
 	}
+
+	scopeNames := make([]string, len(scoped))
+	for i, c := range scoped {
+		scopeNames[i] = c.Name
+	}
+	h.log.Info("resource-provider stream open",
+		"agent", ag.Name,
+		"in_scope_clusters", scopeNames,
+		"placed_shards", len(initial))
+	defer h.log.Info("resource-provider stream closed", "agent", ag.Name)
+
 	for _, a := range initial {
 		if err := stream.Send(h.assignmentResponse(a)); err != nil {
 			return err
@@ -113,17 +136,38 @@ func (h *resourceProviderHandler) ReportPartitionReconciliation(
 
 // --- mapping ------------------------------------------------------------
 
-func (h *resourceProviderHandler) assignmentResponse(
-	a resource.PartitionAssignment,
+func (h *resourceProviderHandler) scopeResponse(
+	clusters []resource.ScopedCluster,
 ) *franzv1.WatchPartitionAssignmentsResponse {
-	conns := make([]*franzv1.ConnectionString, len(a.ConnectionStrings))
-	for i, cs := range a.ConnectionStrings {
+	wire := make([]*franzv1.StreamScope_Cluster, len(clusters))
+	for i, c := range clusters {
+		wire[i] = franzv1.StreamScope_Cluster_builder{
+			Name:              proto.String(c.Name),
+			KafkaClusterFrn:   proto.String(h.codec.Render(c.FRN)),
+			ConnectionStrings: connStringsToProto(c.ConnectionStrings),
+		}.Build()
+	}
+	return franzv1.WatchPartitionAssignmentsResponse_builder{
+		Scope: franzv1.StreamScope_builder{Clusters: wire}.Build(),
+	}.Build()
+}
+
+func connStringsToProto(in []resource.ConnectionString) []*franzv1.ConnectionString {
+	out := make([]*franzv1.ConnectionString, len(in))
+	for i, cs := range in {
 		ct := franzv1.ConnectionType_CONNECTION_TYPE_UNSPECIFIED
 		if cs.Type == "PLAINTEXT" {
 			ct = franzv1.ConnectionType_CONNECTION_TYPE_PLAINTEXT
 		}
-		conns[i] = franzv1.ConnectionString_builder{BootstrapUrls: cs.BootstrapURLs, Type: &ct}.Build()
+		out[i] = franzv1.ConnectionString_builder{BootstrapUrls: cs.BootstrapURLs, Type: &ct}.Build()
 	}
+	return out
+}
+
+func (h *resourceProviderHandler) assignmentResponse(
+	a resource.PartitionAssignment,
+) *franzv1.WatchPartitionAssignmentsResponse {
+	conns := connStringsToProto(a.ConnectionStrings)
 	return franzv1.WatchPartitionAssignmentsResponse_builder{
 		Assignment: franzv1.PartitionAssignment_builder{
 			Change:            partitionChangeToProto(a.Change),

@@ -248,6 +248,23 @@ func TestResourceProviderE2E(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WatchPartitionAssignments: %v", err)
 	}
+
+	// The scope snapshot comes first: only the prod cluster, with its bootstrap.
+	scopeMsg, err := stream.Recv()
+	if err != nil {
+		t.Fatalf("stream.Recv (scope): %v", err)
+	}
+	sc := scopeMsg.GetScope()
+	if sc == nil {
+		t.Fatalf("first message = %+v, want a scope snapshot", scopeMsg)
+	}
+	if len(sc.GetClusters()) != 1 || sc.GetClusters()[0].GetName() != "east-1" {
+		t.Fatalf("scope clusters = %+v, want [east-1]", sc.GetClusters())
+	}
+	if got := sc.GetClusters()[0].GetKafkaClusterFrn(); got != "frn:default:kafka-cluster:east-1" {
+		t.Errorf("scope cluster frn = %q", got)
+	}
+
 	first := recvPartition(t, stream)
 	if first.GetTopicName() != "billing-events-0" {
 		t.Fatalf("initial assignment = %+v; the staging cluster's partition must not be streamed", first)
@@ -511,8 +528,14 @@ func recvPartition(
 	}
 	ch := make(chan result, 1)
 	go func() {
-		m, err := s.Recv()
-		ch <- result{m, err}
+		for {
+			m, err := s.Recv()
+			if err == nil && m.GetScope() != nil {
+				continue // the scope snapshot precedes the assignments
+			}
+			ch <- result{m, err}
+			return
+		}
 	}()
 	select {
 	case r := <-ch:
@@ -534,8 +557,16 @@ func assertNoPartition(
 	t.Helper()
 	ch := make(chan *franzv1.PartitionAssignment, 1)
 	go func() {
-		if m, err := s.Recv(); err == nil {
+		for {
+			m, err := s.Recv()
+			if err != nil {
+				return
+			}
+			if m.GetScope() != nil {
+				continue // the scope snapshot is always sent, even for an empty scope
+			}
 			ch <- m.GetAssignment()
+			return
 		}
 	}()
 	select {

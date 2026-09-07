@@ -36,6 +36,14 @@ type ConnectionString struct {
 	Type          string
 }
 
+// ScopedCluster names one Kafka Cluster in a Resource Provider agent's label
+// scope, for the informational scope message Franz sends on stream open.
+type ScopedCluster struct {
+	Name              string
+	FRN               frn.FRN
+	ConnectionStrings []ConnectionString
+}
+
 // PartitionAssignment is the desired state of one async channel partition — the
 // Franz-side record for exactly one real Kafka topic (003.6).
 //

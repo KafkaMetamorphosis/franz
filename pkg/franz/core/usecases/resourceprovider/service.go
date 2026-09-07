@@ -10,6 +10,7 @@ package resourceprovider
 
 import (
 	"context"
+	"sort"
 
 	"github.com/google/uuid"
 
@@ -73,6 +74,29 @@ func (s *Service) InitialPartitionAssignments(ctx context.Context) ([]resource.P
 		assignments = append(assignments, Assignment(sh, c))
 	}
 	return assignments, nil
+}
+
+// InScopeClusters returns the Kafka Clusters the agent in context is
+// responsible for, ordered by name — the informational scope snapshot Franz
+// sends as the first message on stream open (005 ADR §1.2). Empty when the agent
+// declares no `franz.placement-selector/*` labels.
+func (s *Service) InScopeClusters(ctx context.Context) ([]resource.ScopedCluster, error) {
+	a := agent.MustFromContext(ctx)
+
+	inScope, err := s.inScopeClusters(ctx, a.RealmID, a.Labels)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]resource.ScopedCluster, 0, len(inScope))
+	for _, c := range inScope {
+		conns := make([]resource.ConnectionString, len(c.ConnectionStrings))
+		for i, cs := range c.ConnectionStrings {
+			conns[i] = resource.ConnectionString{BootstrapURLs: cs.BootstrapURLs, Type: string(cs.Type)}
+		}
+		out = append(out, resource.ScopedCluster{Name: c.Name, FRN: c.FRN, ConnectionStrings: conns})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
+	return out, nil
 }
 
 // ReportReconciliation applies one agent report to the shard it names.

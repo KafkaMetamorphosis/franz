@@ -216,11 +216,14 @@ func (b0 WatchPartitionAssignmentsRequest_builder) Build() *WatchPartitionAssign
 	return m0
 }
 
-// One stream message: a single assignment change. On stream open Franz sends one
-// per in-scope partition, then one per change.
+// One stream message. On stream open Franz sends a single `scope` message first
+// (the clusters this agent's `franz.placement-selector/*` labels currently
+// match), then one `assignment` per in-scope async channel partition, then one
+// `assignment` per change.
 type WatchPartitionAssignmentsResponse struct {
 	state                 protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Assignment *PartitionAssignment   `protobuf:"bytes,1,opt,name=assignment"`
+	xxx_hidden_Scope      *StreamScope           `protobuf:"bytes,2,opt,name=scope"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -257,8 +260,19 @@ func (x *WatchPartitionAssignmentsResponse) GetAssignment() *PartitionAssignment
 	return nil
 }
 
+func (x *WatchPartitionAssignmentsResponse) GetScope() *StreamScope {
+	if x != nil {
+		return x.xxx_hidden_Scope
+	}
+	return nil
+}
+
 func (x *WatchPartitionAssignmentsResponse) SetAssignment(v *PartitionAssignment) {
 	x.xxx_hidden_Assignment = v
+}
+
+func (x *WatchPartitionAssignmentsResponse) SetScope(v *StreamScope) {
+	x.xxx_hidden_Scope = v
 }
 
 func (x *WatchPartitionAssignmentsResponse) HasAssignment() bool {
@@ -268,14 +282,29 @@ func (x *WatchPartitionAssignmentsResponse) HasAssignment() bool {
 	return x.xxx_hidden_Assignment != nil
 }
 
+func (x *WatchPartitionAssignmentsResponse) HasScope() bool {
+	if x == nil {
+		return false
+	}
+	return x.xxx_hidden_Scope != nil
+}
+
 func (x *WatchPartitionAssignmentsResponse) ClearAssignment() {
 	x.xxx_hidden_Assignment = nil
+}
+
+func (x *WatchPartitionAssignmentsResponse) ClearScope() {
+	x.xxx_hidden_Scope = nil
 }
 
 type WatchPartitionAssignmentsResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Assignment *PartitionAssignment
+	// Set only on the first message of a (re)connected stream. Informational — it
+	// lets the agent log which clusters it is responsible for even when none of
+	// them has a placed async-channel shard yet.
+	Scope *StreamScope
 }
 
 func (b0 WatchPartitionAssignmentsResponse_builder) Build() *WatchPartitionAssignmentsResponse {
@@ -283,6 +312,68 @@ func (b0 WatchPartitionAssignmentsResponse_builder) Build() *WatchPartitionAssig
 	b, x := &b0, m0
 	_, _ = b, x
 	x.xxx_hidden_Assignment = b.Assignment
+	x.xxx_hidden_Scope = b.Scope
+	return m0
+}
+
+// The Kafka Clusters in a Resource Provider agent's label scope at the moment
+// its stream opened (005 ADR §1.2).
+type StreamScope struct {
+	state               protoimpl.MessageState  `protogen:"opaque.v1"`
+	xxx_hidden_Clusters *[]*StreamScope_Cluster `protobuf:"bytes,1,rep,name=clusters"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *StreamScope) Reset() {
+	*x = StreamScope{}
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamScope) ProtoMessage() {}
+
+func (x *StreamScope) ProtoReflect() protoreflect.Message {
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *StreamScope) GetClusters() []*StreamScope_Cluster {
+	if x != nil {
+		if x.xxx_hidden_Clusters != nil {
+			return *x.xxx_hidden_Clusters
+		}
+	}
+	return nil
+}
+
+func (x *StreamScope) SetClusters(v []*StreamScope_Cluster) {
+	x.xxx_hidden_Clusters = &v
+}
+
+type StreamScope_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Clusters []*StreamScope_Cluster
+}
+
+func (b0 StreamScope_builder) Build() *StreamScope {
+	m0 := &StreamScope{}
+	b, x := &b0, m0
+	_, _ = b, x
+	x.xxx_hidden_Clusters = &b.Clusters
 	return m0
 }
 
@@ -310,7 +401,7 @@ type PartitionAssignment struct {
 
 func (x *PartitionAssignment) Reset() {
 	*x = PartitionAssignment{}
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[2]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -322,7 +413,7 @@ func (x *PartitionAssignment) String() string {
 func (*PartitionAssignment) ProtoMessage() {}
 
 func (x *PartitionAssignment) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[2]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -708,7 +799,7 @@ type AppliedTopicState struct {
 
 func (x *AppliedTopicState) Reset() {
 	*x = AppliedTopicState{}
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[3]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -720,7 +811,7 @@ func (x *AppliedTopicState) String() string {
 func (*AppliedTopicState) ProtoMessage() {}
 
 func (x *AppliedTopicState) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[3]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -830,7 +921,7 @@ type PartitionReconciliationReport struct {
 
 func (x *PartitionReconciliationReport) Reset() {
 	*x = PartitionReconciliationReport{}
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[4]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -842,7 +933,7 @@ func (x *PartitionReconciliationReport) String() string {
 func (*PartitionReconciliationReport) ProtoMessage() {}
 
 func (x *PartitionReconciliationReport) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[4]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1027,7 +1118,7 @@ type ReportPartitionReconciliationRequest struct {
 
 func (x *ReportPartitionReconciliationRequest) Reset() {
 	*x = ReportPartitionReconciliationRequest{}
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[5]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1039,7 +1130,7 @@ func (x *ReportPartitionReconciliationRequest) String() string {
 func (*ReportPartitionReconciliationRequest) ProtoMessage() {}
 
 func (x *ReportPartitionReconciliationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[5]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1097,7 +1188,7 @@ type ReportPartitionReconciliationResponse struct {
 
 func (x *ReportPartitionReconciliationResponse) Reset() {
 	*x = ReportPartitionReconciliationResponse{}
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[6]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1109,7 +1200,7 @@ func (x *ReportPartitionReconciliationResponse) String() string {
 func (*ReportPartitionReconciliationResponse) ProtoMessage() {}
 
 func (x *ReportPartitionReconciliationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[6]
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1164,16 +1255,150 @@ func (b0 ReportPartitionReconciliationResponse_builder) Build() *ReportPartition
 	return m0
 }
 
+type StreamScope_Cluster struct {
+	state                        protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name              *string                `protobuf:"bytes,1,opt,name=name"`
+	xxx_hidden_KafkaClusterFrn   *string                `protobuf:"bytes,2,opt,name=kafka_cluster_frn,json=kafkaClusterFrn"`
+	xxx_hidden_ConnectionStrings *[]*ConnectionString   `protobuf:"bytes,3,rep,name=connection_strings,json=connectionStrings"`
+	XXX_raceDetectHookData       protoimpl.RaceDetectHookData
+	XXX_presence                 [1]uint32
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
+}
+
+func (x *StreamScope_Cluster) Reset() {
+	*x = StreamScope_Cluster{}
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamScope_Cluster) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamScope_Cluster) ProtoMessage() {}
+
+func (x *StreamScope_Cluster) ProtoReflect() protoreflect.Message {
+	mi := &file_franz_v1_agent_resource_provider_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *StreamScope_Cluster) GetName() string {
+	if x != nil {
+		if x.xxx_hidden_Name != nil {
+			return *x.xxx_hidden_Name
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *StreamScope_Cluster) GetKafkaClusterFrn() string {
+	if x != nil {
+		if x.xxx_hidden_KafkaClusterFrn != nil {
+			return *x.xxx_hidden_KafkaClusterFrn
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *StreamScope_Cluster) GetConnectionStrings() []*ConnectionString {
+	if x != nil {
+		if x.xxx_hidden_ConnectionStrings != nil {
+			return *x.xxx_hidden_ConnectionStrings
+		}
+	}
+	return nil
+}
+
+func (x *StreamScope_Cluster) SetName(v string) {
+	x.xxx_hidden_Name = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 3)
+}
+
+func (x *StreamScope_Cluster) SetKafkaClusterFrn(v string) {
+	x.xxx_hidden_KafkaClusterFrn = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 3)
+}
+
+func (x *StreamScope_Cluster) SetConnectionStrings(v []*ConnectionString) {
+	x.xxx_hidden_ConnectionStrings = &v
+}
+
+func (x *StreamScope_Cluster) HasName() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *StreamScope_Cluster) HasKafkaClusterFrn() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 1)
+}
+
+func (x *StreamScope_Cluster) ClearName() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Name = nil
+}
+
+func (x *StreamScope_Cluster) ClearKafkaClusterFrn() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 1)
+	x.xxx_hidden_KafkaClusterFrn = nil
+}
+
+type StreamScope_Cluster_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Name              *string
+	KafkaClusterFrn   *string
+	ConnectionStrings []*ConnectionString
+}
+
+func (b0 StreamScope_Cluster_builder) Build() *StreamScope_Cluster {
+	m0 := &StreamScope_Cluster{}
+	b, x := &b0, m0
+	_, _ = b, x
+	if b.Name != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 3)
+		x.xxx_hidden_Name = b.Name
+	}
+	if b.KafkaClusterFrn != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 3)
+		x.xxx_hidden_KafkaClusterFrn = b.KafkaClusterFrn
+	}
+	x.xxx_hidden_ConnectionStrings = &b.ConnectionStrings
+	return m0
+}
+
 var File_franz_v1_agent_resource_provider_proto protoreflect.FileDescriptor
 
 const file_franz_v1_agent_resource_provider_proto_rawDesc = "" +
 	"\n" +
 	"&franz/v1/agent_resource_provider.proto\x12\bfranz.v1\x1a\x14franz/v1/kafka.proto\"\"\n" +
-	" WatchPartitionAssignmentsRequest\"b\n" +
+	" WatchPartitionAssignmentsRequest\"\x8f\x01\n" +
 	"!WatchPartitionAssignmentsResponse\x12=\n" +
 	"\n" +
 	"assignment\x18\x01 \x01(\v2\x1d.franz.v1.PartitionAssignmentR\n" +
-	"assignment\"\xb2\x06\n" +
+	"assignment\x12+\n" +
+	"\x05scope\x18\x02 \x01(\v2\x15.franz.v1.StreamScopeR\x05scope\"\xdf\x01\n" +
+	"\vStreamScope\x129\n" +
+	"\bclusters\x18\x01 \x03(\v2\x1d.franz.v1.StreamScope.ClusterR\bclusters\x1a\x94\x01\n" +
+	"\aCluster\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12*\n" +
+	"\x11kafka_cluster_frn\x18\x02 \x01(\tR\x0fkafkaClusterFrn\x12I\n" +
+	"\x12connection_strings\x18\x03 \x03(\v2\x1a.franz.v1.ConnectionStringR\x11connectionStrings\"\xb2\x06\n" +
 	"\x13PartitionAssignment\x12<\n" +
 	"\x06change\x18\x01 \x01(\x0e2$.franz.v1.PartitionAssignment.ChangeR\x06change\x12<\n" +
 	"\x06reason\x18\x02 \x01(\x0e2$.franz.v1.PartitionAssignment.ReasonR\x06reason\x12#\n" +
@@ -1239,41 +1464,46 @@ const file_franz_v1_agent_resource_provider_proto_rawDesc = "" +
 	"\fcom.franz.v1B\x1aAgentResourceProviderProtoP\x01Z?github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1;franzv1\xa2\x02\x03FXX\xaa\x02\bFranz.V1\xca\x02\bFranz\\V1\xe2\x02\x14Franz\\V1\\GPBMetadata\xea\x02\tFranz::V1b\beditionsp\xe9\a"
 
 var file_franz_v1_agent_resource_provider_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_franz_v1_agent_resource_provider_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_franz_v1_agent_resource_provider_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_franz_v1_agent_resource_provider_proto_goTypes = []any{
 	(ReconciliationOutcome)(0),                    // 0: franz.v1.ReconciliationOutcome
 	(PartitionAssignment_Change)(0),               // 1: franz.v1.PartitionAssignment.Change
 	(PartitionAssignment_Reason)(0),               // 2: franz.v1.PartitionAssignment.Reason
 	(*WatchPartitionAssignmentsRequest)(nil),      // 3: franz.v1.WatchPartitionAssignmentsRequest
 	(*WatchPartitionAssignmentsResponse)(nil),     // 4: franz.v1.WatchPartitionAssignmentsResponse
-	(*PartitionAssignment)(nil),                   // 5: franz.v1.PartitionAssignment
-	(*AppliedTopicState)(nil),                     // 6: franz.v1.AppliedTopicState
-	(*PartitionReconciliationReport)(nil),         // 7: franz.v1.PartitionReconciliationReport
-	(*ReportPartitionReconciliationRequest)(nil),  // 8: franz.v1.ReportPartitionReconciliationRequest
-	(*ReportPartitionReconciliationResponse)(nil), // 9: franz.v1.ReportPartitionReconciliationResponse
-	nil,                      // 10: franz.v1.PartitionAssignment.DesiredConfigEntry
-	nil,                      // 11: franz.v1.AppliedTopicState.ConfigEntry
-	(*ConnectionString)(nil), // 12: franz.v1.ConnectionString
+	(*StreamScope)(nil),                           // 5: franz.v1.StreamScope
+	(*PartitionAssignment)(nil),                   // 6: franz.v1.PartitionAssignment
+	(*AppliedTopicState)(nil),                     // 7: franz.v1.AppliedTopicState
+	(*PartitionReconciliationReport)(nil),         // 8: franz.v1.PartitionReconciliationReport
+	(*ReportPartitionReconciliationRequest)(nil),  // 9: franz.v1.ReportPartitionReconciliationRequest
+	(*ReportPartitionReconciliationResponse)(nil), // 10: franz.v1.ReportPartitionReconciliationResponse
+	(*StreamScope_Cluster)(nil),                   // 11: franz.v1.StreamScope.Cluster
+	nil,                                           // 12: franz.v1.PartitionAssignment.DesiredConfigEntry
+	nil,                                           // 13: franz.v1.AppliedTopicState.ConfigEntry
+	(*ConnectionString)(nil),                      // 14: franz.v1.ConnectionString
 }
 var file_franz_v1_agent_resource_provider_proto_depIdxs = []int32{
-	5,  // 0: franz.v1.WatchPartitionAssignmentsResponse.assignment:type_name -> franz.v1.PartitionAssignment
-	1,  // 1: franz.v1.PartitionAssignment.change:type_name -> franz.v1.PartitionAssignment.Change
-	2,  // 2: franz.v1.PartitionAssignment.reason:type_name -> franz.v1.PartitionAssignment.Reason
-	12, // 3: franz.v1.PartitionAssignment.connection_strings:type_name -> franz.v1.ConnectionString
-	10, // 4: franz.v1.PartitionAssignment.desired_config:type_name -> franz.v1.PartitionAssignment.DesiredConfigEntry
-	11, // 5: franz.v1.AppliedTopicState.config:type_name -> franz.v1.AppliedTopicState.ConfigEntry
-	0,  // 6: franz.v1.PartitionReconciliationReport.outcome:type_name -> franz.v1.ReconciliationOutcome
-	6,  // 7: franz.v1.PartitionReconciliationReport.applied_config:type_name -> franz.v1.AppliedTopicState
-	7,  // 8: franz.v1.ReportPartitionReconciliationRequest.report:type_name -> franz.v1.PartitionReconciliationReport
-	3,  // 9: franz.v1.ResourceProviderService.WatchPartitionAssignments:input_type -> franz.v1.WatchPartitionAssignmentsRequest
-	8,  // 10: franz.v1.ResourceProviderService.ReportPartitionReconciliation:input_type -> franz.v1.ReportPartitionReconciliationRequest
-	4,  // 11: franz.v1.ResourceProviderService.WatchPartitionAssignments:output_type -> franz.v1.WatchPartitionAssignmentsResponse
-	9,  // 12: franz.v1.ResourceProviderService.ReportPartitionReconciliation:output_type -> franz.v1.ReportPartitionReconciliationResponse
-	11, // [11:13] is the sub-list for method output_type
-	9,  // [9:11] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	6,  // 0: franz.v1.WatchPartitionAssignmentsResponse.assignment:type_name -> franz.v1.PartitionAssignment
+	5,  // 1: franz.v1.WatchPartitionAssignmentsResponse.scope:type_name -> franz.v1.StreamScope
+	11, // 2: franz.v1.StreamScope.clusters:type_name -> franz.v1.StreamScope.Cluster
+	1,  // 3: franz.v1.PartitionAssignment.change:type_name -> franz.v1.PartitionAssignment.Change
+	2,  // 4: franz.v1.PartitionAssignment.reason:type_name -> franz.v1.PartitionAssignment.Reason
+	14, // 5: franz.v1.PartitionAssignment.connection_strings:type_name -> franz.v1.ConnectionString
+	12, // 6: franz.v1.PartitionAssignment.desired_config:type_name -> franz.v1.PartitionAssignment.DesiredConfigEntry
+	13, // 7: franz.v1.AppliedTopicState.config:type_name -> franz.v1.AppliedTopicState.ConfigEntry
+	0,  // 8: franz.v1.PartitionReconciliationReport.outcome:type_name -> franz.v1.ReconciliationOutcome
+	7,  // 9: franz.v1.PartitionReconciliationReport.applied_config:type_name -> franz.v1.AppliedTopicState
+	8,  // 10: franz.v1.ReportPartitionReconciliationRequest.report:type_name -> franz.v1.PartitionReconciliationReport
+	14, // 11: franz.v1.StreamScope.Cluster.connection_strings:type_name -> franz.v1.ConnectionString
+	3,  // 12: franz.v1.ResourceProviderService.WatchPartitionAssignments:input_type -> franz.v1.WatchPartitionAssignmentsRequest
+	9,  // 13: franz.v1.ResourceProviderService.ReportPartitionReconciliation:input_type -> franz.v1.ReportPartitionReconciliationRequest
+	4,  // 14: franz.v1.ResourceProviderService.WatchPartitionAssignments:output_type -> franz.v1.WatchPartitionAssignmentsResponse
+	10, // 15: franz.v1.ResourceProviderService.ReportPartitionReconciliation:output_type -> franz.v1.ReportPartitionReconciliationResponse
+	14, // [14:16] is the sub-list for method output_type
+	12, // [12:14] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_franz_v1_agent_resource_provider_proto_init() }
@@ -1288,7 +1518,7 @@ func file_franz_v1_agent_resource_provider_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_franz_v1_agent_resource_provider_proto_rawDesc), len(file_franz_v1_agent_resource_provider_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

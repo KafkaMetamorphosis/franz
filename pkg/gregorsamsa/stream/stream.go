@@ -12,6 +12,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"time"
 
 	franzv1 "github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1"
@@ -78,7 +79,7 @@ func (w *Watcher) connect(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	w.Log.Info("partition assignment stream open")
+	w.Log.Info("connected to franz; watching partition assignments")
 
 	world := map[string]assign.Assignment{}
 
@@ -90,6 +91,10 @@ func (w *Watcher) connect(ctx context.Context) error {
 			if err != nil {
 				recvErr <- err
 				return
+			}
+			if sc := resp.GetScope(); sc != nil {
+				w.logScope(sc)
+				continue
 			}
 			if a := resp.GetAssignment(); a != nil {
 				select {
@@ -138,4 +143,26 @@ func (w *Watcher) connect(ctx context.Context) error {
 			}
 		}
 	}
+}
+
+// logScope reports the clusters Franz says this agent is responsible for — the
+// first message on every (re)connected stream. Zero clusters means the agent's
+// `franz.placement-selector/*` labels match nothing (or it has none).
+func (w *Watcher) logScope(sc *franzv1.StreamScope) {
+	clusters := sc.GetClusters()
+	if len(clusters) == 0 {
+		w.Log.Warn("no Kafka clusters in scope — check this agent's franz.placement-selector/* labels against the clusters' franz.placement/* labels")
+		return
+	}
+	names := make([]string, len(clusters))
+	bootstraps := make([]string, len(clusters))
+	for i, c := range clusters {
+		names[i] = c.GetName()
+		var urls []string
+		for _, cs := range c.GetConnectionStrings() {
+			urls = append(urls, cs.GetBootstrapUrls()...)
+		}
+		bootstraps[i] = c.GetName() + "=" + strings.Join(urls, ",")
+	}
+	w.Log.Info("clusters in scope", "count", len(names), "clusters", names, "bootstrap", bootstraps)
 }

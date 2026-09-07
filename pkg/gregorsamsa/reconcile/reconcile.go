@@ -418,8 +418,12 @@ func (r *Reconciler) adminFor(ctx context.Context, a assign.Assignment) (kafkaad
 		return nil, fmt.Errorf("assignment carries no bootstrap servers")
 	}
 
+	r.log.Info("opening Kafka admin client",
+		"cluster", a.ClusterName, "bootstrap", a.BootstrapServers)
 	admin, err := r.factory(ctx, a.BootstrapServers)
 	if err != nil {
+		r.log.Warn("cannot reach Kafka cluster",
+			"cluster", a.ClusterName, "bootstrap", a.BootstrapServers, "err", err)
 		return nil, err
 	}
 	r.mu.Lock()
@@ -428,6 +432,8 @@ func (r *Reconciler) adminFor(ctx context.Context, a assign.Assignment) (kafkaad
 		prev.admin.Close()
 	}
 	r.admins[a.ClusterName] = &cachedAdmin{admin: admin, bootstrap: a.BootstrapServers}
+	r.log.Info("connected to Kafka cluster",
+		"cluster", a.ClusterName, "bootstrap", a.BootstrapServers)
 	return admin, nil
 }
 

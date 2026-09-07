@@ -30,6 +30,12 @@ type ResourceProviderService interface {
 	// open).
 	InitialPartitionAssignments(ctx context.Context) ([]resource.PartitionAssignment, error)
 
+	// InScopeClusters returns the clusters the agent in context is responsible
+	// for, ordered by name — the informational scope snapshot sent as the first
+	// message on stream open. Empty when the agent has no
+	// `franz.placement-selector/*` labels.
+	InScopeClusters(ctx context.Context) ([]resource.ScopedCluster, error)
+
 	// ReportReconciliation checks that the partition's cluster is in the agent's
 	// scope (PERMISSION_DENIED otherwise), then applies the report to the
 	// kafka_topic row under a row lock. It returns applied=false — not an error —
