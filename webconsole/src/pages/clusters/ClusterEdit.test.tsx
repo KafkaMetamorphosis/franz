@@ -74,3 +74,30 @@ test("changing the provider agent gates Save behind an explicit confirm", async 
     clusterProviderAgent: "prov-2",
   });
 });
+
+test("a label typed but not 'Add label'-ed is still saved", async () => {
+  const user = userEvent.setup();
+  fetchMock.mockImplementation((req: Request) => {
+    const url = new URL(req.url);
+    if (url.pathname === "/v1/kafka/clusters/east-1") return Promise.resolve(json(clusterBody));
+    if (url.pathname === "/v1/kafka/agents") return Promise.resolve(json(agentsBody));
+    return Promise.resolve(json(clusterBody));
+  });
+
+  renderEdit();
+  await screen.findByDisplayValue("localhost:9092");
+
+  await user.type(screen.getByLabelText("Label key"), "franz.placement/env");
+  await user.type(screen.getByLabelText("Label value"), "local");
+  // Straight to Save — no "Add label" click.
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+  await waitFor(() =>
+    expect(fetchMock.mock.calls.some((c) => (c[0] as Request).method === "PATCH")).toBe(true),
+  );
+  const patch = fetchMock.mock.calls.find((c) => (c[0] as Request).method === "PATCH")![0] as Request;
+  expect(await patch.clone().json()).toEqual({
+    updateMask: "labels",
+    labels: { "franz.placement/env": "local" },
+  });
+});
