@@ -6,8 +6,11 @@ package clusters
 import (
 	"context"
 
+	"github.com/google/uuid"
+
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/cluster"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/placement"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/scope"
@@ -27,6 +30,10 @@ type Service struct {
 	// franz.placement/* labels move (005 ADR §1.2 "Scope is dynamic"). Optional —
 	// nil in tests that do not exercise the agent wire.
 	notifier out.PartitionNotifier
+	// placer re-runs channel → cluster placement when this cluster's labels or
+	// state change, since either can add or remove it from a channel's candidate
+	// set (003.7). Optional — nil in tests that do not exercise placement.
+	placer out.ShardPlacer
 }
 
 var _ in.KafkaClusterService = (*Service)(nil)
@@ -38,17 +45,31 @@ func NewService(
 	providerRd out.ProviderStatusReader,
 	publisher out.AssignmentPublisher,
 	notifier out.PartitionNotifier,
+	placer out.ShardPlacer,
 ) *Service {
 	return &Service{
 		repo: repo, guard: guard, providerRd: providerRd,
-		publisher: publisher, notifier: notifier,
+		publisher: publisher, notifier: notifier, placer: placer,
 	}
+}
+
+// replace re-runs placement across the realm after a cluster's labels or state
+// moved. Best-effort and after the caller's transaction — the cluster write
+// already succeeded, and the retry sweep is the safety net.
+func (s *Service) replace(ctx context.Context, realmID uuid.UUID) {
+	if s.placer == nil {
+		return
+	}
+	s.placer.PlaceRealm(ctx, realmID)
 }
 
 // Create registers a new cluster (state ACTIVE, FRN assigned).
 func (s *Service) Create(ctx context.Context, input in.CreateClusterInput) (*cluster.Cluster, error) {
 	r := realm.MustFromContext(ctx)
 	if err := scope.ValidateClusterLabels(input.Labels); err != nil {
+		return nil, err
+	}
+	if err := placement.ValidateClusterLabels(input.Labels); err != nil {
 		return nil, err
 	}
 	c, err := cluster.New(r, input.Name, input.ConnectionStrings, input.Labels, input.Configuration, input.ProviderAgent)
@@ -62,6 +83,10 @@ func (s *Service) Create(ctx context.Context, input in.CreateClusterInput) (*clu
 		return nil, err
 	}
 	s.publishTo("", c) // new cluster: SET to its provider agent, if any
+	// A newly registered ACTIVE cluster may be the first candidate a channel has
+	// been waiting for (003.7 "a shard places itself as soon as a cluster is
+	// registered"); place now rather than waiting out a sweep interval.
+	s.replace(ctx, r.ID)
 	return c, nil
 }
 
@@ -118,6 +143,9 @@ func (s *Service) Update(ctx context.Context, input in.UpdateClusterInput) (*clu
 		if err := scope.ValidateClusterLabels(*input.Labels); err != nil {
 			return nil, err
 		}
+		if err := placement.ValidateClusterLabels(*input.Labels); err != nil {
+			return nil, err
+		}
 	}
 	var (
 		oldAgent     string
@@ -164,6 +192,11 @@ func (s *Service) Update(ctx context.Context, input in.UpdateClusterInput) (*clu
 	if s.notifier != nil && input.Labels != nil {
 		s.notifier.ClusterLabelsChanged(ctx, r.ID, updated.Name, labelsBefore, updated.Labels)
 	}
+	// Any cluster label may be what a channel's affinity selector matches on, so
+	// every label edit re-runs placement (003.7 "Cross-entity behavior").
+	if input.Labels != nil {
+		s.replace(ctx, r.ID)
+	}
 	return updated, nil
 }
 
@@ -189,10 +222,12 @@ func (s *Service) Delete(ctx context.Context, name string) error {
 		return err
 	}
 	s.publishTo("", updated)
+	s.replace(ctx, r.ID)
 	return nil
 }
 
 // Pause moves the cluster to PAUSED (idempotent) and tells the owning agent.
+// Shards already on it become misplaced; new ones are never placed there.
 func (s *Service) Pause(ctx context.Context, name string) (*cluster.Cluster, error) {
 	r := realm.MustFromContext(ctx)
 	c, err := s.repo.Mutate(ctx, r.ID, name, func(c *cluster.Cluster) error { return c.Pause() })
@@ -200,6 +235,7 @@ func (s *Service) Pause(ctx context.Context, name string) (*cluster.Cluster, err
 		return nil, err
 	}
 	s.publishTo("", c)
+	s.replace(ctx, r.ID)
 	return c, nil
 }
 
@@ -211,6 +247,7 @@ func (s *Service) Resume(ctx context.Context, name string) (*cluster.Cluster, er
 		return nil, err
 	}
 	s.publishTo("", c)
+	s.replace(ctx, r.ID)
 	return c, nil
 }
 

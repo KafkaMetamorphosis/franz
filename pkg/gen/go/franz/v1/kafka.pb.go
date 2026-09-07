@@ -2733,6 +2733,8 @@ type KafkaTopic struct {
 	xxx_hidden_ReplicationFactor  int32                  `protobuf:"varint,9,opt,name=replication_factor,json=replicationFactor"`
 	xxx_hidden_TrafficShare       *TrafficShare          `protobuf:"bytes,10,opt,name=traffic_share,json=trafficShare"`
 	xxx_hidden_Generation         int64                  `protobuf:"varint,11,opt,name=generation"`
+	xxx_hidden_Misplaced          bool                   `protobuf:"varint,14,opt,name=misplaced"`
+	xxx_hidden_MisplacedReason    *string                `protobuf:"bytes,15,opt,name=misplaced_reason,json=misplacedReason"`
 	xxx_hidden_CreatedAt          *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt"`
 	xxx_hidden_UpdatedAt          *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=updated_at,json=updatedAt"`
 	XXX_raceDetectHookData        protoimpl.RaceDetectHookData
@@ -2859,6 +2861,23 @@ func (x *KafkaTopic) GetGeneration() int64 {
 	return 0
 }
 
+func (x *KafkaTopic) GetMisplaced() bool {
+	if x != nil {
+		return x.xxx_hidden_Misplaced
+	}
+	return false
+}
+
+func (x *KafkaTopic) GetMisplacedReason() string {
+	if x != nil {
+		if x.xxx_hidden_MisplacedReason != nil {
+			return *x.xxx_hidden_MisplacedReason
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *KafkaTopic) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.xxx_hidden_CreatedAt
@@ -2875,32 +2894,32 @@ func (x *KafkaTopic) GetUpdatedAt() *timestamppb.Timestamp {
 
 func (x *KafkaTopic) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 15)
 }
 
 func (x *KafkaTopic) SetFrn(v string) {
 	x.xxx_hidden_Frn = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 15)
 }
 
 func (x *KafkaTopic) SetAsyncChannel(v string) {
 	x.xxx_hidden_AsyncChannel = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 15)
 }
 
 func (x *KafkaTopic) SetKafkaCluster(v string) {
 	x.xxx_hidden_KafkaCluster = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 15)
 }
 
 func (x *KafkaTopic) SetState(v KafkaTopicState) {
 	x.xxx_hidden_State = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 15)
 }
 
 func (x *KafkaTopic) SetConsumption(v Consumption) {
 	x.xxx_hidden_Consumption = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 15)
 }
 
 func (x *KafkaTopic) SetTopicConfiguration(v map[string]string) {
@@ -2909,12 +2928,12 @@ func (x *KafkaTopic) SetTopicConfiguration(v map[string]string) {
 
 func (x *KafkaTopic) SetPartitions(v int32) {
 	x.xxx_hidden_Partitions = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 7, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 7, 15)
 }
 
 func (x *KafkaTopic) SetReplicationFactor(v int32) {
 	x.xxx_hidden_ReplicationFactor = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 8, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 8, 15)
 }
 
 func (x *KafkaTopic) SetTrafficShare(v *TrafficShare) {
@@ -2923,7 +2942,17 @@ func (x *KafkaTopic) SetTrafficShare(v *TrafficShare) {
 
 func (x *KafkaTopic) SetGeneration(v int64) {
 	x.xxx_hidden_Generation = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 10, 13)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 10, 15)
+}
+
+func (x *KafkaTopic) SetMisplaced(v bool) {
+	x.xxx_hidden_Misplaced = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 11, 15)
+}
+
+func (x *KafkaTopic) SetMisplacedReason(v string) {
+	x.xxx_hidden_MisplacedReason = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 12, 15)
 }
 
 func (x *KafkaTopic) SetCreatedAt(v *timestamppb.Timestamp) {
@@ -3004,6 +3033,20 @@ func (x *KafkaTopic) HasGeneration() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 10)
 }
 
+func (x *KafkaTopic) HasMisplaced() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 11)
+}
+
+func (x *KafkaTopic) HasMisplacedReason() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 12)
+}
+
 func (x *KafkaTopic) HasCreatedAt() bool {
 	if x == nil {
 		return false
@@ -3067,6 +3110,16 @@ func (x *KafkaTopic) ClearGeneration() {
 	x.xxx_hidden_Generation = 0
 }
 
+func (x *KafkaTopic) ClearMisplaced() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 11)
+	x.xxx_hidden_Misplaced = false
+}
+
+func (x *KafkaTopic) ClearMisplacedReason() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 12)
+	x.xxx_hidden_MisplacedReason = nil
+}
+
 func (x *KafkaTopic) ClearCreatedAt() {
 	x.xxx_hidden_CreatedAt = nil
 }
@@ -3106,8 +3159,17 @@ type KafkaTopic_builder struct {
 	// Bumped whenever Franz changes this topic's desired state. Agents echo it
 	// when reporting work so Franz can reject stale reports.
 	Generation *int64
-	CreatedAt  *timestamppb.Timestamp
-	UpdatedAt  *timestamppb.Timestamp
+	// True when the cluster this async-channel shard sits on no longer satisfies
+	// the owning channel's placement rules — re-labelled out of the affinity
+	// selector, moved to PAUSED/DELETED, or given a `drain` taint. Franz sets the
+	// marker and moves nothing; relocation is the migration flow. See
+	// 003.7-placement-and-selection.md.
+	Misplaced *bool
+	// Why the topic is misplaced, in operator-facing prose. Empty when `misplaced`
+	// is false.
+	MisplacedReason *string
+	CreatedAt       *timestamppb.Timestamp
+	UpdatedAt       *timestamppb.Timestamp
 }
 
 func (b0 KafkaTopic_builder) Build() *KafkaTopic {
@@ -3115,42 +3177,50 @@ func (b0 KafkaTopic_builder) Build() *KafkaTopic {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 15)
 		x.xxx_hidden_Name = b.Name
 	}
 	if b.Frn != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 15)
 		x.xxx_hidden_Frn = b.Frn
 	}
 	if b.AsyncChannel != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 15)
 		x.xxx_hidden_AsyncChannel = b.AsyncChannel
 	}
 	if b.KafkaCluster != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 15)
 		x.xxx_hidden_KafkaCluster = b.KafkaCluster
 	}
 	if b.State != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 15)
 		x.xxx_hidden_State = *b.State
 	}
 	if b.Consumption != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 15)
 		x.xxx_hidden_Consumption = *b.Consumption
 	}
 	x.xxx_hidden_TopicConfiguration = b.TopicConfiguration
 	if b.Partitions != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 7, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 7, 15)
 		x.xxx_hidden_Partitions = *b.Partitions
 	}
 	if b.ReplicationFactor != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 8, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 8, 15)
 		x.xxx_hidden_ReplicationFactor = *b.ReplicationFactor
 	}
 	x.xxx_hidden_TrafficShare = b.TrafficShare
 	if b.Generation != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 10, 13)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 10, 15)
 		x.xxx_hidden_Generation = *b.Generation
+	}
+	if b.Misplaced != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 11, 15)
+		x.xxx_hidden_Misplaced = *b.Misplaced
+	}
+	if b.MisplacedReason != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 12, 15)
+		x.xxx_hidden_MisplacedReason = b.MisplacedReason
 	}
 	x.xxx_hidden_CreatedAt = b.CreatedAt
 	x.xxx_hidden_UpdatedAt = b.UpdatedAt
@@ -3922,7 +3992,7 @@ const file_franz_v1_kafka_proto_rawDesc = "" +
 	"\x04page\x18\x02 \x01(\v2\x15.franz.v1.PageRequestR\x04page\"\x87\x01\n" +
 	"!ListClusterProviderEventsResponse\x126\n" +
 	"\x06events\x18\x01 \x03(\v2\x1e.franz.v1.ClusterProviderEventR\x06events\x12*\n" +
-	"\x04page\x18\x02 \x01(\v2\x16.franz.v1.PageResponseR\x04page\"\xae\x05\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.franz.v1.PageResponseR\x04page\"\xf7\x05\n" +
 	"\n" +
 	"KafkaTopic\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
@@ -3940,7 +4010,9 @@ const file_franz_v1_kafka_proto_rawDesc = "" +
 	" \x01(\v2\x16.franz.v1.TrafficShareR\ftrafficShare\x12\x1e\n" +
 	"\n" +
 	"generation\x18\v \x01(\x03R\n" +
-	"generation\x129\n" +
+	"generation\x12\x1c\n" +
+	"\tmisplaced\x18\x0e \x01(\bR\tmisplaced\x12)\n" +
+	"\x10misplaced_reason\x18\x0f \x01(\tR\x0fmisplacedReason\x129\n" +
 	"\n" +
 	"created_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
 	"\n" +

@@ -261,6 +261,16 @@ message KafkaTopic {
   // when reporting work so Franz can reject stale reports.
   int64 generation = 11;
 
+  // True when the cluster this async-channel shard sits on no longer satisfies
+  // the owning channel's placement rules — re-labelled out of the affinity
+  // selector, moved to PAUSED/DELETED, or given a `drain` taint. Franz sets the
+  // marker and moves nothing; relocation is the migration flow. See
+  // 003.7-placement-and-selection.md.
+  bool misplaced = 14;
+  // Why the topic is misplaced, in operator-facing prose. Empty when `misplaced`
+  // is false.
+  string misplaced_reason = 15;
+
   google.protobuf.Timestamp created_at = 12;
   google.protobuf.Timestamp updated_at = 13;
 }

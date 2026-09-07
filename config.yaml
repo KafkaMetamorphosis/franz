@@ -18,3 +18,10 @@ db:
   # Run the embedded (Flyway-compatible) migrations on boot. Handy for local dev;
   # set false where Flyway owns schema changes (003.12).
   auto_migrate: true
+
+placement:
+  # How often the placement retry sweep (003.7) re-runs selection for every
+  # ACTIVE channel with fewer async-channel shard rows than its declared
+  # channel_partitions. A Go duration; 0 disables the sweep, leaving only the
+  # channel-write and cluster-write triggers. Env: FRANZ_PLACEMENT__SWEEP_INTERVAL.
+  sweep_interval: 30s

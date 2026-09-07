@@ -58,7 +58,7 @@ func TestClusterProviderE2E(t *testing.T) {
 	hub := streamhub.New()
 	codec := frn.MustCodec("frn")
 
-	clusterSvc := clusters.NewService(clusterRepo, stub.NoTopicGuard{}, eventRepo, hub, nil)
+	clusterSvc := clusters.NewService(clusterRepo, stub.NoTopicGuard{}, eventRepo, hub, nil, nil)
 	agentSvc := agents.NewService(agentRepo, nil)
 	providerSvc := provideruc.NewService(clusterRepo, eventRepo)
 

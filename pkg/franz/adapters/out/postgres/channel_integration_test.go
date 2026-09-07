@@ -102,7 +102,7 @@ func TestChannelServiceDeleteAndPauseCascade(t *testing.T) {
 	ctx := realm.NewContext(context.Background(), r)
 	chRepo := postgres.NewChannelRepo(db)
 	topicRepo := postgres.NewTopicRepo(db)
-	svc := channels.NewService(chRepo, nil)
+	svc := channels.NewService(chRepo, nil, nil)
 
 	if _, err := svc.Create(ctx, createInput("orders", 3)); err != nil {
 		t.Fatal(err)
@@ -168,7 +168,7 @@ func TestChannelServiceSetAccessPolicy(t *testing.T) {
 	cleanupTopics(t, db)
 	r := seededRealm(t, db)
 	ctx := realm.NewContext(context.Background(), r)
-	svc := channels.NewService(postgres.NewChannelRepo(db), nil)
+	svc := channels.NewService(postgres.NewChannelRepo(db), nil, nil)
 
 	if _, err := svc.Create(ctx, createInput("orders", 1)); err != nil {
 		t.Fatal(err)

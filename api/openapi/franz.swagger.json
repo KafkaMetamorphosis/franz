@@ -2862,6 +2862,14 @@
           "format": "int64",
           "description": "Bumped whenever Franz changes this topic's desired state. Agents echo it\nwhen reporting work so Franz can reject stale reports."
         },
+        "misplaced": {
+          "type": "boolean",
+          "description": "True when the cluster this async-channel shard sits on no longer satisfies\nthe owning channel's placement rules — re-labelled out of the affinity\nselector, moved to PAUSED/DELETED, or given a `drain` taint. Franz sets the\nmarker and moves nothing; relocation is the migration flow. See\n003.7-placement-and-selection.md."
+        },
+        "misplacedReason": {
+          "type": "string",
+          "description": "Why the topic is misplaced, in operator-facing prose. Empty when `misplaced`\nis false."
+        },
         "createdAt": {
           "type": "string",
           "format": "date-time"

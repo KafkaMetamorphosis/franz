@@ -25,6 +25,14 @@ type TopicPage struct {
 	TotalSize int
 }
 
+// ShardPlan is what one placement pass wants to write for a channel (003.7):
+// the async-channel shard rows to materialise and the already-persisted rows it
+// mutated in place (a misplaced marker set or cleared).
+type ShardPlan struct {
+	Create []*topic.KafkaTopic
+	Update []*topic.KafkaTopic
+}
+
 // TopicRepository persists Kafka Topic shards (003.12). Realm scoping is the
 // caller's responsibility.
 type TopicRepository interface {
@@ -45,6 +53,16 @@ type TopicRepository interface {
 	// atomic. Returns the persisted shards.
 	MutateChannelShards(ctx context.Context, realmID, channelID uuid.UUID,
 		mutate func([]*topic.KafkaTopic) error) ([]*topic.KafkaTopic, error)
+
+	// PlaceChannelShards runs one placement pass for a channel in a single
+	// transaction: it locks the channel row and every shard row FOR UPDATE
+	// (soft-deleted rows included — they still own their name), hands the loaded
+	// shards to plan, then inserts plan's Create set and persists its Update set.
+	// Locking the channel row is what stops two concurrent passes from
+	// materialising the same async-channel shard index twice. Returns the rows
+	// written, created first.
+	PlaceChannelShards(ctx context.Context, realmID, channelID uuid.UUID,
+		plan func(existing []*topic.KafkaTopic) (ShardPlan, error)) ([]*topic.KafkaTopic, error)
 
 	// ResolveChannelID maps an Async Channel name to its id within the realm.
 	// errs.NotFound if there is no such channel.

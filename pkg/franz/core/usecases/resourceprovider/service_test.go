@@ -94,6 +94,12 @@ func (f *fakeTopics) ResolveChannelID(context.Context, uuid.UUID, string) (uuid.
 }
 func (f *fakeTopics) CountLiveTopics(context.Context, uuid.UUID) (int, error) { panic("unused") }
 
+func (f *fakeTopics) PlaceChannelShards(context.Context, uuid.UUID, uuid.UUID,
+	func([]*topic.KafkaTopic) (out.ShardPlan, error),
+) ([]*topic.KafkaTopic, error) {
+	panic("unused")
+}
+
 // --- fixtures ------------------------------------------------------------
 
 func clusterRow(name string, labels map[string]string) *cluster.Cluster {

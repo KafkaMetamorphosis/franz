@@ -31,7 +31,8 @@ var _ out.TopicRepository = (*TopicRepo)(nil)
 const topicCols = `id, realm_id, async_channel_id, kafka_cluster_id, name, frn,
 	topic_configuration, materialized_configuration, partitions, replication_factor,
 	state, consumption, traffic_share_value, traffic_share_unit, generation,
-	reconciled_generation, last_reconcile_message, created_at, updated_at`
+	reconciled_generation, last_reconcile_message, misplaced, misplaced_reason,
+	created_at, updated_at`
 
 // topicSelectJoined is the read query: base columns qualified as `t.*` plus the
 // channel and cluster names the API renders.
@@ -40,7 +41,8 @@ const topicSelectJoined = `
 	       t.topic_configuration, t.materialized_configuration, t.partitions,
 	       t.replication_factor, t.state, t.consumption, t.traffic_share_value,
 	       t.traffic_share_unit, t.generation, t.reconciled_generation,
-	       t.last_reconcile_message, t.created_at, t.updated_at,
+	       t.last_reconcile_message, t.misplaced, t.misplaced_reason,
+	       t.created_at, t.updated_at,
 	       ac.name, COALESCE(kc.name, '')
 	FROM kafka_topic t
 	JOIN async_channel ac ON ac.id = t.async_channel_id
@@ -60,7 +62,7 @@ func scanTopic(sc rowScanner, joined bool) (*topic.KafkaTopic, error) {
 		&t.ID, &t.RealmID, &t.AsyncChannelID, &clusterID, &t.Name, &frnPath,
 		&topicCfgRaw, &matCfgRaw, &t.Partitions, &t.ReplicationFactor,
 		&state, &consume, &t.TrafficShare.Value, &t.TrafficShare.Unit, &t.Generation,
-		&reconciledGen, &t.LastReconcileMessage,
+		&reconciledGen, &t.LastReconcileMessage, &t.Misplaced, &t.MisplacedReason,
 		&t.CreatedAt, &t.UpdatedAt,
 	}
 	if joined {
@@ -95,8 +97,20 @@ func scanTopic(sc rowScanner, joined bool) (*topic.KafkaTopic, error) {
 	return &t, nil
 }
 
+// rowQuerier is the QueryRow surface shared by the pool and a transaction, so
+// one INSERT statement serves both Create and the placement transaction.
+type rowQuerier interface {
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
 // Create inserts a new shard row.
 func (r *TopicRepo) Create(ctx context.Context, t *topic.KafkaTopic) error {
+	return insertTopic(ctx, r.db.Pool(), t)
+}
+
+// insertTopic writes one new shard row and refreshes it in place from what
+// Postgres stored.
+func insertTopic(ctx context.Context, q rowQuerier, t *topic.KafkaTopic) error {
 	if t.ID == uuid.Nil {
 		id, err := uuid.NewV7()
 		if err != nil {
@@ -107,26 +121,31 @@ func (r *TopicRepo) Create(ctx context.Context, t *topic.KafkaTopic) error {
 	if t.TrafficShare.Unit == "" {
 		t.TrafficShare.Unit = topic.TrafficShareUnit
 	}
+	channelName, clusterName := t.ChannelName, t.ClusterName
 	topicCfg, _ := json.Marshal(nonNilMap(t.TopicConfiguration))
 	matCfg, _ := json.Marshal(nonNilMap(t.MaterializedConfiguration))
 
-	stored, err := scanTopic(r.db.Pool().QueryRow(ctx, `
+	stored, err := scanTopic(q.QueryRow(ctx, `
 		INSERT INTO kafka_topic
 			(id, realm_id, async_channel_id, kafka_cluster_id, name, frn,
 			 topic_configuration, materialized_configuration, partitions,
 			 replication_factor, state, consumption, traffic_share_value,
-			 traffic_share_unit, generation)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+			 traffic_share_unit, generation, misplaced, misplaced_reason)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
 		RETURNING `+topicCols,
 		t.ID, t.RealmID, t.AsyncChannelID, t.KafkaClusterID, t.Name, t.FRN.Path(),
 		topicCfg, matCfg, t.Partitions, t.ReplicationFactor, string(t.State),
-		string(t.Consumption), t.TrafficShare.Value, t.TrafficShare.Unit, t.Generation), false)
+		string(t.Consumption), t.TrafficShare.Value, t.TrafficShare.Unit, t.Generation,
+		t.Misplaced, t.MisplacedReason), false)
 	if err != nil {
 		if isUniqueViolation(err) {
 			return errs.Existsf("kafka topic %q already exists", t.Name)
 		}
 		return err
 	}
+	// The INSERT does not join, so carry the read-path projections the caller
+	// already knows across the refresh.
+	stored.ChannelName, stored.ClusterName = channelName, clusterName
 	*t = *stored
 	return nil
 }
@@ -229,6 +248,77 @@ func (r *TopicRepo) MutateChannelShards(
 	return result, err
 }
 
+// PlaceChannelShards runs one placement pass for a channel in a single
+// transaction (ADR-API-005): it locks the async_channel row and its live shard
+// rows FOR UPDATE — so two concurrent passes cannot both materialise the same
+// async-channel shard index — hands the loaded rows to plan, then inserts the
+// Create set and persists the Update set.
+func (r *TopicRepo) PlaceChannelShards(
+	ctx context.Context, realmID, channelID uuid.UUID,
+	plan func(existing []*topic.KafkaTopic) (out.ShardPlan, error),
+) ([]*topic.KafkaTopic, error) {
+	var written []*topic.KafkaTopic
+	err := r.db.WithTx(ctx, func(tx pgx.Tx) error {
+		var lockedID uuid.UUID
+		if err := tx.QueryRow(ctx,
+			`SELECT id FROM async_channel WHERE id=$1 AND realm_id=$2 FOR UPDATE`,
+			channelID, realmID).Scan(&lockedID); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return errs.NotFoundf("async channel not found")
+			}
+			return errs.Internalf("lock async channel for placement").Wrap(err)
+		}
+
+		// Soft-deleted rows are loaded too: they still own their (realm, name),
+		// so placement must see them to know an async-channel shard index is
+		// taken rather than trying to insert over it.
+		rows, err := tx.Query(ctx,
+			topicSelectJoined+`
+			 WHERE t.realm_id=$1 AND t.async_channel_id=$2
+			 ORDER BY t.name ASC FOR UPDATE OF t`, realmID, channelID)
+		if err != nil {
+			return errs.Internalf("load channel shards for placement").Wrap(err)
+		}
+		var existing []*topic.KafkaTopic
+		for rows.Next() {
+			shard, err := scanTopic(rows, true)
+			if err != nil {
+				rows.Close()
+				return err
+			}
+			existing = append(existing, shard)
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return errs.Internalf("iterate channel shards for placement").Wrap(err)
+		}
+
+		shardPlan, err := plan(existing)
+		if err != nil {
+			return err
+		}
+
+		written = nil
+		for _, shard := range shardPlan.Create {
+			if err := insertTopic(ctx, tx, shard); err != nil {
+				return err
+			}
+			written = append(written, shard)
+		}
+		for _, shard := range shardPlan.Update {
+			if err := persistTopicTx(ctx, tx, shard); err != nil {
+				return err
+			}
+			written = append(written, shard)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return written, nil
+}
+
 // persistTopicTx writes a mutated shard's columns and refreshes it in place,
 // keeping the joined ChannelName / ClusterName (immutable within a mutate).
 func persistTopicTx(ctx context.Context, tx pgx.Tx, t *topic.KafkaTopic) error {
@@ -241,13 +331,14 @@ func persistTopicTx(ctx context.Context, tx pgx.Tx, t *topic.KafkaTopic) error {
 			materialized_configuration=$3, partitions=$4, replication_factor=$5,
 			state=$6, consumption=$7, traffic_share_value=$8,
 			traffic_share_unit=$9, generation=$10, reconciled_generation=$11,
-			last_reconcile_message=$12, updated_at=now()
-		WHERE id=$13
+			last_reconcile_message=$12, misplaced=$13, misplaced_reason=$14,
+			updated_at=now()
+		WHERE id=$15
 		RETURNING `+topicCols,
 		t.KafkaClusterID, topicCfg, matCfg, t.Partitions, t.ReplicationFactor,
 		string(t.State), string(t.Consumption), t.TrafficShare.Value,
 		t.TrafficShare.Unit, t.Generation, t.ReconciledGeneration,
-		t.LastReconcileMessage, t.ID), false)
+		t.LastReconcileMessage, t.Misplaced, t.MisplacedReason, t.ID), false)
 	if err != nil {
 		return err
 	}

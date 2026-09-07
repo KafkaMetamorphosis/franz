@@ -21,6 +21,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/agents"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/channels"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/clusters"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/placement"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/resourceprovider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/telemetry"
@@ -59,6 +60,10 @@ func main() {
 			fx.Annotate(postgres.NewChannelRepo, fx.As(new(out.AsyncChannelRepository))),
 			fx.Annotate(postgres.NewIndicatorSampleRepo, fx.As(new(out.IndicatorSampleRepository))),
 			fx.Annotate(resourceprovider.NewNotifier, fx.As(new(out.PartitionNotifier))),
+			// Provided concretely as well as behind the port: the entity services
+			// take out.ShardPlacer, while the retry sweep drives Sweep directly.
+			placement.NewService,
+			func(p *placement.Service) out.ShardPlacer { return p },
 			fx.Annotate(clusters.NewService, fx.As(new(in.KafkaClusterService))),
 			fx.Annotate(agents.NewService, fx.As(new(in.AgentService))),
 			fx.Annotate(provider.NewService, fx.As(new(in.ClusterProviderService))),
@@ -82,6 +87,7 @@ func main() {
 		fx.Invoke(func(frn.Codec) {}),
 		fx.Invoke(startProviderEventPrune),
 		fx.Invoke(startIndicatorSamplePrune),
+		fx.Invoke(startPlacementSweep),
 		fx.Invoke(registerServer),
 	).Run()
 }
@@ -192,6 +198,48 @@ func startIndicatorSamplePrune(lc fx.Lifecycle, log *slog.Logger, repo out.Indic
 						}
 						if n > 0 {
 							log.Info("pruned indicator samples", "count", n)
+						}
+					}
+				}
+			}()
+			return nil
+		},
+		OnStop: func(context.Context) error { close(stop); return nil },
+	})
+}
+
+// startPlacementSweep runs the placement retry sweep (003.7): every interval it
+// re-runs selection for each ACTIVE channel whose live async-channel shard rows
+// are fewer than its declared `channel_partitions`, so a channel materialises
+// its shards as soon as a cluster is registered, resumed, or re-labelled into
+// eligibility. A non-positive interval disables it.
+func startPlacementSweep(
+	lc fx.Lifecycle, log *slog.Logger, c config.Config, placer *placement.Service,
+) {
+	interval := c.Placement.SweepInterval
+	if interval <= 0 {
+		log.Info("placement sweep disabled", "sweep_interval", interval)
+		return
+	}
+	stop := make(chan struct{})
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			log.Info("placement sweep started", "sweep_interval", interval)
+			go func() {
+				ticker := time.NewTicker(interval)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-stop:
+						return
+					case <-ticker.C:
+						n, err := placer.Sweep(context.Background())
+						if err != nil {
+							log.Warn("placement sweep failed", "err", err)
+							continue
+						}
+						if n > 0 {
+							log.Info("placement sweep materialised async-channel shards", "count", n)
 						}
 					}
 				}
