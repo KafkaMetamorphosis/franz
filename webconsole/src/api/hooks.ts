@@ -13,6 +13,9 @@ export type KafkaCluster = Schemas["v1KafkaCluster"];
 export type ClusterProviderEvent = Schemas["v1ClusterProviderEvent"];
 export type ConnectionString = Schemas["v1ConnectionString"];
 export type AgentType = Schemas["v1AgentType"];
+export type AsyncChannel = Schemas["v1AsyncChannel"];
+export type ChannelType = Schemas["v1ChannelType"];
+export type ChannelState = Schemas["v1ChannelState"];
 
 // The gateway parses `update_mask` with protojson semantics: comma-separated
 // lowerCamelCase paths (snake_case is rejected). Callers pass the body keys they
@@ -183,6 +186,79 @@ export function useClusterLifecycle(name: string) {
     remove: useMutation({
       mutationFn: async () =>
         unwrap(await api.DELETE("/v1/kafka/clusters/{name}", { params: { path: { name } } })),
+      onSuccess: invalidate,
+    }),
+  };
+}
+
+// --- Async Channels ---------------------------------------------------------
+
+export function useChannels(selector?: string) {
+  return useQuery({
+    queryKey: ["channels", selector ?? "all"],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/async-channels", {
+          params: { query: selector ? { selector } : {} },
+        }),
+      ),
+  });
+}
+
+export function useChannel(name: string) {
+  return useQuery({
+    queryKey: ["channel", name],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/async-channels/{name}", { params: { path: { name } } })),
+  });
+}
+
+export function useCreateChannel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Schemas["v1CreateAsyncChannelRequest"]) =>
+      unwrap(await api.POST("/v1/async-channels", { body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["channels"] }),
+  });
+}
+
+// UpdateAsyncChannelBody is the PATCH payload. Only `labels` is maskable —
+// `type` is immutable, `channel_partitions` is a staged re-shard (003.11), and
+// the access policy is set through SetAccessPolicy (deliverable 17).
+export type UpdateAsyncChannelBody = Schemas["AsyncChannelServiceUpdateAsyncChannelBody"];
+
+export function useUpdateChannel(name: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdateAsyncChannelBody) =>
+      unwrap(await api.PATCH("/v1/async-channels/{name}", { params: { path: { name } }, body })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["channel", name] });
+      qc.invalidateQueries({ queryKey: ["channels"] });
+    },
+  });
+}
+
+export function useChannelLifecycle(name: string) {
+  const qc = useQueryClient();
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["channel", name] });
+    qc.invalidateQueries({ queryKey: ["channels"] });
+  };
+  return {
+    pause: useMutation({
+      mutationFn: async () =>
+        unwrap(await api.POST("/v1/async-channels/{name}:pause", { params: { path: { name } } })),
+      onSuccess: invalidate,
+    }),
+    resume: useMutation({
+      mutationFn: async () =>
+        unwrap(await api.POST("/v1/async-channels/{name}:resume", { params: { path: { name } } })),
+      onSuccess: invalidate,
+    }),
+    remove: useMutation({
+      mutationFn: async () =>
+        unwrap(await api.DELETE("/v1/async-channels/{name}", { params: { path: { name } } })),
       onSuccess: invalidate,
     }),
   };
