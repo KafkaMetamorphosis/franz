@@ -116,7 +116,7 @@ Design docs and ADRs live in the sibling
 
 ## Author
 
-**José Ronierison Silva** — [linkedin.com/in/joseronierison](https://www.linkedin.com/in/joseronierison/)
+**José Roniérison** — [linkedin.com/in/joseronierison](https://www.linkedin.com/in/joseronierison/)
 
 ## License
 
