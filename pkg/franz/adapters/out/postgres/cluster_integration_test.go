@@ -32,6 +32,8 @@ func seededRealm(t *testing.T, db *postgres.DB) realm.Realm {
 func cleanupClusters(t *testing.T, db *postgres.DB) {
 	t.Helper()
 	for _, stmt := range []string{
+		`DELETE FROM kafka_topic`,
+		`DELETE FROM async_channel`,
 		`DELETE FROM cluster_provider_event`,
 		`DELETE FROM kafka_cluster`,
 	} {

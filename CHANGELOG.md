@@ -7,6 +7,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Async Channel** (impls_plan deliverable 10): the customer-facing `AsyncChannel`
+  entity (003.4) — abstract, no Kafka config of its own. `CreateAsyncChannel`
+  records **only the channel row** and its `channel_partitions` count; the shard
+  `kafka_topic` rows are materialised by **placement**, not at create
+  (ADR-API-009). CRUD + `PauseAsyncChannel` / `ResumeAsyncChannel` (cascade to
+  any shards) + `DeleteAsyncChannel` (cascade); `UpdateAsyncChannel` masks
+  `labels` only. Embedded **access-policy document** (003.5) — `Effect` /
+  `Principal` / `Permission` / `Statement` — validated on write (`effect`
+  set, `permissions` non-empty, `principal` has a criterion), replaced wholesale
+  via `SetAccessPolicy`. `ListChannelClients` returns `UNIMPLEMENTED` (the
+  evaluation engine + the two client-access views ship with deliverable 15).
+  `pkg/franz/core/domain/{accesspolicy,channel}`, `usecases/channels`,
+  `adapters/{out/postgres/channel,in/grpcgateway/asyncchannel}`. `async_channel`
+  table extended in `V1__init.sql`. No proto change.
+- **Kafka Topic** (impls_plan deliverable 09): the `KafkaTopic` entity — one
+  shard of an Async Channel, tracking reconciliation with the real topic. Franz
+  owns every field; the only client mutation is **`SetConsumption`**, which
+  drains (`DISABLED` → `traffic_share` 0) or restores a shard and re-normalises
+  the owning channel's shares to an equal `percent` split across the `ENABLED`
+  ones. `GetKafkaTopic` / `ListKafkaTopics` (filter by `async_channel` /
+  `kafka_cluster`, paginated) — no Create / Update / Delete RPC. The config
+  merge (`cluster_configuration ⊕ topic_configuration`) is materialised and
+  **frozen** at create time — a later cluster-config edit does not touch
+  existing shards. The `partitions`-increase-only and immutability invariants
+  are enforced in the domain, ready for governance / re-shard. The
+  `DeleteKafkaCluster` guard now counts real `kafka_topic` rows
+  (`stub.NoTopicGuard` retired from the wiring). `pkg/franz/core/domain/topic`,
+  `usecases/topics`, `adapters/{out/postgres/topic,in/grpcgateway/kafkatopic}`.
+  `V1__init.sql` gains `kafka_topic` and a minimal `async_channel` stub
+  (extended by deliverable 10). No proto change.
 - **`README.md`** — project overview + local-dev quickstart.
 - **Resource management & agent provisioning schema** (impls_plan deliverable 08):
   - `Agent.provisioning_labels` — a new `ProvisioningLabelSpec` (`key`,

@@ -97,3 +97,66 @@ CREATE TABLE IF NOT EXISTS cluster_provider_event (
 
 CREATE INDEX IF NOT EXISTS cluster_provider_event_cluster_time
     ON cluster_provider_event (kafka_cluster_id, occurred_at DESC, id DESC);
+
+-- Async Channel — the customer-facing resource (003.4). It is abstract: no Kafka
+-- config of its own. `channel_partitions` is the declared shard count; the shard
+-- kafka_topic rows are created by placement (deliverable 11, ADR-API-009), not at
+-- CreateAsyncChannel. `access_policy` is the embedded document (003.5), changed
+-- only via SetAccessPolicy. `state` has no PENDING/ERROR — that lives on shards.
+CREATE TABLE IF NOT EXISTS async_channel (
+    id                 uuid        PRIMARY KEY,
+    realm_id           uuid        NOT NULL REFERENCES realm (id),
+    name               text        NOT NULL,
+    frn                text        NOT NULL,
+    type               text        NOT NULL DEFAULT 'KAFKA_TOPIC'
+                           CHECK (type IN ('KAFKA_TOPIC')),
+    channel_partitions integer     NOT NULL DEFAULT 1
+                           CHECK (channel_partitions >= 1),
+    labels             jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    access_policy      jsonb       NOT NULL DEFAULT '{"statements":[]}'::jsonb,
+    state              text        NOT NULL DEFAULT 'ACTIVE'
+                           CHECK (state IN ('ACTIVE', 'PAUSED', 'DELETED')),
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (realm_id, name),
+    UNIQUE (frn)
+);
+
+CREATE INDEX IF NOT EXISTS async_channel_labels_gin
+    ON async_channel USING gin (labels);
+
+-- Kafka Topic — one shard of an Async Channel, placed on one Kafka Cluster,
+-- tracking reconciliation with the real topic (003.6). Franz owns every field;
+-- the only client mutation is SetConsumption. Rows are created by the Async
+-- Channel (deliverable 10), never through an API here. `kafka_cluster_id` is
+-- NULL while the shard is unplaced (deliverable 11). `materialized_configuration`
+-- is the frozen cluster⊕topic config merge — internal, not on the proto.
+CREATE TABLE IF NOT EXISTS kafka_topic (
+    id                        uuid        PRIMARY KEY,
+    realm_id                  uuid        NOT NULL REFERENCES realm (id),
+    async_channel_id          uuid        NOT NULL REFERENCES async_channel (id),
+    kafka_cluster_id          uuid        REFERENCES kafka_cluster (id),
+    name                      text        NOT NULL,
+    frn                       text        NOT NULL,
+    topic_configuration       jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    materialized_configuration jsonb      NOT NULL DEFAULT '{}'::jsonb,
+    partitions                integer     NOT NULL,
+    replication_factor        integer     NOT NULL,
+    state                     text        NOT NULL DEFAULT 'PENDING'
+                                  CHECK (state IN ('PENDING', 'READY', 'PAUSED',
+                                                   'ERROR', 'DELETED')),
+    consumption               text        NOT NULL DEFAULT 'ENABLED'
+                                  CHECK (consumption IN ('ENABLED', 'DISABLED')),
+    traffic_share_value       double precision NOT NULL DEFAULT 0,
+    traffic_share_unit        text        NOT NULL DEFAULT 'percent',
+    generation                bigint      NOT NULL DEFAULT 1,
+    created_at                timestamptz NOT NULL DEFAULT now(),
+    updated_at                timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (realm_id, name),
+    UNIQUE (frn)
+);
+
+CREATE INDEX IF NOT EXISTS kafka_topic_channel
+    ON kafka_topic (async_channel_id);
+CREATE INDEX IF NOT EXISTS kafka_topic_cluster
+    ON kafka_topic (kafka_cluster_id) WHERE kafka_cluster_id IS NOT NULL;
