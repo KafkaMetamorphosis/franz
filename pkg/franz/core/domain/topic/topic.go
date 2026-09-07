@@ -113,6 +113,14 @@ type KafkaTopic struct {
 	// operator-facing "why is this shard in ERROR" (003.6 OQ5, first cut).
 	LastReconcileMessage string
 
+	// Misplaced marks an async-channel shard whose cluster stopped satisfying
+	// its channel's placement rules — re-labelled out of the affinity selector,
+	// moved to PAUSED/DELETED, or given a `drain` taint (003.7 "Re-placement").
+	// Franz never moves the shard on its own; the migration flow (003.13) does.
+	// MisplacedReason is the operator-facing why, empty while Misplaced is false.
+	Misplaced       bool
+	MisplacedReason string
+
 	CreatedAt time.Time
 	UpdatedAt time.Time
 
@@ -236,6 +244,44 @@ func (t *KafkaTopic) SetState(to State) error {
 	if to != StateDeleted {
 		t.bumpGeneration()
 	}
+	return nil
+}
+
+// MarkMisplaced records that this async-channel shard's cluster no longer
+// satisfies the owning channel's placement rules (003.7). It deliberately leaves
+// KafkaClusterID alone — a placed shard is only ever moved by the migration flow
+// (003.13) — and does not bump `generation`: the marker changes nothing an agent
+// reconciles. Returns whether the marker or its reason actually changed.
+func (t *KafkaTopic) MarkMisplaced(reason string) bool {
+	if t.Misplaced && t.MisplacedReason == reason {
+		return false
+	}
+	t.Misplaced = true
+	t.MisplacedReason = reason
+	return true
+}
+
+// ClearMisplaced drops the marker once the shard's cluster satisfies the
+// channel's placement rules again. Returns whether anything changed.
+func (t *KafkaTopic) ClearMisplaced() bool {
+	if !t.Misplaced && t.MisplacedReason == "" {
+		return false
+	}
+	t.Misplaced = false
+	t.MisplacedReason = ""
+	return true
+}
+
+// PlaceOn records the cluster an async-channel shard was just placed on. Only
+// legal while the shard is unplaced — a placed shard moves through migration
+// (003.13), never here.
+func (t *KafkaTopic) PlaceOn(clusterID uuid.UUID, clusterName string) error {
+	if t.KafkaClusterID != nil {
+		return errs.Preconditionf("kafka topic %q is already placed on %q", t.Name, t.ClusterName)
+	}
+	id := clusterID
+	t.KafkaClusterID = &id
+	t.ClusterName = clusterName
 	return nil
 }
 

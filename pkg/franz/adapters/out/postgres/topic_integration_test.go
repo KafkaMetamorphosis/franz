@@ -227,7 +227,7 @@ func TestTopicGuardBlocksClusterDelete(t *testing.T) {
 
 	// DeleteKafkaCluster refuses while a topic lives on it (003.3 done-when)
 	var _ out.ClusterTopicGuard = topicRepo
-	svc := clusters.NewService(clusterRepo, topicRepo, postgres.NewProviderEventRepo(db), streamhub.New(), nil)
+	svc := clusters.NewService(clusterRepo, topicRepo, postgres.NewProviderEventRepo(db), streamhub.New(), nil, nil)
 	if err := svc.Delete(ctx, "east-1"); errs.KindOf(err) != errs.FailedPrecondition {
 		t.Fatalf("Delete with live topic → %v, want FAILED_PRECONDITION", err)
 	}

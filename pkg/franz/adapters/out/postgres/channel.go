@@ -192,6 +192,56 @@ func (r *ChannelRepo) List(ctx context.Context, q out.ChannelQuery) (out.Channel
 	return page, nil
 }
 
+// ListActive returns every ACTIVE channel in the realm, ordered by name.
+func (r *ChannelRepo) ListActive(
+	ctx context.Context, realmID uuid.UUID,
+) ([]*channel.AsyncChannel, error) {
+	return r.collectChannels(ctx,
+		`SELECT `+channelColumns+` FROM async_channel
+		 WHERE realm_id=$1 AND state='ACTIVE' ORDER BY name ASC`, realmID)
+}
+
+// ListUnderplaced returns every ACTIVE channel, in any realm, that has fewer
+// live kafka_topic rows than `channel_partitions` — the placement retry sweep's
+// work list (003.7). Ordered by (realm, name) so the sweep is deterministic.
+func (r *ChannelRepo) ListUnderplaced(ctx context.Context) ([]*channel.AsyncChannel, error) {
+	return r.collectChannels(ctx, `
+		SELECT `+prefixedChannelColumns+` FROM async_channel c
+		WHERE c.state='ACTIVE'
+		  AND (SELECT count(*) FROM kafka_topic t
+		       WHERE t.async_channel_id = c.id AND t.state <> 'DELETED')
+		      < c.channel_partitions
+		ORDER BY c.realm_id ASC, c.name ASC`)
+}
+
+// prefixedChannelColumns is channelColumns qualified for a query that aliases
+// async_channel as `c`.
+const prefixedChannelColumns = `c.id, c.realm_id, c.name, c.frn, c.type,
+	c.channel_partitions, c.labels, c.access_policy, c.state, c.created_at, c.updated_at`
+
+func (r *ChannelRepo) collectChannels(
+	ctx context.Context, sql string, args ...any,
+) ([]*channel.AsyncChannel, error) {
+	rows, err := r.db.Pool().Query(ctx, sql, args...)
+	if err != nil {
+		return nil, errs.Internalf("list async channels").Wrap(err)
+	}
+	defer rows.Close()
+
+	var channels []*channel.AsyncChannel
+	for rows.Next() {
+		c, err := scanChannel(rows)
+		if err != nil {
+			return nil, err
+		}
+		channels = append(channels, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errs.Internalf("iterate async channels").Wrap(err)
+	}
+	return channels, nil
+}
+
 // Mutate loads the channel FOR UPDATE, runs mutate, persists — one transaction.
 func (r *ChannelRepo) Mutate(
 	ctx context.Context, realmID uuid.UUID, name string,

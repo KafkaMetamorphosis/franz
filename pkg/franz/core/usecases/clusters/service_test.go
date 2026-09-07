@@ -164,7 +164,7 @@ func mkService(topics int) (*Service, *memRepo) {
 func mkServiceP(topics int) (*Service, *memRepo, *capturePublisher) {
 	repo := newMemRepo()
 	pub := newCapturePublisher()
-	return NewService(repo, guard{n: topics}, noStatus{}, pub, nil), repo, pub
+	return NewService(repo, guard{n: topics}, noStatus{}, pub, nil, nil), repo, pub
 }
 
 func plainConns() []cluster.ConnectionString {

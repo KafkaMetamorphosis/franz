@@ -7,6 +7,40 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Placement & selection** (impls_plan deliverable 13): Franz now decides which
+  Kafka Cluster each async-channel shard lives on, and materialises the shard
+  rows (`003.7`, ADR-API-009). New pure domain package
+  `core/domain/placement` implements the selection algorithm — candidates
+  (`state = ACTIVE` and labels satisfy `franz.affinity/selector`; an **absent**
+  selector yields no candidates, so placement is opt-in) → drop
+  `franz.antiaffinity/selector` matches → drop `drain`-tainted and untolerated
+  `no-creation`-tainted clusters → order by (`franz.affinity/weight` desc, name
+  asc) and take `min(franz.affinity/shard-size, |candidates|)` → distribute the
+  channel's shards round-robin, the earlier clusters taking the remainder on an
+  uneven split. Identical inputs always produce an identical assignment.
+- **Shard materialisation**: `kafka_topic` rows are created by placement and only
+  ever for a shard that has a concrete cluster — `partitions` /
+  `replication_factor` / `materialized_configuration` are seeded from that
+  cluster's `cluster_configuration` (keys `partitions` / `replication-factor`,
+  which are now excluded from the config merge). A channel with no eligible
+  cluster keeps zero shard rows and its create still succeeds. Triggers: channel
+  create, a channel `franz.*` label change, and any cluster create / label /
+  state change; a retry sweep (`FRANZ_PLACEMENT__SWEEP_INTERVAL`, default `30s`)
+  is the safety net.
+- **Misplaced marker**: `kafka_topic` gains `misplaced` / `misplaced_reason`
+  (also on the `KafkaTopic` proto as additive fields 14 / 15). A placed shard
+  whose cluster left the channel's affinity, went `PAUSED`/`DELETED`, or gained a
+  `drain` taint is marked and **not moved** — relocation is the migration flow
+  (`003.13`). The marker clears when the cluster matches again, and it never
+  bumps `generation`.
+- **Reserved placement labels are validated on write**: a malformed
+  `franz.affinity/selector`, `franz.antiaffinity/selector`,
+  `franz.affinity/shard-size`, `franz.affinity/weight`, `franz.taint` or
+  `franz.taint/toleration` is rejected with `INVALID_ARGUMENT` on the channel or
+  cluster create/update.
+- Placement changes are pushed to the in-scope Resource Provider agents through
+  the deliverable-12 notifier, so a materialised shard reaches a connected agent
+  as a `SET` `PartitionAssignment` without a reconnect.
 - **Gregor Samsa — Resource Provider agent** (impls_plan deliverable 12): the
   second agent-interaction contract and its reference implementation (005 ADR
   Parts 1 + 2). New gRPC `ResourceProviderService` (`agent_resource_provider.proto`,

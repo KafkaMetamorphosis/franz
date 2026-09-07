@@ -43,7 +43,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [10](./10-async-channel.md) | Async Channel + access-policy document | 02 · 09 | ✅ |
 | [11](./11-cluster-and-agent-config.md) | Cluster & agent configuration model | 03 · 04 · 08 | ✅ |
 | [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ✅ |
-| [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ⬜ |
+| [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ✅ |
 | [14](./14-telemetry-ingest.md) | Telemetry ingest | 02 · 15 | ⬜ |
 | [15](./15-governance.md) | Governance (non-placement actions) | 02 · 03 · 09 · 10 · 14 | ⬜ |
 | [16](./16-client.md) | Client | 02 · 14 | ⬜ |
@@ -89,6 +89,17 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-07 · **13** Placement & selection · pure `domain/placement` selection
+  (affinity / anti-affinity / taints → weight+name order → shard-size cap →
+  deterministic round-robin); `placement.Service` materialises `kafka_topic`
+  rows on channel + cluster changes (ADR-API-009 — this deliverable owns row
+  creation), 30s fx retry sweep, `misplaced` marker (column + additive
+  `KafkaTopic.misplaced` / `misplaced_reason` proto fields, marker only — no
+  move), notifies Gregor Samsa via `Notifier.ShardsChanged`. `Materialize` now
+  drops the `partitions` / `replication-factor` seed keys from the merge
+  (003.6). Closes 003.7 OQ1 (round-robin remainder) + OQ5 (configurable sweep +
+  event triggers). `go build/vet/test` (32 pkg), `buf lint`, console checks —
+  green. codex out of quota → claude.
 - 2026-09-07 · **19** Async Channel UI · console screens for deliverable 10 —
   `/async-channels` list / register / detail / edit, the `useChannels` /
   `useChannel` / `useCreateChannel` / `useUpdateChannel` / `useChannelLifecycle`

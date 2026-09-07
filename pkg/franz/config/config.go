@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 	"strings"
+	"time"
 
 	"github.com/knadh/koanf/parsers/yaml"
 	"github.com/knadh/koanf/providers/confmap"
@@ -25,8 +26,19 @@ type Config struct {
 	LogLevel       string `koanf:"log_level"`
 	BootstrapRealm string `koanf:"bootstrap_realm"`
 	// ResourcePrefix is the FRN prefix (003.1). Default "frn"; fixed at bootstrap.
-	ResourcePrefix string   `koanf:"resource_prefix"`
-	DB             DBConfig `koanf:"db"`
+	ResourcePrefix string          `koanf:"resource_prefix"`
+	DB             DBConfig        `koanf:"db"`
+	Placement      PlacementConfig `koanf:"placement"`
+}
+
+// PlacementConfig tunes the channel → cluster placement retry sweep (003.7).
+type PlacementConfig struct {
+	// SweepInterval is how often Franz re-runs selection for every ACTIVE channel
+	// with fewer async-channel shard rows than its declared `channel_partitions`.
+	// 003.7 asks for ~30s (OQ5). Set FRANZ_PLACEMENT__SWEEP_INTERVAL to a Go
+	// duration ("1m", "10s") to change it; 0 or negative disables the sweep, in
+	// which case only the create / update triggers place shards.
+	SweepInterval time.Duration `koanf:"sweep_interval"`
 }
 
 // DBConfig is the PostgreSQL connection configuration.
@@ -63,6 +75,8 @@ var defaults = map[string]any{
 	"db.password":     "franz",
 	"db.sslmode":      "disable",
 	"db.auto_migrate": true,
+
+	"placement.sweep_interval": "30s",
 }
 
 // Load builds a Config from: built-in defaults, then the YAML file at path (if it

@@ -131,10 +131,11 @@ CREATE INDEX IF NOT EXISTS async_channel_labels_gin
 
 -- Kafka Topic — one shard of an Async Channel, placed on one Kafka Cluster,
 -- tracking reconciliation with the real topic (003.6). Franz owns every field;
--- the only client mutation is SetConsumption. Rows are created by the Async
--- Channel (deliverable 10), never through an API here. `kafka_cluster_id` is
--- NULL while the shard is unplaced (deliverable 11). `materialized_configuration`
--- is the frozen cluster⊕topic config merge — internal, not on the proto.
+-- the only client mutation is SetConsumption. Rows are created by placement
+-- (003.7, ADR-API-009), never through an API here — a row exists only for an
+-- async-channel shard that already has a cluster, so `kafka_cluster_id` is set
+-- on every row placement writes. `materialized_configuration` is the frozen
+-- cluster⊕topic config merge — internal, not on the proto.
 CREATE TABLE IF NOT EXISTS kafka_topic (
     id                        uuid        PRIMARY KEY,
     realm_id                  uuid        NOT NULL REFERENCES realm (id),
@@ -160,19 +161,28 @@ CREATE TABLE IF NOT EXISTS kafka_topic (
     -- not converged. `last_reconcile_message` is the newest report's detail.
     reconciled_generation     bigint,
     last_reconcile_message    text        NOT NULL DEFAULT '',
+    -- Placement (003.7 "Re-placement"). `misplaced` marks an async-channel shard
+    -- whose cluster stopped satisfying the owning channel's affinity, went
+    -- PAUSED/DELETED, or gained a `drain` taint. Franz sets the marker and moves
+    -- nothing — relocation is the migration flow (003.13). `misplaced_reason` is
+    -- the operator-facing why, '' while `misplaced` is false.
+    misplaced                 boolean     NOT NULL DEFAULT false,
+    misplaced_reason          text        NOT NULL DEFAULT '',
     created_at                timestamptz NOT NULL DEFAULT now(),
     updated_at                timestamptz NOT NULL DEFAULT now(),
     UNIQUE (realm_id, name),
     UNIQUE (frn)
 );
 
--- The two columns above were added after kafka_topic first shipped; CREATE TABLE
--- IF NOT EXISTS is a no-op on a database that already has the table, so bring an
--- already-migrated development database forward explicitly. Idempotent, like
--- every other statement in this file.
+-- The four columns above were added after kafka_topic first shipped; CREATE
+-- TABLE IF NOT EXISTS is a no-op on a database that already has the table, so
+-- bring an already-migrated development database forward explicitly. Idempotent,
+-- like every other statement in this file.
 ALTER TABLE kafka_topic
     ADD COLUMN IF NOT EXISTS reconciled_generation  bigint,
-    ADD COLUMN IF NOT EXISTS last_reconcile_message text NOT NULL DEFAULT '';
+    ADD COLUMN IF NOT EXISTS last_reconcile_message text    NOT NULL DEFAULT '',
+    ADD COLUMN IF NOT EXISTS misplaced              boolean NOT NULL DEFAULT false,
+    ADD COLUMN IF NOT EXISTS misplaced_reason       text    NOT NULL DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS kafka_topic_channel
     ON kafka_topic (async_channel_id);

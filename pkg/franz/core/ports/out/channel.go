@@ -43,6 +43,17 @@ type AsyncChannelRepository interface {
 	Mutate(ctx context.Context, realmID uuid.UUID, name string,
 		mutate func(*channel.AsyncChannel) error) (*channel.AsyncChannel, error)
 
+	// ListActive returns every ACTIVE channel in the realm, ordered by name. A
+	// cluster-triggered placement pass has to re-evaluate every channel at once,
+	// and a realm's channel count is bounded, so this is not paginated.
+	ListActive(ctx context.Context, realmID uuid.UUID) ([]*channel.AsyncChannel, error)
+
+	// ListUnderplaced returns every ACTIVE channel — across all realms — with
+	// fewer live kafka_topic rows than `channel_partitions`. It is the placement
+	// retry sweep's work list (003.7); the sweep runs on a timer and has no realm
+	// context of its own.
+	ListUnderplaced(ctx context.Context) ([]*channel.AsyncChannel, error)
+
 	// MutateWithShards additionally loads every non-deleted shard of the channel
 	// FOR UPDATE and passes them to mutate, persisting the channel and every
 	// shard in one transaction. For Pause / Resume / Delete cascades.

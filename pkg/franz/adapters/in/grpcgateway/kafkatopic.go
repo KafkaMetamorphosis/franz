@@ -89,9 +89,11 @@ func (h *kafkaTopicHandler) toProto(t *topic.KafkaTopic) *franzv1.KafkaTopic {
 			Value: proto.Float64(t.TrafficShare.Value),
 			Unit:  proto.String(t.TrafficShare.Unit),
 		}.Build(),
-		Generation: proto.Int64(t.Generation),
-		CreatedAt:  timestamppb.New(t.CreatedAt),
-		UpdatedAt:  timestamppb.New(t.UpdatedAt),
+		Generation:      proto.Int64(t.Generation),
+		Misplaced:       proto.Bool(t.Misplaced),
+		MisplacedReason: proto.String(t.MisplacedReason),
+		CreatedAt:       timestamppb.New(t.CreatedAt),
+		UpdatedAt:       timestamppb.New(t.UpdatedAt),
 	}.Build()
 }
 

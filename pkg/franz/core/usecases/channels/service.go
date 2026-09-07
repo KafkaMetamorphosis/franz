@@ -10,6 +10,7 @@ import (
 
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/accesspolicy"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/channel"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/placement"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/selector"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/topic"
@@ -25,13 +26,29 @@ type Service struct {
 	// Provider agents when a channel operation changes its shards' desired state
 	// (005 ADR §1.3). Optional — nil in tests that do not exercise the agent wire.
 	notifier out.PartitionNotifier
+	// placer materialises the channel's async-channel shards (003.7). Optional —
+	// nil in tests that do not exercise placement.
+	placer out.ShardPlacer
 }
 
 var _ in.AsyncChannelService = (*Service)(nil)
 
-// NewService wires the service to its repository and the partition notifier.
-func NewService(repo out.AsyncChannelRepository, notifier out.PartitionNotifier) *Service {
-	return &Service{repo: repo, notifier: notifier}
+// NewService wires the service to its repository, the partition notifier and the
+// shard placer.
+func NewService(
+	repo out.AsyncChannelRepository, notifier out.PartitionNotifier, placer out.ShardPlacer,
+) *Service {
+	return &Service{repo: repo, notifier: notifier, placer: placer}
+}
+
+// place runs a placement pass for one channel, after the caller's transaction
+// has committed. Best-effort — the channel write already succeeded (003.7
+// "channel create always succeeds") and the retry sweep is the safety net.
+func (s *Service) place(ctx context.Context, realmID uuid.UUID, name string) {
+	if s.placer == nil {
+		return
+	}
+	s.placer.PlaceChannel(ctx, realmID, name)
 }
 
 // notifyShards forwards a shard change to the Resource Provider agents that
@@ -48,6 +65,9 @@ func (s *Service) notifyShards(ctx context.Context, realmID uuid.UUID, shards []
 // the channel row — placement materialises the shards (ADR-API-009).
 func (s *Service) Create(ctx context.Context, input in.CreateChannelInput) (*channel.AsyncChannel, error) {
 	r := realm.MustFromContext(ctx)
+	if err := placement.ValidateChannelLabels(input.Labels); err != nil {
+		return nil, err
+	}
 	c, err := channel.New(r, input.Name, input.Type, input.ChannelPartitions, input.Labels, input.AccessPolicy)
 	if err != nil {
 		return nil, err
@@ -55,6 +75,7 @@ func (s *Service) Create(ctx context.Context, input in.CreateChannelInput) (*cha
 	if err := s.repo.Create(ctx, c); err != nil {
 		return nil, err
 	}
+	s.place(ctx, r.ID, c.Name)
 	return c, nil
 }
 
@@ -92,15 +113,30 @@ func (s *Service) List(ctx context.Context, input in.ListChannelsInput) (in.Chan
 	}, nil
 }
 
-// Update applies the masked fields (labels only) under a row lock.
+// Update applies the masked fields (labels only) under a row lock. A change to
+// the reserved `franz.*` placement labels re-runs placement afterwards (003.7).
 func (s *Service) Update(ctx context.Context, input in.UpdateChannelInput) (*channel.AsyncChannel, error) {
 	r := realm.MustFromContext(ctx)
-	return s.repo.Mutate(ctx, r.ID, input.Name, func(c *channel.AsyncChannel) error {
+	if input.Labels != nil {
+		if err := placement.ValidateChannelLabels(*input.Labels); err != nil {
+			return nil, err
+		}
+	}
+	var labelsBefore map[string]string
+	updated, err := s.repo.Mutate(ctx, r.ID, input.Name, func(c *channel.AsyncChannel) error {
+		labelsBefore = c.Labels
 		if input.Labels != nil {
 			return c.SetLabels(*input.Labels)
 		}
 		return c.EnsureMutable()
 	})
+	if err != nil {
+		return nil, err
+	}
+	if placement.RulesChanged(labelsBefore, updated.Labels) {
+		s.place(ctx, r.ID, updated.Name)
+	}
+	return updated, nil
 }
 
 // SetAccessPolicy replaces the embedded document wholesale.

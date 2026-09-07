@@ -1,6 +1,9 @@
 package config
 
-import "testing"
+import (
+	"testing"
+	"time"
+)
 
 func TestLoadDefaults(t *testing.T) {
 	c, err := Load("does-not-exist.yaml")
@@ -43,5 +46,24 @@ func TestDSN(t *testing.T) {
 	want := "postgres://u:p@h:5432/n?sslmode=disable"
 	if got := d.DSN(); got != want {
 		t.Fatalf("DSN: got %q want %q", got, want)
+	}
+}
+
+func TestPlacementSweepInterval(t *testing.T) {
+	c, err := Load("does-not-exist.yaml")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Placement.SweepInterval != 30*time.Second {
+		t.Fatalf("default sweep interval = %s, want 30s", c.Placement.SweepInterval)
+	}
+
+	t.Setenv("FRANZ_PLACEMENT__SWEEP_INTERVAL", "90s")
+	c, err = Load("")
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if c.Placement.SweepInterval != 90*time.Second {
+		t.Fatalf("FRANZ_PLACEMENT__SWEEP_INTERVAL override = %s", c.Placement.SweepInterval)
 	}
 }

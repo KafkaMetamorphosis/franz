@@ -1023,6 +1023,19 @@ export interface components {
             generation?: string;
             /** @description Cluster this topic is placed on. */
             kafkaCluster?: string;
+            /**
+             * @description True when the cluster this async-channel shard sits on no longer satisfies
+             *     the owning channel's placement rules — re-labelled out of the affinity
+             *     selector, moved to PAUSED/DELETED, or given a `drain` taint. Franz sets the
+             *     marker and moves nothing; relocation is the migration flow. See
+             *     003.7-placement-and-selection.md.
+             */
+            misplaced?: boolean;
+            /**
+             * @description Why the topic is misplaced, in operator-facing prose. Empty when `misplaced`
+             *     is false.
+             */
+            misplacedReason?: string;
             /** @description Franz-generated Kafka topic name (also the real name in the cluster). */
             name?: string;
             /**
