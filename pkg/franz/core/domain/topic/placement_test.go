@@ -8,14 +8,20 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
 )
 
-// The two keys that seed the dedicated fields are Franz vocabulary, not Kafka
-// topic-config keys — an agent must never be asked to apply them (003.6).
-func TestMaterializeDropsTheSeedKeys(t *testing.T) {
+// partitions / replication-factor / kafka-version are Franz vocabulary that a
+// cluster's cluster_configuration may carry (ADR-API-010) but are not real Kafka
+// topic-config keys — a broker rejects createTopics with INVALID_CONFIG if any
+// is passed as topic config (003.6). Materialize drops them from both layers.
+func TestMaterializeDropsNonTopicConfigKeys(t *testing.T) {
 	merged := Materialize(map[string]string{
 		ConfigKeyPartitions:        "6",
 		ConfigKeyReplicationFactor: "3",
+		ConfigKeyKafkaVersion:      "3.9.0",
 		"retention.ms":             "60000",
-	}, map[string]string{"cleanup.policy": "compact"})
+	}, map[string]string{
+		"cleanup.policy":      "compact",
+		ConfigKeyKafkaVersion: "4.0.0", // even if it somehow reaches the shard layer
+	})
 
 	want := map[string]string{"retention.ms": "60000", "cleanup.policy": "compact"}
 	if !mapEq(merged, want) {
