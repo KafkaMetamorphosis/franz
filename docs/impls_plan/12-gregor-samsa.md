@@ -56,7 +56,7 @@ row change is picked up on the agent's next reconnect resync.
 | 12.16 | Outcome reporting — `ReportPartitionReconciliation` per partition whenever its outcome changes; carry `generation` from the assignment and `applied_config` read back from Kafka | ADR §1.5 | ✅ | 2026-09-07 |
 | 12.17 | Telemetry loop — configurable sweep (default 60s) of every in-scope cluster + partition: topic-level (`kafka.topic.state`, `partitions`, `replication_factor`, `under_replicated_partitions`, `config_drift`) and cluster-level (`kafka.cluster.broker_count`, `online_broker_count`, `total_partition_replicas`, `replicas_per_broker`, `leaders_per_broker`, `under_replicated_partitions`, `offline_partitions`) indicator samples over the client stream; plus an immediate sample right after a reconcile | ADR §2.1, §2.2 | ✅ | 2026-09-07 |
 | 12.18 | Fake-admin unit tests (reconcile create/alter/delete/safety-check/idempotent/RF-decrease-error) + a real-Docker e2e (`make gregorsamsa-e2e`, opt-in `FRANZ_GS_E2E=1`): seed a partition row, agent creates the topic, `kadm` confirms it, edit config → altered, delete → safety-checked + removed | ADR §1 | 🚧 | 2026-09-07 |
-| 12.19 | `Makefile` — `gregorsamsa` (run against the seeded dev agent) and `gregorsamsa-e2e`; `local/seed/` adds a `RESOURCE_PROVIDER` agent registration (`franz.placement-selector/*` matching the local cluster's `franz.placement/*`) with a fixed dev token | — | ✅ | 2026-09-07 |
+| 12.19 | `Makefile` — `gregorsamsa` (run against the seeded dev agent) and `gregorsamsa-e2e`; `local/seed/` adds a seeded `local-1` Kafka Cluster (wired to `local-kafka-agent`, `franz.placement/env=local`) **and** a `RESOURCE_PROVIDER` agent registration (`franz.placement-selector/env=local` — matches the seeded cluster) with a fixed dev token | — | ✅ | 2026-09-07 |
 
 ## Done when
 
@@ -104,7 +104,7 @@ row change is picked up on the agent's next reconnect resync.
 | gRPC handlers | `adapters/in/grpcgateway/resourceprovider.go`, `telemetry.go`; `agentauth.go` widened to Resource Provider + Telemetry services; wired in `cmd/franz/main.go` (+ nightly `indicator_sample` prune) |
 | Migration | `V1__init.sql` — `kafka_topic.reconciled_generation` / `last_reconcile_message`; `indicator_sample` table + indexes (idempotent `ALTER … ADD COLUMN IF NOT EXISTS`) |
 | Agent | `cmd/gregorsamsa/`, `pkg/gregorsamsa/` — `config.go`, `agent.go`, `stream/` (reconnect + backoff), `assign/` (desired map), `kafkaadmin/` (`admin.go` interface, `kadm.go` franz-go impl, `mem.go` fake), `reconcile/` (SET create/alter/increase-only, deletion safety checks), `telemetry/` (sweep loop + post-reconcile sample) |
-| Makefile / seed | `gregorsamsa` + `gregorsamsa-e2e` targets; `local/seed/02-gregor-samsa.sql` (RESOURCE_PROVIDER agent, `franz.placement-selector/*` matching the seeded cluster's `franz.placement/*`, fixed dev token) |
+| Makefile / seed | `gregorsamsa` + `gregorsamsa-e2e` targets; `local/seed/02-local-cluster.sql` (a `local-1` Kafka Cluster wired to `local-kafka-agent`, `franz.placement/env=local`, config matching the agent's advertised defaults) + `local/seed/03-gregor-samsa.sql` (RESOURCE_PROVIDER agent, `franz.placement-selector/env=local`, fixed dev token; plus a catch-all that labels console-created clusters) |
 
 ### Positions taken on ADR open questions
 

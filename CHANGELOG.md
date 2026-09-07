@@ -35,7 +35,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `usecases/{resourceprovider,telemetry}`,
   `adapters/{in/grpcgateway/{resourceprovider,telemetry},out/postgres/indicator}`,
   `pkg/gregorsamsa/*`. `Makefile`: `gregorsamsa` + `gregorsamsa-e2e`
-  (`FRANZ_GS_E2E=1`, real Docker — written, not run in CI).
+  (`FRANZ_GS_E2E=1`, real Docker — written, not run in CI). `local/seed/` now
+  registers a `local-1` Kafka Cluster (wired to `local-kafka-agent`,
+  `franz.placement/env=local`) alongside the `gregor-samsa` agent
+  (`franz.placement-selector/env=local`), so the whole local loop —
+  `make dev` + `make agent` + `make gregorsamsa` — has a cluster in scope with
+  no console step.
 - **Async Channel** (impls_plan deliverable 10): the customer-facing `AsyncChannel`
   entity (003.4) — abstract, no Kafka config of its own. `CreateAsyncChannel`
   records **only the channel row** and its `channel_partitions` count; the shard

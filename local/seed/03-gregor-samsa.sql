@@ -1,7 +1,7 @@
--- Local-dev seed: register Gregor Samsa (the Resource Provider agent) and give
--- the local Kafka Cluster the franz.placement/* labels its scope selects on, so
--- `make gregorsamsa` connects and immediately has work in scope. NOT for any
--- shared or production database — the token is public and fixed.
+-- Local-dev seed: register Gregor Samsa (the Resource Provider agent). Its scope
+-- selector lines up with the seeded local-1 cluster (seed 02), so
+-- `make gregorsamsa` connects and has that cluster in scope immediately. NOT for
+-- any shared or production database — the token is public and fixed.
 --
 -- The plaintext token is:  frnat_local-dev-gregor-samsa
 -- (Makefile's `make gregorsamsa` passes it as FRANZ_TOKEN.)
@@ -36,9 +36,9 @@ ON CONFLICT (realm_id, name) DO UPDATE SET
     token_hash = EXCLUDED.token_hash,
     updated_at = now();
 
--- Give every local Kafka Cluster the matching coordinate, so a cluster created
--- through the console before this seed ran also lands in scope. Merging (||)
--- rather than replacing keeps whatever other labels the operator set.
+-- Also give every other local Kafka Cluster the matching coordinate, so a
+-- cluster created through the console (not just the seeded local-1) lands in
+-- scope too. Merging (||) rather than replacing keeps the operator's labels.
 UPDATE kafka_cluster kc
 SET labels     = kc.labels || '{"franz.placement/env": "local"}'::jsonb,
     updated_at = now()
