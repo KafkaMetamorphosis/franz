@@ -17,3 +17,19 @@ export const CONNECTION_TYPES = [{ value: "CONNECTION_TYPE_PLAINTEXT", label: "P
 export function providerPhaseLabel(v?: string): string {
   return (v ?? "").replace(/^CLUSTER_PROVIDER_PHASE_/, "").replace(/_/g, " ") || "No report yet";
 }
+
+// CHANNEL_TYPE_KAFKA_TOPIC is the only type Franz supports today (003.4), so the
+// console renders it as the sole, fixed option rather than a real choice.
+export const CHANNEL_TYPES = [
+  { value: "CHANNEL_TYPE_KAFKA_TOPIC", label: "Kafka topic" },
+] as const;
+
+export function channelTypeLabel(v?: string): string {
+  return CHANNEL_TYPES.find((t) => t.value === v)?.label ?? "—";
+}
+
+export function channelStateLabel(v?: string): string {
+  const short = (v ?? "").replace(/^CHANNEL_STATE_/, "").replace(/_/g, " ");
+  if (!short || short === "UNSPECIFIED") return "Unspecified";
+  return short.charAt(0) + short.slice(1).toLowerCase();
+}
