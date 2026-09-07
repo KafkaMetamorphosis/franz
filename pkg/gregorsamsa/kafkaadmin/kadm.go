@@ -9,6 +9,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
+	"github.com/twmb/franz-go/pkg/kmsg"
 )
 
 // kadmAdmin is the real Admin, backed by franz-go's kadm client.
@@ -33,61 +34,99 @@ func NewKadm(_ context.Context, bootstrapServers []string) (Admin, error) {
 
 func (a *kadmAdmin) Close() { a.client.Close() }
 
-// DescribeTopic reads the topic's shape from metadata and its configuration from
-// DescribeConfigs. An unknown topic is (nil, nil).
+// DescribeTopic reads the topic's configuration (DescribeConfigs) and its shape
+// (a metadata request). An unknown topic is (nil, nil).
+//
+// Existence is decided by DescribeConfigs, not by the metadata read. A metadata
+// request routed through kadm's client caches a negative result for a topic that
+// does not exist yet, and keeps serving it for ~`MetadataMinAge` (~5s) — so a
+// pre-`CreateTopic` "does it exist?" via metadata makes the post-create
+// read-back spuriously report the topic still absent. DescribeConfigs has no
+// such cache and is correct on the first call, before and after creation.
 func (a *kadmAdmin) DescribeTopic(ctx context.Context, topic string) (*Topic, error) {
-	details, err := a.client.ListTopics(ctx, topic)
-	if err != nil {
-		return nil, fmt.Errorf("describe topic %q: %w", topic, err)
-	}
-	detail, ok := details[topic]
-	if !ok {
-		return nil, nil
-	}
-	if detail.Err != nil {
-		if errors.Is(detail.Err, kerr.UnknownTopicOrPartition) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("describe topic %q: %w", topic, detail.Err)
-	}
-
-	t := &Topic{Name: topic, Partitions: int32(len(detail.Partitions)), Config: map[string]string{}}
-	for _, p := range detail.Partitions {
-		if len(p.ISR) < len(p.Replicas) {
-			t.UnderReplicatedPartitions++
-		}
-	}
-	// Kafka permits an uneven per-partition replica count after a reassignment;
-	// report the lowest so a half-finished RF change reads as a divergence
-	// rather than as already-satisfied.
-	t.ReplicationFactor = -1
-	for _, p := range detail.Partitions {
-		if rf := int32(len(p.Replicas)); t.ReplicationFactor < 0 || rf < t.ReplicationFactor {
-			t.ReplicationFactor = rf
-		}
-	}
-	if t.ReplicationFactor < 0 {
-		t.ReplicationFactor = 0
-	}
-
 	configs, err := a.client.DescribeTopicConfigs(ctx, topic)
 	if err != nil {
 		return nil, fmt.Errorf("describe configs for topic %q: %w", topic, err)
 	}
+	t := &Topic{Name: topic, Config: map[string]string{}}
+	found := false
 	for _, rc := range configs {
 		if rc.Name != topic {
 			continue
 		}
 		if rc.Err != nil {
+			if errors.Is(rc.Err, kerr.UnknownTopicOrPartition) {
+				return nil, nil
+			}
 			return nil, fmt.Errorf("describe configs for topic %q: %w", topic, rc.Err)
 		}
+		found = true
 		for _, c := range rc.Configs {
 			if c.Value != nil {
 				t.Config[c.Key] = *c.Value
 			}
 		}
 	}
+	if !found {
+		return nil, nil
+	}
+
+	parts, rf, underReplicated, err := a.topicShape(ctx, topic)
+	if err != nil {
+		return nil, err
+	}
+	t.Partitions = parts
+	t.ReplicationFactor = rf
+	t.UnderReplicatedPartitions = underReplicated
 	return t, nil
+}
+
+// topicShape reads a topic's partition count, replication factor, and
+// under-replicated partition count with a raw MetadataRequest — a fresh broker
+// round-trip that bypasses the kadm client's metadata cache (see DescribeTopic).
+// The caller has already confirmed the topic exists via DescribeConfigs, so a
+// still-empty result here is just metadata catching up to a fresh create; return
+// zeros and let the caller fall back to the desired shape.
+func (a *kadmAdmin) topicShape(ctx context.Context, topic string) (partitions, replicationFactor, underReplicated int32, err error) {
+	req := kmsg.NewPtrMetadataRequest()
+	reqTopic := kmsg.NewMetadataRequestTopic()
+	name := topic
+	reqTopic.Topic = &name
+	req.Topics = append(req.Topics, reqTopic)
+
+	resp, err := req.RequestWith(ctx, a.kgo)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("describe topic %q shape: %w", topic, err)
+	}
+	for _, mt := range resp.Topics {
+		if mt.Topic == nil || *mt.Topic != topic {
+			continue
+		}
+		if err := kerr.ErrorForCode(mt.ErrorCode); err != nil {
+			if errors.Is(err, kerr.UnknownTopicOrPartition) {
+				return 0, 0, 0, nil // metadata still catching up
+			}
+			return 0, 0, 0, fmt.Errorf("describe topic %q shape: %w", topic, err)
+		}
+		partitions = int32(len(mt.Partitions))
+		// Kafka permits an uneven per-partition replica count after a
+		// reassignment; report the lowest so a half-finished RF change reads as a
+		// divergence rather than as already-satisfied.
+		replicationFactor = -1
+		for _, p := range mt.Partitions {
+			if rf := int32(len(p.Replicas)); replicationFactor < 0 || rf < replicationFactor {
+				replicationFactor = rf
+			}
+			if len(p.ISR) < len(p.Replicas) {
+				underReplicated++
+			}
+		}
+		if replicationFactor < 0 {
+			replicationFactor = 0
+		}
+		return partitions, replicationFactor, underReplicated, nil
+	}
+	return 0, 0, 0, nil
 }
 
 func (a *kadmAdmin) CreateTopic(

@@ -285,6 +285,37 @@ func (t *KafkaTopic) PlaceOn(clusterID uuid.UUID, clusterName string) error {
 	return nil
 }
 
+// AdoptPlacement completes a shard row that exists but was never given a cluster
+// — an ADR-API-009 anomaly (a stale fixture, an aborted write) that placement
+// heals rather than leaves stuck. It assigns the cluster, seeds the Kafka shape,
+// re-freezes the config merge from that cluster's configuration, clears any
+// misplaced marker, and bumps `generation` so the agent reconciles the now-real
+// desired state. Illegal once the shard is placed.
+func (t *KafkaTopic) AdoptPlacement(
+	clusterID uuid.UUID, clusterName string,
+	clusterConfig map[string]string, partitions, replicationFactor int32,
+) error {
+	if t.KafkaClusterID != nil {
+		return errs.Preconditionf("kafka topic %q is already placed on %q", t.Name, t.ClusterName)
+	}
+	if partitions < 1 {
+		return errs.InvalidField("partitions", "must be >= 1")
+	}
+	if replicationFactor < 1 {
+		return errs.InvalidField("replication_factor", "must be >= 1")
+	}
+	id := clusterID
+	t.KafkaClusterID = &id
+	t.ClusterName = clusterName
+	t.Partitions = partitions
+	t.ReplicationFactor = replicationFactor
+	t.MaterializedConfiguration = Materialize(clusterConfig, t.TopicConfiguration)
+	t.Misplaced = false
+	t.MisplacedReason = ""
+	t.bumpGeneration()
+	return nil
+}
+
 func (t *KafkaTopic) bumpGeneration() { t.Generation++ }
 
 func nonNil(m map[string]string) map[string]string {

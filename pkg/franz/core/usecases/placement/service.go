@@ -167,18 +167,46 @@ func (s *Service) Place(
 		func(existing []*topic.KafkaTopic) (out.ShardPlan, error) {
 			byName := make(map[string]*topic.KafkaTopic, len(existing))
 			for _, shard := range existing {
-				byName[shard.Name] = shard
+				if shard.State != topic.StateDeleted {
+					byName[shard.Name] = shard
+				}
 			}
 
 			var shardPlan out.ShardPlan
+			adopted := map[string]bool{}
+
+			// 1. Heal any row that exists but was never given a cluster
+			//    (ADR-API-009 anomaly) — assign it one now if selection can.
+			for index := range int(c.ChannelPartitions) {
+				shard, ok := byName[c.ShardName(index)]
+				if !ok || shard.KafkaClusterID != nil {
+					continue
+				}
+				host := plan.ByShardIndex[index]
+				if host == nil {
+					continue // still nothing eligible; the sweep retries
+				}
+				if err := shard.AdoptPlacement(host.ID, host.Name, host.Configuration,
+					topic.SeedPartitions(host.Configuration, FallbackPartitions),
+					topic.SeedReplicationFactor(host.Configuration, FallbackReplicationFactor)); err != nil {
+					return out.ShardPlan{}, err
+				}
+				shard.ChannelName = c.Name
+				shardPlan.Update = append(shardPlan.Update, shard)
+				adopted[shard.Name] = true
+			}
+
+			// 2. Re-evaluate every other placed shard's misplaced marker.
 			for _, shard := range existing {
-				if shard.State == topic.StateDeleted {
+				if shard.State == topic.StateDeleted || adopted[shard.Name] {
 					continue
 				}
 				if remarkMisplaced(shard, rules, byID) {
 					shardPlan.Update = append(shardPlan.Update, shard)
 				}
 			}
+
+			// 3. Materialise a row for every shard index that still has none.
 			for index := range int(c.ChannelPartitions) {
 				if _, taken := byName[c.ShardName(index)]; taken {
 					continue

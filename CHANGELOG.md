@@ -7,6 +7,29 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A reconcile reported `ERROR` for a topic it had just created**
+  ("topic still absent after created and waiting for it to appear in cluster
+  metadata"), while the topic plainly existed. A metadata request routed through
+  kadm's client caches a negative result for a not-yet-created topic and keeps
+  serving it for ~`MetadataMinAge` (~5s), so the "does it exist?" check *before*
+  `CreateTopic` poisoned the read-back *after* it. `DescribeTopic` now decides
+  existence and reads config via `DescribeConfigs` (no such cache), and reads the
+  topic shape with a raw `MetadataRequest` (a fresh broker round-trip). The
+  read-back also keeps polling for partition metadata to converge before
+  reporting `applied_config`.
+- **Placement skipped a shard row that existed but had no cluster.** The "create
+  a row for every unplaced shard index" step keyed on "a row with that name
+  exists" — so a leftover unplaced row (a stale fixture, an aborted write) was
+  never given a cluster, and the retry sweep counted it toward
+  `channel_partitions` and stopped revisiting the channel. Placement now
+  *adopts* such a row (`KafkaTopic.AdoptPlacement` — assign the cluster, seed the
+  shape, re-freeze the config, bump `generation`), and `ListUnderplaced` counts
+  only placed rows.
+- **Console: the Async Channel detail page showed a static "placement not yet
+  enabled" note.** It now lists the channel's materialised shards (topic name,
+  cluster, partitions/RF, state, misplaced marker), polling every 5s while they
+  converge, and tells you to add a `franz.affinity/selector` when none are
+  placed.
 - **`kafka-version` leaked into a shard's Kafka topic config.** `topic.Materialize`
   dropped `partitions` / `replication-factor` from the `cluster_configuration`
   merge but not `kafka-version` — a cluster-substrate key (ADR-API-010), not a

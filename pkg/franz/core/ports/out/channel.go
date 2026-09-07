@@ -49,9 +49,9 @@ type AsyncChannelRepository interface {
 	ListActive(ctx context.Context, realmID uuid.UUID) ([]*channel.AsyncChannel, error)
 
 	// ListUnderplaced returns every ACTIVE channel — across all realms — with
-	// fewer live kafka_topic rows than `channel_partitions`. It is the placement
-	// retry sweep's work list (003.7); the sweep runs on a timer and has no realm
-	// context of its own.
+	// fewer *placed* kafka_topic rows than `channel_partitions` (an unplaced row
+	// does not count). It is the placement retry sweep's work list (003.7); the
+	// sweep runs on a timer and has no realm context of its own.
 	ListUnderplaced(ctx context.Context) ([]*channel.AsyncChannel, error)
 
 	// MutateWithShards additionally loads every non-deleted shard of the channel

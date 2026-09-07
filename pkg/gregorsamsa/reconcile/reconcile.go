@@ -319,15 +319,22 @@ func (r *Reconciler) readBack(
 	ctx context.Context, admin kafkaadmin.Admin, a assign.Assignment, outcome Outcome,
 ) Report {
 	verb := strings.ToLower(string(outcome))
+	var last *kafkaadmin.Topic
 	for attempt := range readBackAttempts {
 		after, err := admin.DescribeTopic(ctx, a.TopicName)
 		if err != nil {
 			return errorReport(a, fmt.Sprintf("read back topic after %s: %v", verb, err), nil)
 		}
 		if after != nil {
-			return Report{
-				PartitionFRN: a.PartitionFRN, Generation: a.Generation,
-				Outcome: outcome, Applied: after,
+			last = after
+			// The topic exists. Wait a little longer for its partition metadata
+			// if it is still converging (a fresh create) so applied_config is
+			// accurate — but only while there is time left in the loop.
+			if after.Partitions > 0 || attempt == readBackAttempts-1 {
+				return Report{
+					PartitionFRN: a.PartitionFRN, Generation: a.Generation,
+					Outcome: outcome, Applied: after,
+				}
 			}
 		}
 		if attempt == readBackAttempts-1 {
@@ -337,6 +344,12 @@ func (r *Reconciler) readBack(
 		case <-ctx.Done():
 			return errorReport(a, "cancelled while reading back topic after "+verb, nil)
 		case <-time.After(readBackDelay):
+		}
+	}
+	if last != nil {
+		return Report{
+			PartitionFRN: a.PartitionFRN, Generation: a.Generation,
+			Outcome: outcome, Applied: last,
 		}
 	}
 	return errorReport(a, "topic still absent after "+verb+

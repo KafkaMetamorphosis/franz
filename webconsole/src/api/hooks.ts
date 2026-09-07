@@ -213,6 +213,22 @@ export function useChannel(name: string) {
   });
 }
 
+// The async-channel shards placement has materialised for a channel — each is
+// one real Kafka Topic. Empty until a cluster matches the channel's
+// `franz.affinity/selector` (deliverable 13, ADR-API-009).
+export function useChannelTopics(asyncChannel: string, opts?: { pollMs?: number }) {
+  return useQuery({
+    queryKey: ["channel-topics", asyncChannel],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/kafka/topics", {
+          params: { query: { asyncChannel } },
+        }),
+      ),
+    refetchInterval: opts?.pollMs,
+  });
+}
+
 export function useCreateChannel() {
   const qc = useQueryClient();
   return useMutation({

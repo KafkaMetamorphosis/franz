@@ -1,12 +1,11 @@
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Breadcrumbs, Empty, ErrorBanner, Loading, PageHeading, Panel, StatusPill } from "../../components/ui";
-import { useChannel, useChannelLifecycle } from "../../api/hooks";
+import { useChannel, useChannelLifecycle, useChannelTopics } from "../../api/hooks";
 import { channelTypeLabel } from "../../api/enums";
 
-// Ported from 001-ux/demo/async-channel-detail.html. The Access policy, Clients
-// with access and Generated Kafka Topics panels are intentionally absent: the
-// policy engine and the client views ship with deliverable 17, and shard rows
-// are materialised by placement in deliverable 13 (ADR-API-009).
+// Ported from 001-ux/demo/async-channel-detail.html. The Access policy and
+// Clients-with-access panels are intentionally absent — the policy engine and
+// client views ship with deliverable 17.
 export function ChannelDetail() {
   const { name = "" } = useParams();
   const navigate = useNavigate();
@@ -16,6 +15,10 @@ export function ChannelDetail() {
   const channel = data?.asyncChannel;
   const deleted = channel?.state === "CHANNEL_STATE_DELETED";
   const declaredPartitions = channel?.channelPartitions ?? 0;
+
+  // Poll while shards are still converging so the table reflects the agent.
+  const { data: topicsData } = useChannelTopics(name, { pollMs: deleted ? undefined : 5000 });
+  const shards = topicsData?.kafkaTopics ?? [];
 
   return (
     <>
@@ -112,12 +115,55 @@ export function ChannelDetail() {
 
           <Panel
             title="Generated Kafka Topics"
-            note="Each channel partition becomes a Kafka Topic once placement assigns it a cluster."
+            note="Each channel partition becomes a Kafka Topic once placement assigns it a cluster (ADR-API-009)."
           >
-            <p className="empty-note" data-testid="shard-placement">
-              Shards: 0 of {declaredPartitions} placed — placement not yet enabled. Shard rows are
-              materialised by placement (deliverable 13), not at channel create.
+            <p className="panel-note" data-testid="shard-placement">
+              Shards: {shards.length} of {declaredPartitions} placed
+              {shards.length < declaredPartitions
+                ? " — add a franz.affinity/selector that matches a registered cluster"
+                : "."}
             </p>
+            {shards.length > 0 ? (
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Topic</th>
+                      <th>Cluster</th>
+                      <th>Partitions</th>
+                      <th>RF</th>
+                      <th>State</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shards.map((s) => (
+                      <tr key={s.name}>
+                        <td>
+                          <code>{s.name}</code>
+                        </td>
+                        <td>
+                          {s.kafkaCluster ? (
+                            <Link to={`/kafka/clusters/${s.kafkaCluster}`}>{s.kafkaCluster}</Link>
+                          ) : (
+                            <span className="panel-note">unplaced</span>
+                          )}
+                        </td>
+                        <td>{s.partitions ?? "—"}</td>
+                        <td>{s.replicationFactor ?? "—"}</td>
+                        <td>
+                          <StatusPill value={s.state} />
+                          {s.misplaced ? (
+                            <span className="status paused" title={s.misplacedReason}>
+                              Misplaced
+                            </span>
+                          ) : null}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : null}
           </Panel>
 
           <Panel title="Access policy" note="Which clients may use this channel.">

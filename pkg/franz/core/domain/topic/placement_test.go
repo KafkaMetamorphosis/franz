@@ -90,6 +90,43 @@ func TestMisplacedMarkerDoesNotMoveOrBumpGeneration(t *testing.T) {
 	}
 }
 
+func TestAdoptPlacementCompletesAnUnplacedRow(t *testing.T) {
+	shard, err := New(testRealm(), uuid.New(), "orders", 0,
+		map[string]string{"retention.ms": "1", ConfigKeyKafkaVersion: "3.9.0"}, nil, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	shard.KafkaClusterID = nil // an ADR-API-009 anomaly: a row with no cluster
+	shard.MarkMisplaced("no eligible cluster")
+	gen := shard.Generation
+
+	clusterID := uuid.New()
+	if err := shard.AdoptPlacement(clusterID, "east-1",
+		map[string]string{"retention.ms": "60000", ConfigKeyPartitions: "6", ConfigKeyKafkaVersion: "4.0.0"},
+		6, 3); err != nil {
+		t.Fatal(err)
+	}
+	if shard.KafkaClusterID == nil || *shard.KafkaClusterID != clusterID || shard.ClusterName != "east-1" {
+		t.Fatalf("not placed: %+v", shard)
+	}
+	if shard.Partitions != 6 || shard.ReplicationFactor != 3 {
+		t.Errorf("shape not seeded: %d/%d", shard.Partitions, shard.ReplicationFactor)
+	}
+	if !mapEq(shard.MaterializedConfiguration, map[string]string{"retention.ms": "60000"}) {
+		t.Errorf("config not re-materialised (or a seed key leaked): %v", shard.MaterializedConfiguration)
+	}
+	if shard.Misplaced || shard.MisplacedReason != "" {
+		t.Error("misplaced marker survived adoption")
+	}
+	if shard.Generation != gen+1 {
+		t.Errorf("generation = %d, want %d", shard.Generation, gen+1)
+	}
+
+	if err := shard.AdoptPlacement(uuid.New(), "west-1", nil, 1, 1); errs.KindOf(err) != errs.FailedPrecondition {
+		t.Fatalf("adopt on an already-placed shard = %v, want FAILED_PRECONDITION", err)
+	}
+}
+
 // A placed shard is only ever moved by the migration flow (003.13), so PlaceOn
 // refuses to re-point one.
 func TestPlaceOnRejectsAnAlreadyPlacedShard(t *testing.T) {
