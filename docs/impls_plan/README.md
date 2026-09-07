@@ -41,13 +41,14 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 |---|---|---|---|
 | [09](./09-kafka-topic.md) | Kafka Topic (read model) | 02 · 03 | ✅ |
 | [10](./10-async-channel.md) | Async Channel + access-policy document | 02 · 09 | ✅ |
-| [11](./11-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 | ⬜ |
-| [12](./12-placement.md) | Placement & selection | 03 · 10 · 11 | ⬜ |
-| [13](./13-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ⬜ |
-| [14](./14-governance.md) | Governance (non-placement actions) | 02 · 03 · 09 · 10 · 13 | ⬜ |
-| [15](./15-client.md) | Client | 02 · 13 | ⬜ |
-| [16](./16-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 15 | ⬜ |
-| [17](./17-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 12 | ⛔ |
+| [11](./11-cluster-agent-label-consolidation.md) | Cluster & agent label consolidation | 03 · 04 · 08 | ⬜ |
+| [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ⬜ |
+| [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ⬜ |
+| [14](./14-telemetry-ingest.md) | Telemetry ingest | 02 · 15 | ⬜ |
+| [15](./15-governance.md) | Governance (non-placement actions) | 02 · 03 · 09 · 10 · 14 | ⬜ |
+| [16](./16-client.md) | Client | 02 · 14 | ⬜ |
+| [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ⬜ |
+| [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ⛔ |
 
 ## Decisions already locked (`DECISIONS.md` ADR-API-005)
 
@@ -68,7 +69,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 | Blocked | On |
 |---|---|
-| **17** migration flow, and the real moves it unblocks (placed-shard relocation, cluster-delete-with-live-topics, re-shard execution, governance placement/taint actions) | `003.13` OQ1–2 — data-copy mechanism + RPC surface |
+| **18** migration flow, and the real moves it unblocks (placed-shard relocation, cluster-delete-with-live-topics, re-shard execution, governance placement/taint actions) | `003.13` OQ1–2 — data-copy mechanism + RPC surface |
 | Real API authorization | `003.2` model undecided (stub for now) |
 | Control-plane event log | `003.11` OQ4 — design not started |
 | SDK / client library (shard routing) | routing-key ADR not written |
@@ -87,9 +88,20 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
-- 2026-09-06 · **plan** · inserted deliverable **11 — Gregor Samsa (Resource
-  Provider agent)** as the next thing to build; renumbered the former 11–16 to
-  **12–17**. Design: `docs/005-gregor-samsa` (multi-cluster, `franz.selector/*` ↔
+- 2026-09-06 · **plan** · inserted deliverable **11 — Cluster & agent label
+  consolidation** ahead of Gregor Samsa; renumbered the former 11–17 to **12–18**.
+  Scope: one `Labels` surface on the cluster form (no more separate Provisioning
+  intent / Context labels / Cluster configuration sections); `cluster_configuration`
+  becomes a read-only projection of `franz.kafka-config/*` labels; agents advertise
+  defaults as `franz.default-provisioning/*` + `franz.default-kafka-config/*`
+  labels; **ADR-API-008's structured `Agent.provisioning_labels` schema is removed**
+  (superseded by ADR-API-010). All cross-references, `Depends on`, and internal
+  task IDs updated.
+- 2026-09-06 · **plan** · inserted deliverable **Gregor Samsa (Resource
+  Provider agent)**; design `docs/005-gregor-samsa` (multi-cluster,
+  `franz.selector/*` ↔ `franz.placement/*` scoping; push-driven
+  `WatchPartitionAssignments` server stream + per-partition generation-gated
+  reports; deletion safety checks kept; Part 2 telemetry over `TelemetryService`). Design: `docs/005-gregor-samsa` (multi-cluster, `franz.selector/*` ↔
   `franz.placement/*` scoping; push-driven `WatchPartitionAssignments` server
   stream + per-partition generation-gated reports; deletion safety checks kept;
   Part 2 telemetry over `TelemetryService`). All cross-references, `Depends on`,
@@ -101,7 +113,7 @@ _(newest first — date · deliverable/task · note · commit)_
   `ChannelRepo`, `AsyncChannelService` REST handler (`ListChannelClients` →
   `Unimplemented`, ships with 15). `access_policy` validated on write, no cap.
   `async_channel` table extended. No proto change. Plan updated: shard
-  materialisation moved to deliverable 12. codex out of quota → claude.
+  materialisation moved to deliverable 13. codex out of quota → claude.
 - 2026-09-06 · **09** Kafka Topic (read model) · `pkg/franz/core/domain/topic`
   (state machine + `Consumption` + `TrafficShare` + config `Materialize`),
   `topics.NewService` (Get / List / SetConsumption with equal-split
