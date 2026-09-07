@@ -98,9 +98,9 @@ Config is `config.yaml`, overlaid by `FRANZ_`-prefixed env vars
 ```
 api/franz/v1/       protobuf service + message definitions (the contract)
 cmd/franz/          control-plane entrypoint (fx)
-cmd/local-kafka-agent/   the Cluster Provider agent
+cmd/localkafkaagent/   the Cluster Provider agent
 pkg/franz/          control-plane code (hexagonal)
-pkg/localkafka/     the agent (deliberately simple — plain packages, no fx)
+pkg/localkafkaagent/  the agent (deliberately simple — plain packages, no fx)
 pkg/shared/         cross-cutting helpers (frn, token, pagetoken, fieldmask, …)
 pkg/gen/go/         generated protobuf Go (do not edit)
 migrations/         SQL schema (idempotent; applied on boot)

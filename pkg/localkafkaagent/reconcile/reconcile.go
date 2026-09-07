@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/assign"
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/docker"
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/recipe"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/assign"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/docker"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/recipe"
 )
 
 // freshProbeAttempts / freshProbeDelay give a just-started broker time to come

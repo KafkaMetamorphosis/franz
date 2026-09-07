@@ -64,10 +64,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     schema and seeds the `local-kafka-agent` registration (with its provisioning
     schema and a fixed public dev token) **before Franz starts**, so `make agent`
     connects with no console step. Replaces the `FRANZ_REGISTER=1` self-register
-    path from deliverable 07 — `pkg/localkafka/register.go` and the `Register`
+    path from deliverable 07 — `pkg/localkafkaagent/register.go` and the `Register`
     config field are removed; the agent takes `FRANZ_TOKEN` only.
 
-- **local-kafka-docker-agent** (impls_plan deliverable 07): `cmd/local-kafka-agent`
+- **local-kafka-docker-agent** (impls_plan deliverable 07): `cmd/localkafkaagent`
   — the first Cluster Provider agent. It registers with Franz, watches
   `WatchClusterAssignments` (reconnect + backoff, debounced into one reconcile),
   renders the `local-docker` recipe (a single `apache/kafka` KRaft container per
@@ -77,7 +77,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   change (keeping the data volume) → stop on `PAUSED` → remove + volume on
   `REMOVED` → drop orphans. Readiness is a `franz-go` `Ping`; a fresh broker is
   retried so a normal boot goes `PROVISIONING → READY` without a transient
-  `DEGRADED`. Status is reported per state transition. `pkg/localkafka/{assign,
+  `DEGRADED`. Status is reported per state transition. `pkg/localkafkaagent/{assign,
   stream,recipe,docker,reconcile,probe}`. Fake-Docker unit tests in CI; a
   real-Docker end-to-end (`make agent-e2e`, opt-in) verifies a client can
   connect and create a topic against the provisioned broker. New Make targets
@@ -173,6 +173,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- Renamed the agent's Go paths for consistency: `cmd/local-kafka-agent` →
+  `cmd/localkafkaagent`, `pkg/localkafka` → `pkg/localkafkaagent` (import path
+  and package clause follow). The registered agent **name** `local-kafka-agent`
+  (FRN, `FRANZ_AGENT_NAME` default, `franz.role` label) is unchanged.
 - `config`: added `db.auto_migrate` (default `true`) and `resource_prefix`
   (default `frn`; an invalid value fails the boot).
 - Proto: the resource-identifier field is `frn` (was `orn`); likewise

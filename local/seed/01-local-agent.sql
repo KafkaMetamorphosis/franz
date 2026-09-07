@@ -16,7 +16,7 @@ SELECT
     'default:agent:local-kafka-agent',
     'CLUSTER_PROVIDER',
     '{"franz.role": "local-kafka-agent"}'::jsonb,
-    -- Mirrors localkafka recipe's franz.provisioning/* keys.
+    -- Mirrors localkafkaagent recipe's franz.provisioning/* keys.
     '[
        {"key": "franz.provisioning/deployment-type",
         "description": "Selects the recipe family.",

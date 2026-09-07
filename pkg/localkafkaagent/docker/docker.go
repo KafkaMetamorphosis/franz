@@ -6,7 +6,7 @@ package docker
 import (
 	"context"
 
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/recipe"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/recipe"
 )
 
 // Container is the agent's view of one managed container.

@@ -1,4 +1,4 @@
-package localkafka_test
+package localkafkaagent_test
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ import (
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
 
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent"
 )
 
 // TestLocalDockerEndToEnd is the real-Docker smoke (deliverable 07.9). It is
@@ -60,11 +60,11 @@ func TestLocalDockerEndToEnd(t *testing.T) {
 	t.Setenv("FRANZ_ENDPOINT", grpcEndpoint)
 	t.Setenv("FRANZ_TOKEN", created.Token)
 	t.Setenv("FRANZ_AGENT_NAME", agentName)
-	cfg, err := localkafka.LoadConfig()
+	cfg, err := localkafkaagent.LoadConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
-	agent, err := localkafka.NewAgent(cfg, slog.New(slog.NewTextHandler(os.Stderr, nil)))
+	agent, err := localkafkaagent.NewAgent(cfg, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 	if err != nil {
 		t.Fatal(err)
 	}

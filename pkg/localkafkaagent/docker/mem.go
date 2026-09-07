@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/recipe"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/recipe"
 )
 
 // MemDriver is an in-memory Driver for tests — it records the operations the

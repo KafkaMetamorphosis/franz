@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/recipe"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/recipe"
 )
 
 // EngineDriver talks to a real Docker Engine via the Go SDK.

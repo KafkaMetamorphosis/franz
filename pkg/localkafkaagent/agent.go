@@ -1,4 +1,4 @@
-package localkafka
+package localkafkaagent
 
 import (
 	"context"
@@ -10,10 +10,10 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 
 	franzv1 "github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1"
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/docker"
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/probe"
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/reconcile"
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/stream"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/docker"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/probe"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/reconcile"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/stream"
 )
 
 // bearerCreds attaches `authorization: Bearer <token>` to every RPC.
