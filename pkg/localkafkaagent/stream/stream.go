@@ -12,7 +12,7 @@ import (
 	"time"
 
 	franzv1 "github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1"
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/assign"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/assign"
 )
 
 // AssignmentStream is the client side of WatchClusterAssignments.

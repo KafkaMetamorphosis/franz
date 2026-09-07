@@ -3,7 +3,7 @@
 // Cluster registration into a running KRaft broker in Docker on the local
 // machine, keeps it converged, and reports status. It is a deliberately simple
 // agent — plain packages, no hexagonal layering, no fx (002-monorepo-structure).
-package localkafka
+package localkafkaagent
 
 import (
 	"fmt"

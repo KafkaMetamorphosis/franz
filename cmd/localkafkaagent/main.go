@@ -20,19 +20,19 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent"
 )
 
 func main() {
 	log := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-	cfg, err := localkafka.LoadConfig()
+	cfg, err := localkafkaagent.LoadConfig()
 	if err != nil {
 		log.Error("config", "err", err)
 		os.Exit(2)
 	}
 
-	agent, err := localkafka.NewAgent(cfg, log)
+	agent, err := localkafkaagent.NewAgent(cfg, log)
 	if err != nil {
 		log.Error("startup", "err", err)
 		os.Exit(1)

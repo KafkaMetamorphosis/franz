@@ -117,13 +117,13 @@ _(newest first — date · deliverable/task · note · commit)_
   gains `franz.provisioning/kafka-image`. **`franz/local/`** added — a
   docker-compose + DB seed that installs the `local-kafka-agent` registration
   (schema + fixed dev token) before Franz starts, replacing the `FRANZ_REGISTER`
-  self-register path from 07 (`pkg/localkafka/register.go` removed). codex out of
+  self-register path from 07 (`pkg/localkafkaagent/register.go` removed). codex out of
   quota → claude implemented it all.
 - 2026-09-06 · **plan** · inserted deliverable **08 — resource management in the
   console**; renumbered the former 08–15 to **09–16**. All cross-references and
   `Depends on` columns updated. No code or shipped deliverable (01–07) affected.
-- 2026-09-06 · **07** local-kafka-docker-agent · `cmd/local-kafka-agent` +
-  `pkg/localkafka/{assign,stream,recipe,docker,reconcile,probe}` — connects as a
+- 2026-09-06 · **07** local-kafka-docker-agent · `cmd/localkafkaagent` +
+  `pkg/localkafkaagent/{assign,stream,recipe,docker,reconcile,probe}` — connects as a
   CLUSTER_PROVIDER, watches assignments, renders the `local-docker` recipe,
   brings up an apache/kafka KRaft container, converges + reports status.
   franz-go readiness probe. Fake-driver unit tests + a real-Docker e2e

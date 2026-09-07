@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/assign"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/assign"
 )
 
 func base() assign.Assignment {

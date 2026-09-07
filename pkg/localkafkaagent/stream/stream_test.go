@@ -10,7 +10,7 @@ import (
 	"time"
 
 	franzv1 "github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1"
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/assign"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/assign"
 )
 
 func setMsg(name string, change franzv1.ClusterAssignment_Change) *franzv1.WatchClusterAssignmentsResponse {

@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/KafkaMetamorphosis/franz/pkg/localkafka/assign"
+	"github.com/KafkaMetamorphosis/franz/pkg/localkafkaagent/assign"
 )
 
 const (
