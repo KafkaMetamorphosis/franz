@@ -14,10 +14,29 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/shared/token"
 )
 
-// clusterProviderMethodPrefix scopes the agent-auth interceptor to the
-// agent-only ClusterProviderService; every other RPC passes through untouched
-// (the console allow-all realm interceptor handles those).
-const clusterProviderMethodPrefix = "/franz.v1.ClusterProviderService/"
+// agentMethodPrefixes scope the agent-auth interceptor to the agent-only
+// services; every other RPC passes through untouched (the console allow-all
+// realm interceptor handles those).
+//
+// TelemetryService is agent-facing too and is not exposed through the REST
+// gateway; `Agent.type` is organisational only (003.9), so a RESOURCE_PROVIDER
+// publishing telemetry is allowed — the interceptor just has to cover the
+// service (005 ADR §2.2).
+var agentMethodPrefixes = []string{
+	"/franz.v1.ClusterProviderService/",
+	"/franz.v1.ResourceProviderService/",
+	"/franz.v1.TelemetryService/",
+}
+
+// isAgentMethod reports whether fullMethod belongs to an agent-only service.
+func isAgentMethod(fullMethod string) bool {
+	for _, p := range agentMethodPrefixes {
+		if strings.HasPrefix(fullMethod, p) {
+			return true
+		}
+	}
+	return false
+}
 
 // AgentAuthenticator resolves an `authorization: Bearer <token>` gRPC metadata
 // header to the registered agent and puts it in the request context
@@ -57,12 +76,12 @@ func (a *AgentAuthenticator) authenticate(ctx context.Context) (context.Context,
 	return agent.NewContext(ctx, ag), nil
 }
 
-// UnaryInterceptor authenticates ClusterProviderService unary calls.
+// UnaryInterceptor authenticates agent-only unary calls.
 func (a *AgentAuthenticator) UnaryInterceptor(
 	ctx context.Context, req any,
 	info *grpc.UnaryServerInfo, handler grpc.UnaryHandler,
 ) (any, error) {
-	if !strings.HasPrefix(info.FullMethod, clusterProviderMethodPrefix) {
+	if !isAgentMethod(info.FullMethod) {
 		return handler(ctx, req)
 	}
 	ctx, err := a.authenticate(ctx)
@@ -72,12 +91,13 @@ func (a *AgentAuthenticator) UnaryInterceptor(
 	return handler(ctx, req)
 }
 
-// StreamInterceptor authenticates the WatchClusterAssignments stream.
+// StreamInterceptor authenticates the agent-only streams
+// (WatchClusterAssignments, WatchPartitionAssignments, StreamIndicatorSamples).
 func (a *AgentAuthenticator) StreamInterceptor(
 	srv any, ss grpc.ServerStream,
 	info *grpc.StreamServerInfo, handler grpc.StreamHandler,
 ) error {
-	if !strings.HasPrefix(info.FullMethod, clusterProviderMethodPrefix) {
+	if !isAgentMethod(info.FullMethod) {
 		return handler(srv, ss)
 	}
 	ctx, err := a.authenticate(ss.Context())
@@ -88,7 +108,8 @@ func (a *AgentAuthenticator) StreamInterceptor(
 }
 
 // WithAgentAuth installs the agent-auth interceptors (004 ADR §2). They run
-// after the realm interceptor and only act on ClusterProviderService methods.
+// after the realm interceptor and only act on the agent-only services listed in
+// agentMethodPrefixes.
 func WithAgentAuth(a *AgentAuthenticator) Option {
 	return func(o *options) {
 		o.unary = append(o.unary, a.UnaryInterceptor)

@@ -36,6 +36,9 @@ func (f *fakeClusters) Get(_ context.Context, _ uuid.UUID, name string) (*cluste
 	}
 	return c, nil
 }
+func (f *fakeClusters) ListAll(context.Context, uuid.UUID) ([]*cluster.Cluster, error) {
+	panic("unused")
+}
 func (f *fakeClusters) ListByProviderAgent(_ context.Context, _ uuid.UUID, agentName string) ([]*cluster.Cluster, error) {
 	var out []*cluster.Cluster
 	for _, c := range f.byName {

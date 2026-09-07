@@ -42,7 +42,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [09](./09-kafka-topic.md) | Kafka Topic (read model) | 02 · 03 | ✅ |
 | [10](./10-async-channel.md) | Async Channel + access-policy document | 02 · 09 | ✅ |
 | [11](./11-cluster-and-agent-config.md) | Cluster & agent configuration model | 03 · 04 · 08 | ✅ |
-| [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ⬜ |
+| [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ✅ |
 | [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ⬜ |
 | [14](./14-telemetry-ingest.md) | Telemetry ingest | 02 · 15 | ⬜ |
 | [15](./15-governance.md) | Governance (non-placement actions) | 02 · 03 · 09 · 10 · 14 | ⬜ |

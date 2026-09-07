@@ -154,13 +154,58 @@ CREATE TABLE IF NOT EXISTS kafka_topic (
     traffic_share_value       double precision NOT NULL DEFAULT 0,
     traffic_share_unit        text        NOT NULL DEFAULT 'percent',
     generation                bigint      NOT NULL DEFAULT 1,
+    -- Resource Provider reporting (005 ADR §1.5). `reconciled_generation` is the
+    -- last generation an agent confirmed the real topic satisfies — NULL until
+    -- the first successful report, and lagging `generation` while the shard is
+    -- not converged. `last_reconcile_message` is the newest report's detail.
+    reconciled_generation     bigint,
+    last_reconcile_message    text        NOT NULL DEFAULT '',
     created_at                timestamptz NOT NULL DEFAULT now(),
     updated_at                timestamptz NOT NULL DEFAULT now(),
     UNIQUE (realm_id, name),
     UNIQUE (frn)
 );
 
+-- The two columns above were added after kafka_topic first shipped; CREATE TABLE
+-- IF NOT EXISTS is a no-op on a database that already has the table, so bring an
+-- already-migrated development database forward explicitly. Idempotent, like
+-- every other statement in this file.
+ALTER TABLE kafka_topic
+    ADD COLUMN IF NOT EXISTS reconciled_generation  bigint,
+    ADD COLUMN IF NOT EXISTS last_reconcile_message text NOT NULL DEFAULT '';
+
 CREATE INDEX IF NOT EXISTS kafka_topic_channel
     ON kafka_topic (async_channel_id);
 CREATE INDEX IF NOT EXISTS kafka_topic_cluster
     ON kafka_topic (kafka_cluster_id) WHERE kafka_cluster_id IS NOT NULL;
+
+-- Indicator samples — the append-only 30-day time series every telemetry
+-- producer feeds (003.14). This is the minimal ingest table deliverable 12 needs
+-- for Gregor Samsa's structural telemetry (005 ADR Part 2); deliverable 14
+-- (telemetry ingest) adopts it and adds the `indicator` registry that makes
+-- `indicator` a foreign key and pre-registration enforceable. Until then any
+-- indicator name is accepted. Pruned nightly at 30 days, like
+-- cluster_provider_event.
+CREATE TABLE IF NOT EXISTS indicator_sample (
+    id              uuid        PRIMARY KEY,
+    realm_id        uuid        NOT NULL REFERENCES realm (id),
+    indicator       text        NOT NULL,
+    -- The resource the sample describes. A plain string, not an FRN foreign key:
+    -- 005 ADR §2.1 also samples cluster sub-resources ("<cluster-frn>/broker/3").
+    resource_frn    text        NOT NULL,
+    resource_entity text        NOT NULL
+                        CHECK (resource_entity IN ('ASYNC_CHANNEL', 'KAFKA_TOPIC',
+                                                   'KAFKA_CLUSTER')),
+    -- Encoded per the indicator's unit ("3", "true", "168Gi", ...).
+    value            text        NOT NULL,
+    reporting_agent  text        NOT NULL,
+    sample_at        timestamptz NOT NULL,
+    received_at      timestamptz NOT NULL DEFAULT now()
+);
+
+-- Serves both the history API and the "latest sample per (indicator, resource)"
+-- current-value lookup governance reads (003.14).
+CREATE INDEX IF NOT EXISTS indicator_sample_series
+    ON indicator_sample (indicator, resource_frn, sample_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS indicator_sample_sample_at
+    ON indicator_sample (sample_at);

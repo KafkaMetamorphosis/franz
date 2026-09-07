@@ -19,13 +19,17 @@ import (
 type Service struct {
 	repo     out.TopicRepository
 	clusters out.ClusterRepository // for the ListKafkaTopics kafka_cluster filter (name → id)
+	// notifier pushes partition-assignment deltas to the in-scope Resource
+	// Provider agents when a shard's desired state changes (005 ADR §1.3).
+	// Optional — nil in tests that do not exercise the agent wire.
+	notifier out.PartitionNotifier
 }
 
 var _ in.KafkaTopicService = (*Service)(nil)
 
 // NewService wires the service to its ports.
-func NewService(repo out.TopicRepository, clusters out.ClusterRepository) *Service {
-	return &Service{repo: repo, clusters: clusters}
+func NewService(repo out.TopicRepository, clusters out.ClusterRepository, notifier out.PartitionNotifier) *Service {
+	return &Service{repo: repo, clusters: clusters, notifier: notifier}
 }
 
 // Get returns the shard by name, including a soft-deleted one.
@@ -114,6 +118,12 @@ func (s *Service) SetConsumption(
 		})
 	if err != nil {
 		return nil, err
+	}
+	// SetConsumption bumps the shard's generation, so its agent must re-confirm
+	// the desired state; the siblings only moved traffic_share, which the agent
+	// does not act on, but re-offering the whole set costs one no-op reconcile.
+	if s.notifier != nil {
+		s.notifier.ShardsChanged(ctx, r.ID, shards)
 	}
 
 	for _, sh := range shards {

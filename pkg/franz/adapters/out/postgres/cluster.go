@@ -219,6 +219,31 @@ func (r *ClusterRepo) ListByProviderAgent(
 	return out, nil
 }
 
+// ListAll returns every non-deleted cluster in the realm, ordered by name — the
+// input to the Resource Provider scope resolver (005 ADR §1.2).
+func (r *ClusterRepo) ListAll(ctx context.Context, realmID uuid.UUID) ([]*cluster.Cluster, error) {
+	rows, err := r.db.Pool().Query(ctx,
+		`SELECT `+clusterColumns+` FROM kafka_cluster
+		 WHERE realm_id=$1 AND state <> 'DELETED' ORDER BY name ASC`, realmID)
+	if err != nil {
+		return nil, errs.Internalf("list clusters").Wrap(err)
+	}
+	defer rows.Close()
+
+	var out []*cluster.Cluster
+	for rows.Next() {
+		c, err := scanCluster(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, errs.Internalf("iterate clusters").Wrap(err)
+	}
+	return out, nil
+}
+
 // Mutate loads the row FOR UPDATE, runs mutate, and persists the result in one
 // transaction.
 func (r *ClusterRepo) Mutate(

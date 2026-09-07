@@ -20,6 +20,7 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	TelemetryService_PublishIndicatorSamples_FullMethodName = "/franz.v1.TelemetryService/PublishIndicatorSamples"
+	TelemetryService_StreamIndicatorSamples_FullMethodName  = "/franz.v1.TelemetryService/StreamIndicatorSamples"
 	TelemetryService_ReportConsumerGroups_FullMethodName    = "/franz.v1.TelemetryService/ReportConsumerGroups"
 )
 
@@ -32,6 +33,12 @@ const (
 type TelemetryServiceClient interface {
 	// Publish a batch of indicator samples.
 	PublishIndicatorSamples(ctx context.Context, in *PublishIndicatorSamplesRequest, opts ...grpc.CallOption) (*PublishIndicatorSamplesResponse, error)
+	// Publish batches over one long-lived client stream. Same payload and
+	// semantics as PublishIndicatorSamples; the response is sent once, when the
+	// agent half-closes, and totals every accepted sample. Added for agents that
+	// sweep continuously (005-gregor-samsa §2.2) so they do not pay a connection
+	// per batch. The unary form stays for one-shot publishers.
+	StreamIndicatorSamples(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[StreamIndicatorSamplesRequest, StreamIndicatorSamplesResponse], error)
 	// Report consumer groups observed on the substrate, linking each to a client.
 	ReportConsumerGroups(ctx context.Context, in *ReportConsumerGroupsRequest, opts ...grpc.CallOption) (*ReportConsumerGroupsResponse, error)
 }
@@ -54,6 +61,19 @@ func (c *telemetryServiceClient) PublishIndicatorSamples(ctx context.Context, in
 	return out, nil
 }
 
+func (c *telemetryServiceClient) StreamIndicatorSamples(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[StreamIndicatorSamplesRequest, StreamIndicatorSamplesResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &TelemetryService_ServiceDesc.Streams[0], TelemetryService_StreamIndicatorSamples_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[StreamIndicatorSamplesRequest, StreamIndicatorSamplesResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TelemetryService_StreamIndicatorSamplesClient = grpc.ClientStreamingClient[StreamIndicatorSamplesRequest, StreamIndicatorSamplesResponse]
+
 func (c *telemetryServiceClient) ReportConsumerGroups(ctx context.Context, in *ReportConsumerGroupsRequest, opts ...grpc.CallOption) (*ReportConsumerGroupsResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ReportConsumerGroupsResponse)
@@ -73,6 +93,12 @@ func (c *telemetryServiceClient) ReportConsumerGroups(ctx context.Context, in *R
 type TelemetryServiceServer interface {
 	// Publish a batch of indicator samples.
 	PublishIndicatorSamples(context.Context, *PublishIndicatorSamplesRequest) (*PublishIndicatorSamplesResponse, error)
+	// Publish batches over one long-lived client stream. Same payload and
+	// semantics as PublishIndicatorSamples; the response is sent once, when the
+	// agent half-closes, and totals every accepted sample. Added for agents that
+	// sweep continuously (005-gregor-samsa §2.2) so they do not pay a connection
+	// per batch. The unary form stays for one-shot publishers.
+	StreamIndicatorSamples(grpc.ClientStreamingServer[StreamIndicatorSamplesRequest, StreamIndicatorSamplesResponse]) error
 	// Report consumer groups observed on the substrate, linking each to a client.
 	ReportConsumerGroups(context.Context, *ReportConsumerGroupsRequest) (*ReportConsumerGroupsResponse, error)
 	mustEmbedUnimplementedTelemetryServiceServer()
@@ -87,6 +113,9 @@ type UnimplementedTelemetryServiceServer struct{}
 
 func (UnimplementedTelemetryServiceServer) PublishIndicatorSamples(context.Context, *PublishIndicatorSamplesRequest) (*PublishIndicatorSamplesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method PublishIndicatorSamples not implemented")
+}
+func (UnimplementedTelemetryServiceServer) StreamIndicatorSamples(grpc.ClientStreamingServer[StreamIndicatorSamplesRequest, StreamIndicatorSamplesResponse]) error {
+	return status.Error(codes.Unimplemented, "method StreamIndicatorSamples not implemented")
 }
 func (UnimplementedTelemetryServiceServer) ReportConsumerGroups(context.Context, *ReportConsumerGroupsRequest) (*ReportConsumerGroupsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ReportConsumerGroups not implemented")
@@ -130,6 +159,13 @@ func _TelemetryService_PublishIndicatorSamples_Handler(srv interface{}, ctx cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TelemetryService_StreamIndicatorSamples_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(TelemetryServiceServer).StreamIndicatorSamples(&grpc.GenericServerStream[StreamIndicatorSamplesRequest, StreamIndicatorSamplesResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type TelemetryService_StreamIndicatorSamplesServer = grpc.ClientStreamingServer[StreamIndicatorSamplesRequest, StreamIndicatorSamplesResponse]
+
 func _TelemetryService_ReportConsumerGroups_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ReportConsumerGroupsRequest)
 	if err := dec(in); err != nil {
@@ -164,6 +200,12 @@ var TelemetryService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _TelemetryService_ReportConsumerGroups_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "StreamIndicatorSamples",
+			Handler:       _TelemetryService_StreamIndicatorSamples_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "franz/v1/telemetry.proto",
 }

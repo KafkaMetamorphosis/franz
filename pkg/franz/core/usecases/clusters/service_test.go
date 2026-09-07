@@ -92,6 +92,17 @@ func (m *memRepo) Mutate(_ context.Context, _ uuid.UUID, name string,
 	return &cp, nil
 }
 
+func (m *memRepo) ListAll(context.Context, uuid.UUID) ([]*cluster.Cluster, error) {
+	var out []*cluster.Cluster
+	for _, c := range m.rows {
+		if c.State != cluster.StateDeleted {
+			cp := *c
+			out = append(out, &cp)
+		}
+	}
+	return out, nil
+}
+
 func (m *memRepo) ListByProviderAgent(_ context.Context, _ uuid.UUID, agentName string) ([]*cluster.Cluster, error) {
 	var out []*cluster.Cluster
 	for _, c := range m.rows {
@@ -153,7 +164,7 @@ func mkService(topics int) (*Service, *memRepo) {
 func mkServiceP(topics int) (*Service, *memRepo, *capturePublisher) {
 	repo := newMemRepo()
 	pub := newCapturePublisher()
-	return NewService(repo, guard{n: topics}, noStatus{}, pub), repo, pub
+	return NewService(repo, guard{n: topics}, noStatus{}, pub, nil), repo, pub
 }
 
 func plainConns() []cluster.ConnectionString {

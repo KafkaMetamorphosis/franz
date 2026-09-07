@@ -190,6 +190,175 @@ func (b0 PublishIndicatorSamplesResponse_builder) Build() *PublishIndicatorSampl
 	return m0
 }
 
+type StreamIndicatorSamplesRequest struct {
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Agent       *string                `protobuf:"bytes,1,opt,name=agent"`
+	xxx_hidden_Samples     *[]*IndicatorSample    `protobuf:"bytes,2,rep,name=samples"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *StreamIndicatorSamplesRequest) Reset() {
+	*x = StreamIndicatorSamplesRequest{}
+	mi := &file_franz_v1_telemetry_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamIndicatorSamplesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamIndicatorSamplesRequest) ProtoMessage() {}
+
+func (x *StreamIndicatorSamplesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_franz_v1_telemetry_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *StreamIndicatorSamplesRequest) GetAgent() string {
+	if x != nil {
+		if x.xxx_hidden_Agent != nil {
+			return *x.xxx_hidden_Agent
+		}
+		return ""
+	}
+	return ""
+}
+
+func (x *StreamIndicatorSamplesRequest) GetSamples() []*IndicatorSample {
+	if x != nil {
+		if x.xxx_hidden_Samples != nil {
+			return *x.xxx_hidden_Samples
+		}
+	}
+	return nil
+}
+
+func (x *StreamIndicatorSamplesRequest) SetAgent(v string) {
+	x.xxx_hidden_Agent = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 2)
+}
+
+func (x *StreamIndicatorSamplesRequest) SetSamples(v []*IndicatorSample) {
+	x.xxx_hidden_Samples = &v
+}
+
+func (x *StreamIndicatorSamplesRequest) HasAgent() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *StreamIndicatorSamplesRequest) ClearAgent() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Agent = nil
+}
+
+type StreamIndicatorSamplesRequest_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Agent   *string
+	Samples []*IndicatorSample
+}
+
+func (b0 StreamIndicatorSamplesRequest_builder) Build() *StreamIndicatorSamplesRequest {
+	m0 := &StreamIndicatorSamplesRequest{}
+	b, x := &b0, m0
+	_, _ = b, x
+	if b.Agent != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 2)
+		x.xxx_hidden_Agent = b.Agent
+	}
+	x.xxx_hidden_Samples = &b.Samples
+	return m0
+}
+
+type StreamIndicatorSamplesResponse struct {
+	state                  protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Accepted    int32                  `protobuf:"varint,1,opt,name=accepted"`
+	XXX_raceDetectHookData protoimpl.RaceDetectHookData
+	XXX_presence           [1]uint32
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *StreamIndicatorSamplesResponse) Reset() {
+	*x = StreamIndicatorSamplesResponse{}
+	mi := &file_franz_v1_telemetry_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StreamIndicatorSamplesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StreamIndicatorSamplesResponse) ProtoMessage() {}
+
+func (x *StreamIndicatorSamplesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_franz_v1_telemetry_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+func (x *StreamIndicatorSamplesResponse) GetAccepted() int32 {
+	if x != nil {
+		return x.xxx_hidden_Accepted
+	}
+	return 0
+}
+
+func (x *StreamIndicatorSamplesResponse) SetAccepted(v int32) {
+	x.xxx_hidden_Accepted = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 1)
+}
+
+func (x *StreamIndicatorSamplesResponse) HasAccepted() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 0)
+}
+
+func (x *StreamIndicatorSamplesResponse) ClearAccepted() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
+	x.xxx_hidden_Accepted = 0
+}
+
+type StreamIndicatorSamplesResponse_builder struct {
+	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
+
+	Accepted *int32
+}
+
+func (b0 StreamIndicatorSamplesResponse_builder) Build() *StreamIndicatorSamplesResponse {
+	m0 := &StreamIndicatorSamplesResponse{}
+	b, x := &b0, m0
+	_, _ = b, x
+	if b.Accepted != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 1)
+		x.xxx_hidden_Accepted = *b.Accepted
+	}
+	return m0
+}
+
 type IndicatorSample struct {
 	state                     protoimpl.MessageState `protogen:"opaque.v1"`
 	xxx_hidden_Indicator      *string                `protobuf:"bytes,1,opt,name=indicator"`
@@ -205,7 +374,7 @@ type IndicatorSample struct {
 
 func (x *IndicatorSample) Reset() {
 	*x = IndicatorSample{}
-	mi := &file_franz_v1_telemetry_proto_msgTypes[2]
+	mi := &file_franz_v1_telemetry_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -217,7 +386,7 @@ func (x *IndicatorSample) String() string {
 func (*IndicatorSample) ProtoMessage() {}
 
 func (x *IndicatorSample) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_telemetry_proto_msgTypes[2]
+	mi := &file_franz_v1_telemetry_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -405,7 +574,7 @@ type ReportConsumerGroupsRequest struct {
 
 func (x *ReportConsumerGroupsRequest) Reset() {
 	*x = ReportConsumerGroupsRequest{}
-	mi := &file_franz_v1_telemetry_proto_msgTypes[3]
+	mi := &file_franz_v1_telemetry_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -417,7 +586,7 @@ func (x *ReportConsumerGroupsRequest) String() string {
 func (*ReportConsumerGroupsRequest) ProtoMessage() {}
 
 func (x *ReportConsumerGroupsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_telemetry_proto_msgTypes[3]
+	mi := &file_franz_v1_telemetry_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -498,7 +667,7 @@ type ReportConsumerGroupsResponse struct {
 
 func (x *ReportConsumerGroupsResponse) Reset() {
 	*x = ReportConsumerGroupsResponse{}
-	mi := &file_franz_v1_telemetry_proto_msgTypes[4]
+	mi := &file_franz_v1_telemetry_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +679,7 @@ func (x *ReportConsumerGroupsResponse) String() string {
 func (*ReportConsumerGroupsResponse) ProtoMessage() {}
 
 func (x *ReportConsumerGroupsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_telemetry_proto_msgTypes[4]
+	mi := &file_franz_v1_telemetry_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -578,7 +747,7 @@ type ConsumerGroupObservation struct {
 
 func (x *ConsumerGroupObservation) Reset() {
 	*x = ConsumerGroupObservation{}
-	mi := &file_franz_v1_telemetry_proto_msgTypes[5]
+	mi := &file_franz_v1_telemetry_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -590,7 +759,7 @@ func (x *ConsumerGroupObservation) String() string {
 func (*ConsumerGroupObservation) ProtoMessage() {}
 
 func (x *ConsumerGroupObservation) ProtoReflect() protoreflect.Message {
-	mi := &file_franz_v1_telemetry_proto_msgTypes[5]
+	mi := &file_franz_v1_telemetry_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -808,6 +977,11 @@ const file_franz_v1_telemetry_proto_rawDesc = "" +
 	"\x05agent\x18\x01 \x01(\tR\x05agent\x123\n" +
 	"\asamples\x18\x02 \x03(\v2\x19.franz.v1.IndicatorSampleR\asamples\"=\n" +
 	"\x1fPublishIndicatorSamplesResponse\x12\x1a\n" +
+	"\baccepted\x18\x01 \x01(\x05R\baccepted\"j\n" +
+	"\x1dStreamIndicatorSamplesRequest\x12\x14\n" +
+	"\x05agent\x18\x01 \x01(\tR\x05agent\x123\n" +
+	"\asamples\x18\x02 \x03(\v2\x19.franz.v1.IndicatorSampleR\asamples\"<\n" +
+	"\x1eStreamIndicatorSamplesResponse\x12\x1a\n" +
 	"\baccepted\x18\x01 \x01(\x05R\baccepted\"\xdc\x01\n" +
 	"\x0fIndicatorSample\x12\x1c\n" +
 	"\tindicator\x18\x01 \x01(\tR\tindicator\x12!\n" +
@@ -829,38 +1003,44 @@ const file_franz_v1_telemetry_proto_rawDesc = "" +
 	"\vkafka_topic\x18\x05 \x01(\tR\n" +
 	"kafkaTopic\x12;\n" +
 	"\vobserved_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"observedAt2\xe9\x01\n" +
+	"observedAt2\xd8\x02\n" +
 	"\x10TelemetryService\x12n\n" +
-	"\x17PublishIndicatorSamples\x12(.franz.v1.PublishIndicatorSamplesRequest\x1a).franz.v1.PublishIndicatorSamplesResponse\x12e\n" +
+	"\x17PublishIndicatorSamples\x12(.franz.v1.PublishIndicatorSamplesRequest\x1a).franz.v1.PublishIndicatorSamplesResponse\x12m\n" +
+	"\x16StreamIndicatorSamples\x12'.franz.v1.StreamIndicatorSamplesRequest\x1a(.franz.v1.StreamIndicatorSamplesResponse(\x01\x12e\n" +
 	"\x14ReportConsumerGroups\x12%.franz.v1.ReportConsumerGroupsRequest\x1a&.franz.v1.ReportConsumerGroupsResponseB\xa0\x01\n" +
 	"\fcom.franz.v1B\x0eTelemetryProtoP\x01Z?github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1;franzv1\xa2\x02\x03FXX\xaa\x02\bFranz.V1\xca\x02\bFranz\\V1\xe2\x02\x14Franz\\V1\\GPBMetadata\xea\x02\tFranz::V1b\beditionsp\xe9\a"
 
-var file_franz_v1_telemetry_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_franz_v1_telemetry_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_franz_v1_telemetry_proto_goTypes = []any{
 	(*PublishIndicatorSamplesRequest)(nil),  // 0: franz.v1.PublishIndicatorSamplesRequest
 	(*PublishIndicatorSamplesResponse)(nil), // 1: franz.v1.PublishIndicatorSamplesResponse
-	(*IndicatorSample)(nil),                 // 2: franz.v1.IndicatorSample
-	(*ReportConsumerGroupsRequest)(nil),     // 3: franz.v1.ReportConsumerGroupsRequest
-	(*ReportConsumerGroupsResponse)(nil),    // 4: franz.v1.ReportConsumerGroupsResponse
-	(*ConsumerGroupObservation)(nil),        // 5: franz.v1.ConsumerGroupObservation
-	(Entity)(0),                             // 6: franz.v1.Entity
-	(*timestamppb.Timestamp)(nil),           // 7: google.protobuf.Timestamp
+	(*StreamIndicatorSamplesRequest)(nil),   // 2: franz.v1.StreamIndicatorSamplesRequest
+	(*StreamIndicatorSamplesResponse)(nil),  // 3: franz.v1.StreamIndicatorSamplesResponse
+	(*IndicatorSample)(nil),                 // 4: franz.v1.IndicatorSample
+	(*ReportConsumerGroupsRequest)(nil),     // 5: franz.v1.ReportConsumerGroupsRequest
+	(*ReportConsumerGroupsResponse)(nil),    // 6: franz.v1.ReportConsumerGroupsResponse
+	(*ConsumerGroupObservation)(nil),        // 7: franz.v1.ConsumerGroupObservation
+	(Entity)(0),                             // 8: franz.v1.Entity
+	(*timestamppb.Timestamp)(nil),           // 9: google.protobuf.Timestamp
 }
 var file_franz_v1_telemetry_proto_depIdxs = []int32{
-	2, // 0: franz.v1.PublishIndicatorSamplesRequest.samples:type_name -> franz.v1.IndicatorSample
-	6, // 1: franz.v1.IndicatorSample.resource_entity:type_name -> franz.v1.Entity
-	7, // 2: franz.v1.IndicatorSample.sample_at:type_name -> google.protobuf.Timestamp
-	5, // 3: franz.v1.ReportConsumerGroupsRequest.observations:type_name -> franz.v1.ConsumerGroupObservation
-	7, // 4: franz.v1.ConsumerGroupObservation.observed_at:type_name -> google.protobuf.Timestamp
-	0, // 5: franz.v1.TelemetryService.PublishIndicatorSamples:input_type -> franz.v1.PublishIndicatorSamplesRequest
-	3, // 6: franz.v1.TelemetryService.ReportConsumerGroups:input_type -> franz.v1.ReportConsumerGroupsRequest
-	1, // 7: franz.v1.TelemetryService.PublishIndicatorSamples:output_type -> franz.v1.PublishIndicatorSamplesResponse
-	4, // 8: franz.v1.TelemetryService.ReportConsumerGroups:output_type -> franz.v1.ReportConsumerGroupsResponse
-	7, // [7:9] is the sub-list for method output_type
-	5, // [5:7] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	4, // 0: franz.v1.PublishIndicatorSamplesRequest.samples:type_name -> franz.v1.IndicatorSample
+	4, // 1: franz.v1.StreamIndicatorSamplesRequest.samples:type_name -> franz.v1.IndicatorSample
+	8, // 2: franz.v1.IndicatorSample.resource_entity:type_name -> franz.v1.Entity
+	9, // 3: franz.v1.IndicatorSample.sample_at:type_name -> google.protobuf.Timestamp
+	7, // 4: franz.v1.ReportConsumerGroupsRequest.observations:type_name -> franz.v1.ConsumerGroupObservation
+	9, // 5: franz.v1.ConsumerGroupObservation.observed_at:type_name -> google.protobuf.Timestamp
+	0, // 6: franz.v1.TelemetryService.PublishIndicatorSamples:input_type -> franz.v1.PublishIndicatorSamplesRequest
+	2, // 7: franz.v1.TelemetryService.StreamIndicatorSamples:input_type -> franz.v1.StreamIndicatorSamplesRequest
+	5, // 8: franz.v1.TelemetryService.ReportConsumerGroups:input_type -> franz.v1.ReportConsumerGroupsRequest
+	1, // 9: franz.v1.TelemetryService.PublishIndicatorSamples:output_type -> franz.v1.PublishIndicatorSamplesResponse
+	3, // 10: franz.v1.TelemetryService.StreamIndicatorSamples:output_type -> franz.v1.StreamIndicatorSamplesResponse
+	6, // 11: franz.v1.TelemetryService.ReportConsumerGroups:output_type -> franz.v1.ReportConsumerGroupsResponse
+	9, // [9:12] is the sub-list for method output_type
+	6, // [6:9] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_franz_v1_telemetry_proto_init() }
@@ -875,7 +1055,7 @@ func file_franz_v1_telemetry_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_franz_v1_telemetry_proto_rawDesc), len(file_franz_v1_telemetry_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -48,6 +48,12 @@ type ClusterRepository interface {
 	// cluster_provider_agent equals agentName, DELETED rows included (the agent
 	// needs the REMOVED assignment). Not paginated — an agent's fleet is bounded.
 	ListByProviderAgent(ctx context.Context, realmID uuid.UUID, agentName string) ([]*cluster.Cluster, error)
+
+	// ListAll returns every non-deleted cluster in the realm, ordered by name.
+	// The Resource Provider scope resolver (005 ADR §1.2) needs every cluster's
+	// labels at once; a realm's cluster count is bounded, so this is not
+	// paginated.
+	ListAll(ctx context.Context, realmID uuid.UUID) ([]*cluster.Cluster, error)
 }
 
 // ClusterTopicGuard reports whether a cluster still hosts live Kafka Topics, so
