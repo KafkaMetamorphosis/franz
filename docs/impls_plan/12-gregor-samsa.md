@@ -41,7 +41,7 @@ row change is picked up on the agent's next reconnect resync.
 | 12.6 | `core/usecases/resourceprovider` — `InitialPartitionAssignments(ctx)` (agent from context → scope resolver → in-scope partitions as SET), `ReportReconciliation(ctx, input)` (ownership check: the partition's cluster is in the agent's scope → `PERMISSION_DENIED` otherwise; then `RecordReconciliation`) | ADR §1.5, §1.7 | ✅ | 2026-09-07 |
 | 12.7 | Partition-assignment publisher — `channels.Service` (create/pause/resume/delete) and topic mutations publish a `PartitionAssignment` delta to in-scope connected agents; `streamhub` grows a second payload type (or a generic envelope). Scope/label changes emit SET for newly-in-scope and REMOVED(`reason=SCOPE_LOSS`) for departed | ADR §1.3, §1.4 | ✅ | 2026-09-07 |
 | 12.8 | `WatchPartitionAssignments` handler — subscribe, full in-scope set on open (all SET), deltas after; `ReportPartitionReconciliation` handler — validate + delegate to 12.6; wire both into `cmd/franz` | ADR §1.3 | ✅ | 2026-09-07 |
-| 12.9 | `telemetry.proto` — make `PublishIndicatorSamples` client-streaming (or add `StreamIndicatorSamples`); regenerate; ingest path accepts the stream and appends samples (reuses the deliverable-14 `indicator_sample` table when it lands — until then, a minimal append table gated behind the same 30-day prune) | ADR §2.2 | ✅ | 2026-09-07 |
+| 12.9 | `telemetry.proto` — make `PublishIndicatorSamples` client-streaming (or add `StreamIndicatorSamples`); regenerate; ingest path accepts the stream and appends samples (reuses the deliverable-15 (telemetry ingest) `indicator_sample` table when it lands — until then, a minimal append table gated behind the same 30-day prune) | ADR §2.2 | ✅ | 2026-09-07 |
 | 12.10 | Integration tests — scope resolver table; `resourceprovider` usecase (generation gating, ownership `PERMISSION_DENIED`); bufconn e2e `TestResourceProviderE2E` (token auth, full-set-then-delta stream over test-inserted partitions, report drives `PENDING → READY` / `→ ERROR`, stale-generation report is a no-op, scope loss → REMOVED) | — | ✅ | 2026-09-07 |
 
 ### Agent (`cmd/gregorsamsa`, `pkg/gregorsamsa` — plain packages, no fx, per 002)
@@ -87,9 +87,10 @@ row change is picked up on the agent's next reconnect resync.
   unary `PublishIndicatorSamples` stays), so no breaking change and no `003.14`
   edit needed beyond noting the new RPC.
 - Telemetry samples land in a **minimal `indicator_sample` append table** added
-  here (30-day nightly prune, same as `cluster_provider_event`); deliverable 14
-  adopts it and adds the `indicator` registry that makes pre-registration
-  enforceable. Until then any indicator name is accepted.
+  here (30-day nightly prune, same as `cluster_provider_event`); deliverable 15
+  (telemetry ingest) adopts it and the `indicator` registry from deliverable 14
+  (governance) makes pre-registration enforceable. Until then any indicator name
+  is accepted.
 
 ### What landed
 

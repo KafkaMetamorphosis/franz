@@ -1,7 +1,7 @@
 # 16 — Client
 
 Status: ⬜ not started
-Depends on: [02](./02-domain-foundations.md) · [14](./14-telemetry-ingest.md) (for observed groups)
+Depends on: [02](./02-domain-foundations.md) · [15](./15-telemetry-ingest.md) (for observed groups)
 Specs: `003-franz/003.10-clients`, `003-franz/003.14-telemetry-ingest`
 Proto: `ClientService` (CRUD, `ListObservedConsumerGroups`, `ListConsumerGroupObservations`)
 
@@ -23,7 +23,7 @@ engine, which lands right after this deliverable.
 | 16.2 | Domain: `Client` — carries no permission; `name` realm-wide unique + immutable | `003.10` | ⬜ | |
 | 16.3 | Repo + usecases: Create, Get, List (selector), Update (labels), Delete (row removed; `name` / FRN **not** freed) | `003.10` | ⬜ | |
 | 16.4 | `ClientService` CRUD handlers + REST `/v1/clients` | proto | ⬜ | |
-| 16.5 | `ListObservedConsumerGroups` (current view: distinct `(group, topic)` latest sighting) + `ListConsumerGroupObservations` (raw sightings, time range) — reads the deliverable 14 tables | `003.10`, `003.14` | ⬜ | |
+| 16.5 | `ListObservedConsumerGroups` (current view: distinct `(group, topic)` latest sighting) + `ListConsumerGroupObservations` (raw sightings, time range) — reads the deliverable 15 tables | `003.10`, `003.14` | ⬜ | |
 | 16.6 | Integration tests — realm-wide uniqueness, delete keeps the FRN reserved, observed-group views | — | ⬜ | |
 
 ## Done when

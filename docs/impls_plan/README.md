@@ -44,9 +44,9 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [11](./11-cluster-and-agent-config.md) | Cluster & agent configuration model | 03 · 04 · 08 | ✅ |
 | [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ✅ |
 | [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ✅ |
-| [14](./14-telemetry-ingest.md) | Telemetry ingest | 02 · 15 | ⬜ |
-| [15](./15-governance.md) | Governance (non-placement actions) | 02 · 03 · 09 · 10 · 14 | ⬜ |
-| [16](./16-client.md) | Client | 02 · 14 | ⬜ |
+| [14](./14-governance.md) | Governance (Indicator registry + non-placement actions) | 02 · 03 · 09 · 10 | ⬜ |
+| [15](./15-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ⬜ |
+| [16](./16-client.md) | Client | 02 · 15 | ⬜ |
 | [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ⬜ |
 | [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ⛔ |
 | [19](./19-async-channel-ui.md) | Async Channel UI (console screens for 10) | 06 · 08 · 10 · 11 | ✅ |
@@ -88,6 +88,16 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 ## Progress log
 
 _(newest first — date · deliverable/task · note · commit)_
+
+- 2026-09-07 · **plan** · **swapped deliverables 14 ↔ 15**: Governance is now 14,
+  Telemetry ingest is 15. They had a mutual dependency (`14.6` ingest→eval hook
+  needs `15.4` eval; `15.2` policy validation needs `14.1` Indicator registry).
+  Broke the cycle by moving the **Indicator registry** into Governance (`003.8`
+  already lists Indicator CRUD on `GovernanceService`). New order: Governance
+  (self-contained, ships the registry + policy engine + a bare evaluation entry
+  point) → Telemetry ingest (feeds samples, maintains current value / health,
+  calls Governance's evaluation). `Depends on` + cross-refs updated in
+  `16-client.md`, `02-domain-foundations.md`, `12-gregor-samsa.md`.
 
 - 2026-09-07 · **13** Placement & selection · pure `domain/placement` selection
   (affinity / anti-affinity / taints → weight+name order → shard-size cap →
