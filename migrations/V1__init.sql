@@ -37,8 +37,13 @@ CREATE TABLE IF NOT EXISTS kafka_cluster (
     frn                    text        NOT NULL,
     connection_strings     jsonb       NOT NULL DEFAULT '[]'::jsonb,
     labels                 jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    -- The single home for this cluster's Kafka config (ADR-API-010): topic-config
+    -- defaults + `partitions` / `replication-factor` + `kafka-version`.
     cluster_configuration  jsonb       NOT NULL DEFAULT '{}'::jsonb,
     cluster_provider_agent text        NOT NULL DEFAULT '',
+    -- Cluster shape, forwarded to the Cluster Provider agent (ADR-API-010).
+    brokers                integer     CHECK (brokers IS NULL OR brokers >= 1),
+    disk_size              text        NOT NULL DEFAULT '',
     state                  text        NOT NULL DEFAULT 'ACTIVE'
                                CHECK (state IN ('ACTIVE', 'PAUSED', 'DELETED')),
     created_at             timestamptz NOT NULL DEFAULT now(),
@@ -61,11 +66,10 @@ CREATE TABLE IF NOT EXISTS agent (
     type       text        NOT NULL
                    CHECK (type IN ('CLUSTER_PROVIDER', 'RESOURCE_PROVIDER',
                                    'TELEMETRY_AGENT', 'CUSTOM')),
+    -- Free-form metadata + reserved prefixes (003.9): franz.default-kafka-config/*
+    -- (advisory config defaults the console pre-fills) and franz.placement-selector/*
+    -- (agent-watch scoping). ADR-API-010 removed the structured provisioning_labels.
     labels     jsonb       NOT NULL DEFAULT '{}'::jsonb,
-    -- Advisory schema of the franz.provisioning/* labels this agent's recipes
-    -- read (003.9, ADR-API-008). Array of {key, description, allowed_values,
-    -- default_value, required}. Franz never enforces it against a resource.
-    provisioning_labels jsonb NOT NULL DEFAULT '[]'::jsonb,
     status     text        NOT NULL DEFAULT 'ACTIVE'
                    CHECK (status IN ('ACTIVE', 'PAUSED', 'DELETED')),
     token_hash text        NOT NULL,

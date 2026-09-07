@@ -41,7 +41,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 |---|---|---|---|
 | [09](./09-kafka-topic.md) | Kafka Topic (read model) | 02 · 03 | ✅ |
 | [10](./10-async-channel.md) | Async Channel + access-policy document | 02 · 09 | ✅ |
-| [11](./11-cluster-and-agent-config.md) | Cluster & agent configuration model | 03 · 04 · 08 | ⬜ |
+| [11](./11-cluster-and-agent-config.md) | Cluster & agent configuration model | 03 · 04 · 08 | ✅ |
 | [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ⬜ |
 | [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ⬜ |
 | [14](./14-telemetry-ingest.md) | Telemetry ingest | 02 · 15 | ⬜ |
@@ -88,6 +88,16 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-07 · **11** Cluster & agent configuration model · **ADR-API-010**
+  (supersedes 008). `cluster_configuration` stays a map; `KafkaCluster` +typed
+  `brokers` / `disk_size`; `Agent.provisioning_labels` / `ProvisioningLabelSpec`
+  removed (proto + column + domain + console editor); agents advertise
+  `franz.default-kafka-config/*` label defaults (unenforced); `franz.provisioning/*`
+  retired; `kafka-image` / `deployment-type` dropped. `ClusterAssignment.provisioning`
+  → `reserved`, typed `brokers` / `disk_size`. Recipe translates Franz-friendly
+  config keys. Console: one Cluster-configuration section + plain Labels section.
+  `go build/vet/test`, `buf lint`, webconsole `typecheck`/`lint`/`test`/`build`,
+  REST smokes — all green. codex out of quota → claude.
 - 2026-09-07 · **plan** · deliverable **11 — Cluster & agent configuration
   model** reworked after design review. `cluster_configuration` **stays a
   `map<string,string>`** (not labels); `KafkaCluster` gains typed `brokers` /

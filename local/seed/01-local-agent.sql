@@ -6,37 +6,32 @@
 -- (Makefile's `make agent` passes it as FRANZ_TOKEN.)
 -- token_hash below = sha256(plaintext), matching pkg/shared/token.Hash.
 --
--- Idempotent: re-running refreshes the schema / token / status.
+-- Idempotent: re-running refreshes the labels / token / status.
 
-INSERT INTO agent (id, realm_id, name, frn, type, labels, provisioning_labels, status, token_hash)
+INSERT INTO agent (id, realm_id, name, frn, type, labels, status, token_hash)
 SELECT
     '00000000-0000-0000-0000-0000000a9e01',
     r.id,
     'local-kafka-agent',
     'default:agent:local-kafka-agent',
     'CLUSTER_PROVIDER',
-    '{"franz.role": "local-kafka-agent"}'::jsonb,
-    -- Mirrors localkafkaagent recipe's franz.provisioning/* keys.
-    '[
-       {"key": "franz.provisioning/deployment-type",
-        "description": "Selects the recipe family.",
-        "allowed_values": ["local-docker"],
-        "default_value": "local-docker",
-        "required": true},
-       {"key": "franz.provisioning/kafka-version",
-        "description": "apache/kafka image tag when kafka-image is unset.",
-        "default_value": "3.7.0"},
-       {"key": "franz.provisioning/kafka-image",
-        "description": "Full apache/kafka-compatible image ref (tag, digest, or mirror). Overrides kafka-version."}
-     ]'::jsonb,
+    -- franz.default-kafka-config/* = advisory defaults the console pre-fills into
+    -- a Kafka Cluster form when this agent is the linked provider (ADR-API-010).
+    '{
+       "franz.role": "local-kafka-agent",
+       "franz.default-kafka-config/partitions": "3",
+       "franz.default-kafka-config/replication-factor": "1",
+       "franz.default-kafka-config/retention.ms": "604800000",
+       "franz.default-kafka-config/kafka-version": "3.9.0",
+       "franz.default-kafka-config/available-versions": "3.7.0,3.9.0,4.0.0"
+     }'::jsonb,
     'ACTIVE',
     encode(sha256(convert_to('frnat_local-dev-do-not-use-in-production', 'UTF8')), 'hex')
 FROM realm r
 WHERE r.slug = 'default'
 ON CONFLICT (realm_id, name) DO UPDATE SET
-    type                = EXCLUDED.type,
-    labels              = EXCLUDED.labels,
-    provisioning_labels = EXCLUDED.provisioning_labels,
-    status              = 'ACTIVE',
-    token_hash          = EXCLUDED.token_hash,
-    updated_at          = now();
+    type       = EXCLUDED.type,
+    labels     = EXCLUDED.labels,
+    status     = 'ACTIVE',
+    token_hash = EXCLUDED.token_hash,
+    updated_at = now();

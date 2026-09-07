@@ -71,6 +71,8 @@ func (h *kafkaClusterHandler) CreateKafkaCluster(
 		Labels:            req.GetLabels(),
 		Configuration:     req.GetClusterConfiguration(),
 		ProviderAgent:     req.GetClusterProviderAgent(),
+		Brokers:           req.GetBrokers(),
+		DiskSize:          req.GetDiskSize(),
 	})
 	if err != nil {
 		return nil, ToError(err)
@@ -134,6 +136,12 @@ func (h *kafkaClusterHandler) UpdateKafkaCluster(
 		case "cluster_provider_agent":
 			v := req.GetClusterProviderAgent()
 			input.ProviderAgent = &v
+		case "brokers":
+			v := req.GetBrokers()
+			input.Brokers = &v
+		case "disk_size":
+			v := req.GetDiskSize()
+			input.DiskSize = &v
 		default:
 			return nil, ToError(errs.InvalidField("update_mask", "field "+p+" is not updatable"))
 		}
@@ -191,6 +199,8 @@ func (h *kafkaClusterHandler) toProto(c *cluster.Cluster) *franzv1.KafkaCluster 
 		Labels:               c.Labels,
 		ClusterConfiguration: c.Configuration,
 		ClusterProviderAgent: proto.String(c.ProviderAgent),
+		Brokers:              proto.Int32(c.Brokers),
+		DiskSize:             proto.String(c.DiskSize),
 		State:                stateToProto(c.State),
 		ProviderStatus:       providerStatusToProto(c.ProviderStatus),
 		CreatedAt:            timestamppb.New(c.CreatedAt),

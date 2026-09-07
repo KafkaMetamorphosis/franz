@@ -506,7 +506,6 @@ export interface components {
             labels?: {
                 [key: string]: string;
             };
-            provisioningLabels?: components["schemas"]["v1ProvisioningLabelSpec"][];
             type?: components["schemas"]["v1AgentType"];
             /** @description Fields to update; unset fields are left unchanged. */
             updateMask?: string;
@@ -553,11 +552,14 @@ export interface components {
             weight?: number;
         };
         KafkaClusterServiceUpdateKafkaClusterBody: {
+            /** Format: int32 */
+            brokers?: number;
             clusterConfiguration?: {
                 [key: string]: string;
             };
             clusterProviderAgent?: string;
             connectionStrings?: components["schemas"]["v1ConnectionString"][];
+            diskSize?: string;
             labels?: {
                 [key: string]: string;
             };
@@ -626,13 +628,6 @@ export interface components {
                 [key: string]: string;
             };
             name?: string;
-            /**
-             * @description Advisory schema: the franz.provisioning/* labels this agent's recipes
-             *     understand, with allowed values and defaults. Franz stores and serves it
-             *     for the console to render resource forms; it never validates another
-             *     resource's labels against it. See 003.9.
-             */
-            provisioningLabels?: components["schemas"]["v1ProvisioningLabelSpec"][];
             status?: components["schemas"]["v1AgentStatus"];
             type?: components["schemas"]["v1AgentType"];
             /** Format: date-time */
@@ -792,7 +787,6 @@ export interface components {
                 [key: string]: string;
             };
             name?: string;
-            provisioningLabels?: components["schemas"]["v1ProvisioningLabelSpec"][];
             type?: components["schemas"]["v1AgentType"];
         };
         v1CreateAgentResponse: {
@@ -841,11 +835,14 @@ export interface components {
          *     the timestamps.
          */
         v1CreateKafkaClusterRequest: {
+            /** Format: int32 */
+            brokers?: number;
             clusterConfiguration?: {
                 [key: string]: string;
             };
             clusterProviderAgent?: string;
             connectionStrings?: components["schemas"]["v1ConnectionString"][];
+            diskSize?: string;
             labels?: {
                 [key: string]: string;
             };
@@ -957,8 +954,16 @@ export interface components {
          */
         v1KafkaCluster: {
             /**
-             * @description Default Kafka configuration applied to topics on this cluster when nothing
-             *     more specific is declared (e.g. "default.replication.factor" -> "3").
+             * Format: int32
+             * @description Cluster shape (not Kafka config), forwarded to the Cluster Provider agent.
+             *     brokers: desired broker count (>= 1 when set). disk_size: size hint, e.g. "50Gi".
+             */
+            brokers?: number;
+            /**
+             * @description The single home for this cluster's Kafka config: topic-config defaults
+             *     (e.g. "retention.ms"), the shard defaults "partitions" / "replication-factor",
+             *     and "kafka-version". Franz-friendly keys; consumers translate. Stored
+             *     verbatim — Franz validates neither keys nor value types (ADR-API-010).
              */
             clusterConfiguration?: {
                 [key: string]: string;
@@ -975,6 +980,7 @@ export interface components {
             connectionStrings?: components["schemas"]["v1ConnectionString"][];
             /** Format: date-time */
             createdAt?: string;
+            diskSize?: string;
             /** @description Assigned by Franz. */
             frn?: string;
             /** @description Fleet context. Source of truth for placement matching. */
@@ -1220,27 +1226,6 @@ export interface components {
         v1Principal: {
             clientFrn?: string;
             labels?: string;
-        };
-        /**
-         * @description ProvisioningLabelSpec describes one franz.provisioning/* label an agent's
-         *     recipe reads. Advisory — a console UX aid only (003.9, ADR-API-008).
-         */
-        v1ProvisioningLabelSpec: {
-            /** @description Allowed values; empty means free text. */
-            allowedValues?: string[];
-            /**
-             * @description Pre-filled in the console form. When allowed_values is set, must be one of
-             *     them.
-             */
-            defaultValue?: string;
-            description?: string;
-            /**
-             * @description Reserved-label key, e.g. "franz.provisioning/kafka-image". Must be
-             *     franz.-prefixed.
-             */
-            key?: string;
-            /** @description The console requires a value; Franz does not enforce it. */
-            required?: boolean;
         };
         v1ResumeAgentResponse: {
             agent?: components["schemas"]["v1Agent"];

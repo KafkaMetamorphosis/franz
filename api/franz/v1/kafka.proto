@@ -27,13 +27,20 @@ message KafkaCluster {
   // Fleet context. Source of truth for placement matching.
   map<string, string> labels = 4;
 
-  // Default Kafka configuration applied to topics on this cluster when nothing
-  // more specific is declared (e.g. "default.replication.factor" -> "3").
+  // The single home for this cluster's Kafka config: topic-config defaults
+  // (e.g. "retention.ms"), the shard defaults "partitions" / "replication-factor",
+  // and "kafka-version". Franz-friendly keys; consumers translate. Stored
+  // verbatim — Franz validates neither keys nor value types (ADR-API-010).
   map<string, string> cluster_configuration = 5;
 
   // Optional name of the Cluster Provider agent that deploys and maintains this
   // cluster's substrate. Empty means the infrastructure is managed outside Franz.
   string cluster_provider_agent = 6;
+
+  // Cluster shape (not Kafka config), forwarded to the Cluster Provider agent.
+  // brokers: desired broker count (>= 1 when set). disk_size: size hint, e.g. "50Gi".
+  int32 brokers = 11;
+  string disk_size = 12;
 
   // Lifecycle state. Franz sets ACTIVE at registration; PAUSED/DELETED are
   // reached through PauseKafkaCluster / ResumeKafkaCluster / DeleteKafkaCluster.
@@ -101,6 +108,8 @@ message CreateKafkaClusterRequest {
   map<string, string> labels = 3;
   map<string, string> cluster_configuration = 4;
   string cluster_provider_agent = 5;
+  int32 brokers = 6;
+  string disk_size = 7;
 }
 
 message CreateKafkaClusterResponse {
@@ -134,6 +143,8 @@ message UpdateKafkaClusterRequest {
   string cluster_provider_agent = 5;
   // Fields to update; unset fields are left unchanged.
   google.protobuf.FieldMask update_mask = 6;
+  int32 brokers = 7;
+  string disk_size = 8;
 }
 
 message UpdateKafkaClusterResponse {

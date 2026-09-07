@@ -16,17 +16,11 @@ import (
 )
 
 const (
-	// DeploymentTypeLabel selects the recipe family (ADR 004 §3).
-	DeploymentTypeLabel = "franz.provisioning/deployment-type"
-	KafkaVersionLabel   = "franz.provisioning/kafka-version"
-	// KafkaImageLabel overrides the container image with a full ref (tag,
-	// digest, or registry mirror). Must be an apache/kafka-compatible image —
-	// the recipe renders the KRaft env for that image. Takes precedence over
-	// KafkaVersionLabel (ADR 004 §3, ADR-API-008).
-	KafkaImageLabel = "franz.provisioning/kafka-image"
-	BrokersLabel    = "franz.provisioning/brokers"
+	// KafkaVersionKey is the cluster_configuration key carrying the apache/kafka
+	// image tag (ADR-API-010). Consumed as the image tag, not passed as env.
+	KafkaVersionKey = "kafka-version"
 
-	// LocalDocker is the only deployment type this agent handles.
+	// LocalDocker is the recipe family this agent ships.
 	LocalDocker = "local-docker"
 
 	// Container labels (ADR 004 §5) — the agent's only persistent state.
@@ -73,48 +67,50 @@ func (s Spec) Hash() string {
 // RecipeRef is "local-docker@<hash8>" for ReportClusterStatus.recipe_ref.
 func (s Spec) RecipeRef() string { return LocalDocker + "@" + s.Hash()[:8] }
 
-// configKeyAllowed reports whether a cluster_configuration key is safe to pass
-// straight through as a broker setting. Unknown keys are dropped with a warning.
-var configKeyAllowed = map[string]bool{
-	"default.replication.factor":               true,
-	"num.partitions":                           true,
-	"log.retention.ms":                         true,
-	"log.retention.bytes":                      true,
-	"log.segment.bytes":                        true,
-	"message.max.bytes":                        true,
-	"compression.type":                         true,
-	"min.insync.replicas":                      true,
-	"offsets.topic.replication.factor":         true,
-	"transaction.state.log.replication.factor": true,
-	"transaction.state.log.min.isr":            true,
-	"auto.create.topics.enable":                true,
+// configKeyToBroker maps a cluster_configuration key to the Kafka broker config
+// key it sets, or "" to consume it silently. Franz-friendly keys (ADR-API-010)
+// and raw Kafka keys are both accepted; anything not listed is dropped with a
+// warning.
+var configKeyToBroker = map[string]string{
+	KafkaVersionKey:      "", // consumed as the image tag
+	"partitions":         "num.partitions",
+	"replication-factor": "default.replication.factor",
+	"retention.ms":       "log.retention.ms",
+	"retention.bytes":    "log.retention.bytes",
+	"segment.bytes":      "log.segment.bytes",
+	// raw Kafka broker keys, passed through unchanged
+	"num.partitions":                           "num.partitions",
+	"default.replication.factor":               "default.replication.factor",
+	"log.retention.ms":                         "log.retention.ms",
+	"log.retention.bytes":                      "log.retention.bytes",
+	"log.segment.bytes":                        "log.segment.bytes",
+	"message.max.bytes":                        "message.max.bytes",
+	"compression.type":                         "compression.type",
+	"min.insync.replicas":                      "min.insync.replicas",
+	"offsets.topic.replication.factor":         "offsets.topic.replication.factor",
+	"transaction.state.log.replication.factor": "transaction.state.log.replication.factor",
+	"transaction.state.log.min.isr":            "transaction.state.log.min.isr",
+	"auto.create.topics.enable":                "auto.create.topics.enable",
 }
 
 // Render builds the local-docker Spec for an assignment. It returns an error
-// only for a genuinely unrenderable assignment (wrong deployment type, no / bad
-// bootstrap URL); brokers>1 and unknown config keys are warnings, not errors.
+// only for a genuinely unrenderable assignment (no / bad bootstrap URL);
+// brokers>1 and unknown config keys are warnings, not errors.
 func Render(agentName string, a assign.Assignment, defaultVersion string) (Spec, error) {
-	if dt := a.Provisioning[DeploymentTypeLabel]; dt != "" && dt != LocalDocker {
-		return Spec{}, fmt.Errorf("unsupported %s=%q (this agent only handles %q)", DeploymentTypeLabel, dt, LocalDocker)
-	}
-
 	host, port, err := splitHostPort(a.BootstrapURL())
 	if err != nil {
 		return Spec{}, fmt.Errorf("bad bootstrap url %q: %w", a.BootstrapURL(), err)
 	}
 
-	version := a.Provisioning[KafkaVersionLabel]
+	version := a.Configuration[KafkaVersionKey]
 	if version == "" {
 		version = defaultVersion
 	}
-	image := a.Provisioning[KafkaImageLabel]
-	if image == "" {
-		image = "apache/kafka:" + version
-	}
+	image := "apache/kafka:" + version
 
 	var warnings []string
-	if b := a.Provisioning[BrokersLabel]; b != "" && b != "1" {
-		warnings = append(warnings, fmt.Sprintf("franz.provisioning/brokers=%s ignored — local-docker provisions a single node", b))
+	if a.Brokers > 1 {
+		warnings = append(warnings, fmt.Sprintf("brokers=%d ignored — local-docker provisions a single node", a.Brokers))
 	}
 
 	advertised := net.JoinHostPort(host, strconv.Itoa(port))
@@ -136,11 +132,15 @@ func Render(agentName string, a assign.Assignment, defaultVersion string) (Spec,
 		"CLUSTER_ID":                                     "franz-local-cluster-000",
 	}
 	for k, v := range a.Configuration {
-		if !configKeyAllowed[k] {
+		brokerKey, known := configKeyToBroker[k]
+		if !known {
 			warnings = append(warnings, fmt.Sprintf("cluster_configuration key %q not applied (not in the local-docker allow-list)", k))
 			continue
 		}
-		env["KAFKA_"+strings.ToUpper(strings.NewReplacer(".", "_", "-", "_").Replace(k))] = v
+		if brokerKey == "" {
+			continue // consumed elsewhere (e.g. kafka-version)
+		}
+		env["KAFKA_"+strings.ToUpper(strings.NewReplacer(".", "_", "-", "_").Replace(brokerKey))] = v
 	}
 
 	envList := make([]string, 0, len(env))

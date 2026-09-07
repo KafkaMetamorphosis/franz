@@ -2,10 +2,8 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Breadcrumbs, ErrorBanner, Loading, PageHeading, Panel } from "../../components/ui";
 import { LabelEditor } from "../../components/LabelEditor";
-import { ProvisioningLabelEditor } from "../../components/ProvisioningLabelEditor";
-import { validateSchema } from "../../provisioning";
 import { ApiError } from "../../api/client";
-import { useAgent, useUpdateAgent, updateMask, type ProvisioningLabelSpec } from "../../api/hooks";
+import { useAgent, useUpdateAgent, updateMask } from "../../api/hooks";
 import { AGENT_TYPES } from "../../api/enums";
 
 export function AgentEdit() {
@@ -19,7 +17,6 @@ export function AgentEdit() {
   const [draft, setDraft] = useState<null | {
     type: string;
     labels: Record<string, string>;
-    provisioningLabels: ProvisioningLabelSpec[];
   }>(null);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -28,7 +25,6 @@ export function AgentEdit() {
     return {
       type: agent.type ?? AGENT_TYPES[0].value,
       labels: { ...(agent.labels ?? {}) },
-      provisioningLabels: (agent.provisioningLabels ?? []).map((s) => ({ ...s })),
     };
   }, [agent]);
 
@@ -53,24 +49,14 @@ export function AgentEdit() {
   if (base) {
     if (form.type !== base.type) changed.push("type");
     if (JSON.stringify(form.labels) !== JSON.stringify(base.labels)) changed.push("labels");
-    if (JSON.stringify(form.provisioningLabels) !== JSON.stringify(base.provisioningLabels))
-      changed.push("provisioningLabels");
   }
   const noChange = changed.length === 0;
 
   const save = () => {
     setLocalError(null);
-    if (changed.includes("provisioningLabels")) {
-      const problem = validateSchema(form.provisioningLabels);
-      if (problem) {
-        setLocalError(problem);
-        return;
-      }
-    }
     const body: Record<string, unknown> = { updateMask: updateMask(changed) };
     if (changed.includes("type")) body.type = form.type;
     if (changed.includes("labels")) body.labels = form.labels;
-    if (changed.includes("provisioningLabels")) body.provisioningLabels = form.provisioningLabels;
 
     update.mutate(body, {
       onSuccess: () => navigate(`/agents/${name}`),
@@ -132,24 +118,16 @@ export function AgentEdit() {
 
           <div className="form-section">
             <h3>Labels</h3>
+            <p className="form-help">
+              Reserved: <code>franz.default-kafka-config/*</code> (Kafka Cluster form defaults) and
+              {" "}<code>franz.placement-selector/*</code> (agent-watch scoping).
+            </p>
             <div className="field">
               <label>Labels</label>
               <div>
                 <LabelEditor value={form.labels} onChange={(labels) => set({ labels })} />
               </div>
             </div>
-          </div>
-
-          <div className="form-section">
-            <h3>Provisioning-label schema</h3>
-            <p className="form-help">
-              Advisory. The console pre-fills and constrains these fields on a resource form that
-              targets this agent. Franz does not enforce them.
-            </p>
-            <ProvisioningLabelEditor
-              value={form.provisioningLabels}
-              onChange={(provisioningLabels) => set({ provisioningLabels })}
-            />
           </div>
 
           <div className="form-actions">

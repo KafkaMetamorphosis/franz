@@ -103,7 +103,8 @@ func (h *clusterProviderHandler) assignmentResponse(a provider.Assignment) *fran
 			ClusterFrn:           proto.String(h.codec.Render(a.ClusterFRN)),
 			ConnectionStrings:    conns,
 			ClusterConfiguration: a.Configuration,
-			Provisioning:         a.Provisioning,
+			Brokers:              proto.Int32(a.Brokers),
+			DiskSize:             proto.String(a.DiskSize),
 		}.Build(),
 	}.Build()
 }

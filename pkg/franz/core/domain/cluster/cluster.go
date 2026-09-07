@@ -57,8 +57,10 @@ type Cluster struct {
 	Name              string
 	ConnectionStrings []ConnectionString
 	Labels            map[string]string
-	Configuration     map[string]string // cluster_configuration
+	Configuration     map[string]string // cluster_configuration — the single home for Kafka config (ADR-API-010)
 	ProviderAgent     string            // unvalidated free string
+	Brokers           int32             // cluster shape; 0 = unset
+	DiskSize          string            // cluster shape; "" = unset
 	State             State
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
@@ -103,6 +105,17 @@ func (c *Cluster) SetConnectionStrings(conns []ConnectionString) error {
 		return err
 	}
 	c.ConnectionStrings = conns
+	return nil
+}
+
+// SetShape sets the cluster's typed shape (brokers / disk size). brokers must be
+// >= 1 when set; 0 means "unset". diskSize is a free-form size hint (e.g. "50Gi").
+func (c *Cluster) SetShape(brokers int32, diskSize string) error {
+	if brokers < 0 {
+		return errs.InvalidField("brokers", "must be >= 1")
+	}
+	c.Brokers = brokers
+	c.DiskSize = diskSize
 	return nil
 }
 
@@ -205,6 +218,7 @@ func (c *Cluster) ToAssignment() provider.Assignment {
 		ClusterFRN:        c.FRN,
 		ConnectionStrings: conns,
 		Configuration:     c.Configuration,
-		Provisioning:      provider.ProvisioningLabels(c.Labels),
+		Brokers:           c.Brokers,
+		DiskSize:          c.DiskSize,
 	}
 }

@@ -13,7 +13,6 @@ export type KafkaCluster = Schemas["v1KafkaCluster"];
 export type ClusterProviderEvent = Schemas["v1ClusterProviderEvent"];
 export type ConnectionString = Schemas["v1ConnectionString"];
 export type AgentType = Schemas["v1AgentType"];
-export type ProvisioningLabelSpec = Schemas["v1ProvisioningLabelSpec"];
 
 // The gateway parses `update_mask` with protojson semantics: comma-separated
 // lowerCamelCase paths (snake_case is rejected). Callers pass the body keys they

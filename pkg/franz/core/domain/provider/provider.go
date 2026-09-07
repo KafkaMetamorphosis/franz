@@ -105,22 +105,9 @@ type Assignment struct {
 	ClusterName       string
 	ClusterFRN        frn.FRN
 	ConnectionStrings []ConnectionString
-	Configuration     map[string]string
-	// Provisioning is the cluster's franz.provisioning/* labels (those keys only).
-	Provisioning map[string]string
-}
-
-// ProvisioningPrefix is the reserved label prefix carrying provisioning intent
-// (003.1 / 004 ADR §3).
-const ProvisioningPrefix = "franz.provisioning/"
-
-// ProvisioningLabels returns the subset of labels under ProvisioningPrefix.
-func ProvisioningLabels(labels map[string]string) map[string]string {
-	out := map[string]string{}
-	for k, v := range labels {
-		if len(k) > len(ProvisioningPrefix) && k[:len(ProvisioningPrefix)] == ProvisioningPrefix {
-			out[k] = v
-		}
-	}
-	return out
+	// Configuration is KafkaCluster.cluster_configuration verbatim (ADR-API-010).
+	Configuration map[string]string
+	// Brokers / DiskSize are the cluster's typed shape, forwarded to the agent.
+	Brokers  int32
+	DiskSize string
 }

@@ -13,6 +13,8 @@ type CreateClusterInput struct {
 	Labels            map[string]string
 	Configuration     map[string]string
 	ProviderAgent     string
+	Brokers           int32
+	DiskSize          string
 }
 
 // UpdateClusterInput carries only the fields named in the request's FieldMask;
@@ -24,6 +26,8 @@ type UpdateClusterInput struct {
 	Labels            *map[string]string
 	Configuration     *map[string]string
 	ProviderAgent     *string
+	Brokers           *int32
+	DiskSize          *string
 }
 
 // ListClustersInput parameterises a List call. Selector is the raw 003.1

@@ -14,7 +14,7 @@ func base() assign.Assignment {
 		ClusterName:   "local-1",
 		ClusterFRN:    "frn:default:kafka-cluster:local-1",
 		BootstrapURLs: []string{"localhost:9092"},
-		Provisioning:  map[string]string{DeploymentTypeLabel: LocalDocker},
+		Configuration: map[string]string{},
 	}
 }
 
@@ -64,13 +64,17 @@ func TestRenderVersionAndHash(t *testing.T) {
 	a := base()
 	s1, _ := Render("a", a, "3.7.0")
 
-	a.Provisioning[KafkaVersionLabel] = "3.8.0"
+	a.Configuration[KafkaVersionKey] = "3.8.0"
 	s2, _ := Render("a", a, "3.7.0")
 	if s2.Image != "apache/kafka:3.8.0" {
 		t.Fatalf("image = %q", s2.Image)
 	}
 	if s1.Hash() == s2.Hash() {
 		t.Error("hash must change with the image tag")
+	}
+	// kafka-version is consumed as the tag, not passed as broker env
+	if _, ok := envOf(s2, "KAFKA_KAFKA_VERSION"); ok {
+		t.Error("kafka-version leaked into env")
 	}
 
 	// same inputs → same hash (agent name is not in the hash)
@@ -80,37 +84,29 @@ func TestRenderVersionAndHash(t *testing.T) {
 	}
 }
 
-func TestRenderKafkaImageOverridesVersion(t *testing.T) {
+func TestRenderConfigTranslationAndBrokers(t *testing.T) {
 	a := base()
-	a.Provisioning[KafkaVersionLabel] = "3.8.0"
-	a.Provisioning[KafkaImageLabel] = "registry.example.com/apache/kafka:3.9.0"
-
-	s, err := Render("a", a, "3.7.0")
-	if err != nil {
-		t.Fatal(err)
+	// Franz-friendly keys translate to Kafka broker keys; raw keys pass through.
+	a.Configuration = map[string]string{
+		"partitions":          "6",
+		"replication-factor":  "2",
+		"min.insync.replicas": "2",
+		"totally.unknown":     "x",
 	}
-	if s.Image != "registry.example.com/apache/kafka:3.9.0" {
-		t.Fatalf("image = %q, kafka-image should win over kafka-version", s.Image)
-	}
-
-	// a different image ref changes the hash → the container is recreated
-	base1, _ := Render("a", base(), "3.7.0")
-	if s.Hash() == base1.Hash() {
-		t.Error("hash must change with the image ref")
-	}
-}
-
-func TestRenderAllowlistAndBrokers(t *testing.T) {
-	a := base()
-	a.Configuration = map[string]string{"num.partitions": "6", "totally.unknown": "x"}
-	a.Provisioning[BrokersLabel] = "3"
+	a.Brokers = 3
 
 	spec, err := Render("a", a, "3.7.0")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if v, _ := envOf(spec, "KAFKA_NUM_PARTITIONS"); v != "6" {
-		t.Errorf("allow-listed key not applied: %q", v)
+		t.Errorf("partitions not translated: %q", v)
+	}
+	if v, _ := envOf(spec, "KAFKA_DEFAULT_REPLICATION_FACTOR"); v != "2" {
+		t.Errorf("replication-factor not translated: %q", v)
+	}
+	if v, _ := envOf(spec, "KAFKA_MIN_INSYNC_REPLICAS"); v != "2" {
+		t.Errorf("raw broker key not passed through: %q", v)
 	}
 	if _, ok := envOf(spec, "KAFKA_TOTALLY_UNKNOWN"); ok {
 		t.Error("unknown config key leaked into env")
@@ -122,12 +118,6 @@ func TestRenderAllowlistAndBrokers(t *testing.T) {
 }
 
 func TestRenderErrors(t *testing.T) {
-	wrong := base()
-	wrong.Provisioning[DeploymentTypeLabel] = "k8s-strimzi"
-	if _, err := Render("a", wrong, "3.7.0"); err == nil {
-		t.Error("unsupported deployment type should error")
-	}
-
 	noURL := base()
 	noURL.BootstrapURLs = nil
 	if _, err := Render("a", noURL, "3.7.0"); err == nil {

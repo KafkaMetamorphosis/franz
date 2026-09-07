@@ -191,7 +191,8 @@ type ClusterAssignment struct {
 	xxx_hidden_ClusterFrn           *string                  `protobuf:"bytes,3,opt,name=cluster_frn,json=clusterFrn"`
 	xxx_hidden_ConnectionStrings    *[]*ConnectionString     `protobuf:"bytes,4,rep,name=connection_strings,json=connectionStrings"`
 	xxx_hidden_ClusterConfiguration map[string]string        `protobuf:"bytes,5,rep,name=cluster_configuration,json=clusterConfiguration" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	xxx_hidden_Provisioning         map[string]string        `protobuf:"bytes,6,rep,name=provisioning" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_Brokers              int32                    `protobuf:"varint,7,opt,name=brokers"`
+	xxx_hidden_DiskSize             *string                  `protobuf:"bytes,8,opt,name=disk_size,json=diskSize"`
 	XXX_raceDetectHookData          protoimpl.RaceDetectHookData
 	XXX_presence                    [1]uint32
 	unknownFields                   protoimpl.UnknownFields
@@ -268,26 +269,36 @@ func (x *ClusterAssignment) GetClusterConfiguration() map[string]string {
 	return nil
 }
 
-func (x *ClusterAssignment) GetProvisioning() map[string]string {
+func (x *ClusterAssignment) GetBrokers() int32 {
 	if x != nil {
-		return x.xxx_hidden_Provisioning
+		return x.xxx_hidden_Brokers
 	}
-	return nil
+	return 0
+}
+
+func (x *ClusterAssignment) GetDiskSize() string {
+	if x != nil {
+		if x.xxx_hidden_DiskSize != nil {
+			return *x.xxx_hidden_DiskSize
+		}
+		return ""
+	}
+	return ""
 }
 
 func (x *ClusterAssignment) SetChange(v ClusterAssignment_Change) {
 	x.xxx_hidden_Change = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 6)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 7)
 }
 
 func (x *ClusterAssignment) SetClusterName(v string) {
 	x.xxx_hidden_ClusterName = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 6)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 7)
 }
 
 func (x *ClusterAssignment) SetClusterFrn(v string) {
 	x.xxx_hidden_ClusterFrn = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 6)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 7)
 }
 
 func (x *ClusterAssignment) SetConnectionStrings(v []*ConnectionString) {
@@ -298,8 +309,14 @@ func (x *ClusterAssignment) SetClusterConfiguration(v map[string]string) {
 	x.xxx_hidden_ClusterConfiguration = v
 }
 
-func (x *ClusterAssignment) SetProvisioning(v map[string]string) {
-	x.xxx_hidden_Provisioning = v
+func (x *ClusterAssignment) SetBrokers(v int32) {
+	x.xxx_hidden_Brokers = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 7)
+}
+
+func (x *ClusterAssignment) SetDiskSize(v string) {
+	x.xxx_hidden_DiskSize = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 7)
 }
 
 func (x *ClusterAssignment) HasChange() bool {
@@ -323,6 +340,20 @@ func (x *ClusterAssignment) HasClusterFrn() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 2)
 }
 
+func (x *ClusterAssignment) HasBrokers() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 5)
+}
+
+func (x *ClusterAssignment) HasDiskSize() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 6)
+}
+
 func (x *ClusterAssignment) ClearChange() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
 	x.xxx_hidden_Change = ClusterAssignment_CHANGE_UNSPECIFIED
@@ -338,17 +369,31 @@ func (x *ClusterAssignment) ClearClusterFrn() {
 	x.xxx_hidden_ClusterFrn = nil
 }
 
+func (x *ClusterAssignment) ClearBrokers() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 5)
+	x.xxx_hidden_Brokers = 0
+}
+
+func (x *ClusterAssignment) ClearDiskSize() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 6)
+	x.xxx_hidden_DiskSize = nil
+}
+
 type ClusterAssignment_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Change      *ClusterAssignment_Change
 	ClusterName *string
 	ClusterFrn  *string
-	// Desired-state inputs the agent's recipe consumes.
+	// Desired-state inputs the agent's recipe consumes. cluster_configuration is
+	// KafkaCluster.cluster_configuration verbatim (Franz-friendly keys — the
+	// recipe translates); "kafka-version" is one of its keys.
 	ConnectionStrings    []*ConnectionString
 	ClusterConfiguration map[string]string
-	// The cluster's `franz.provisioning/*` labels (those keys only).
-	Provisioning map[string]string
+	// Cluster shape (typed on KafkaCluster). brokers >= 1 when set; a value > 1 is
+	// a hint the recipe may down-scale (local-docker provisions a single node).
+	Brokers  *int32
+	DiskSize *string
 }
 
 func (b0 ClusterAssignment_builder) Build() *ClusterAssignment {
@@ -356,20 +401,27 @@ func (b0 ClusterAssignment_builder) Build() *ClusterAssignment {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Change != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 6)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 7)
 		x.xxx_hidden_Change = *b.Change
 	}
 	if b.ClusterName != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 6)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 7)
 		x.xxx_hidden_ClusterName = b.ClusterName
 	}
 	if b.ClusterFrn != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 6)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 7)
 		x.xxx_hidden_ClusterFrn = b.ClusterFrn
 	}
 	x.xxx_hidden_ConnectionStrings = &b.ConnectionStrings
 	x.xxx_hidden_ClusterConfiguration = b.ClusterConfiguration
-	x.xxx_hidden_Provisioning = b.Provisioning
+	if b.Brokers != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 7)
+		x.xxx_hidden_Brokers = *b.Brokers
+	}
+	if b.DiskSize != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 7)
+		x.xxx_hidden_DiskSize = b.DiskSize
+	}
 	return m0
 }
 
@@ -633,19 +685,17 @@ const file_franz_v1_agent_cluster_provider_proto_rawDesc = "" +
 	"\x1fWatchClusterAssignmentsResponse\x12;\n" +
 	"\n" +
 	"assignment\x18\x01 \x01(\v2\x1b.franz.v1.ClusterAssignmentR\n" +
-	"assignment\"\x80\x05\n" +
+	"assignment\"\xb7\x04\n" +
 	"\x11ClusterAssignment\x12:\n" +
 	"\x06change\x18\x01 \x01(\x0e2\".franz.v1.ClusterAssignment.ChangeR\x06change\x12!\n" +
 	"\fcluster_name\x18\x02 \x01(\tR\vclusterName\x12\x1f\n" +
 	"\vcluster_frn\x18\x03 \x01(\tR\n" +
 	"clusterFrn\x12I\n" +
 	"\x12connection_strings\x18\x04 \x03(\v2\x1a.franz.v1.ConnectionStringR\x11connectionStrings\x12j\n" +
-	"\x15cluster_configuration\x18\x05 \x03(\v25.franz.v1.ClusterAssignment.ClusterConfigurationEntryR\x14clusterConfiguration\x12Q\n" +
-	"\fprovisioning\x18\x06 \x03(\v2-.franz.v1.ClusterAssignment.ProvisioningEntryR\fprovisioning\x1aG\n" +
+	"\x15cluster_configuration\x18\x05 \x03(\v25.franz.v1.ClusterAssignment.ClusterConfigurationEntryR\x14clusterConfiguration\x12\x18\n" +
+	"\abrokers\x18\a \x01(\x05R\abrokers\x12\x1b\n" +
+	"\tdisk_size\x18\b \x01(\tR\bdiskSize\x1aG\n" +
 	"\x19ClusterConfigurationEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a?\n" +
-	"\x11ProvisioningEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"W\n" +
 	"\x06Change\x12\x16\n" +
@@ -653,7 +703,7 @@ const file_franz_v1_agent_cluster_provider_proto_rawDesc = "" +
 	"\n" +
 	"CHANGE_SET\x10\x01\x12\x11\n" +
 	"\rCHANGE_PAUSED\x10\x02\x12\x12\n" +
-	"\x0eCHANGE_REMOVED\x10\x03\"\xcc\x01\n" +
+	"\x0eCHANGE_REMOVED\x10\x03J\x04\b\x06\x10\aR\fprovisioning\"\xcc\x01\n" +
 	"\x1aReportClusterStatusRequest\x12!\n" +
 	"\fcluster_name\x18\x01 \x01(\tR\vclusterName\x124\n" +
 	"\x05phase\x18\x02 \x01(\x0e2\x1e.franz.v1.ClusterProviderPhaseR\x05phase\x12\x1c\n" +
@@ -668,7 +718,7 @@ const file_franz_v1_agent_cluster_provider_proto_rawDesc = "" +
 	"\fcom.franz.v1B\x19AgentClusterProviderProtoP\x01Z?github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1;franzv1\xa2\x02\x03FXX\xaa\x02\bFranz.V1\xca\x02\bFranz\\V1\xe2\x02\x14Franz\\V1\\GPBMetadata\xea\x02\tFranz::V1b\beditionsp\xe9\a"
 
 var file_franz_v1_agent_cluster_provider_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_franz_v1_agent_cluster_provider_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_franz_v1_agent_cluster_provider_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_franz_v1_agent_cluster_provider_proto_goTypes = []any{
 	(ClusterAssignment_Change)(0),           // 0: franz.v1.ClusterAssignment.Change
 	(*WatchClusterAssignmentsRequest)(nil),  // 1: franz.v1.WatchClusterAssignmentsRequest
@@ -677,26 +727,24 @@ var file_franz_v1_agent_cluster_provider_proto_goTypes = []any{
 	(*ReportClusterStatusRequest)(nil),      // 4: franz.v1.ReportClusterStatusRequest
 	(*ReportClusterStatusResponse)(nil),     // 5: franz.v1.ReportClusterStatusResponse
 	nil,                                     // 6: franz.v1.ClusterAssignment.ClusterConfigurationEntry
-	nil,                                     // 7: franz.v1.ClusterAssignment.ProvisioningEntry
-	(*ConnectionString)(nil),                // 8: franz.v1.ConnectionString
-	(ClusterProviderPhase)(0),               // 9: franz.v1.ClusterProviderPhase
+	(*ConnectionString)(nil),                // 7: franz.v1.ConnectionString
+	(ClusterProviderPhase)(0),               // 8: franz.v1.ClusterProviderPhase
 }
 var file_franz_v1_agent_cluster_provider_proto_depIdxs = []int32{
 	3, // 0: franz.v1.WatchClusterAssignmentsResponse.assignment:type_name -> franz.v1.ClusterAssignment
 	0, // 1: franz.v1.ClusterAssignment.change:type_name -> franz.v1.ClusterAssignment.Change
-	8, // 2: franz.v1.ClusterAssignment.connection_strings:type_name -> franz.v1.ConnectionString
+	7, // 2: franz.v1.ClusterAssignment.connection_strings:type_name -> franz.v1.ConnectionString
 	6, // 3: franz.v1.ClusterAssignment.cluster_configuration:type_name -> franz.v1.ClusterAssignment.ClusterConfigurationEntry
-	7, // 4: franz.v1.ClusterAssignment.provisioning:type_name -> franz.v1.ClusterAssignment.ProvisioningEntry
-	9, // 5: franz.v1.ReportClusterStatusRequest.phase:type_name -> franz.v1.ClusterProviderPhase
-	1, // 6: franz.v1.ClusterProviderService.WatchClusterAssignments:input_type -> franz.v1.WatchClusterAssignmentsRequest
-	4, // 7: franz.v1.ClusterProviderService.ReportClusterStatus:input_type -> franz.v1.ReportClusterStatusRequest
-	2, // 8: franz.v1.ClusterProviderService.WatchClusterAssignments:output_type -> franz.v1.WatchClusterAssignmentsResponse
-	5, // 9: franz.v1.ClusterProviderService.ReportClusterStatus:output_type -> franz.v1.ReportClusterStatusResponse
-	8, // [8:10] is the sub-list for method output_type
-	6, // [6:8] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	8, // 4: franz.v1.ReportClusterStatusRequest.phase:type_name -> franz.v1.ClusterProviderPhase
+	1, // 5: franz.v1.ClusterProviderService.WatchClusterAssignments:input_type -> franz.v1.WatchClusterAssignmentsRequest
+	4, // 6: franz.v1.ClusterProviderService.ReportClusterStatus:input_type -> franz.v1.ReportClusterStatusRequest
+	2, // 7: franz.v1.ClusterProviderService.WatchClusterAssignments:output_type -> franz.v1.WatchClusterAssignmentsResponse
+	5, // 8: franz.v1.ClusterProviderService.ReportClusterStatus:output_type -> franz.v1.ReportClusterStatusResponse
+	7, // [7:9] is the sub-list for method output_type
+	5, // [5:7] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_franz_v1_agent_cluster_provider_proto_init() }
@@ -712,7 +760,7 @@ func file_franz_v1_agent_cluster_provider_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_franz_v1_agent_cluster_provider_proto_rawDesc), len(file_franz_v1_agent_cluster_provider_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
