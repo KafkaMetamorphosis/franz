@@ -21,7 +21,7 @@ deliverable only owns the document's *shape* and *write validation*.
 
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
-| 10.1 | `async_channel` table — `labels jsonb` (+ GIN), `access_policy jsonb` (whole document), `channel_partitions int`, `type text` + CHECK, `state text` + CHECK, `frn` unique, `(realm_id, name)` unique | `003.12` | ⬜ | |
+| 10.1 | **Extend** the `async_channel` table (deliverable 09 created the id/realm/name/frn stub) — add `labels jsonb` (+ GIN), `access_policy jsonb` (whole document), `channel_partitions int`, `type text` + CHECK, `state text` + CHECK | `003.12` | ⬜ | |
 | 10.2 | Domain: `AsyncChannel`, `ChannelType` (`KAFKA_TOPIC` only), `ChannelState` (`ACTIVE ↔ PAUSED → DELETED`); shard name rule `<channel-name>-<index>`, `index` `0..channel_partitions-1` | `003.4` | ⬜ | |
 | 10.3 | Create usecase — one transaction: insert channel + `channel_partitions` `kafka_topic` rows (`state = PENDING`, `kafka_cluster_id = NULL`, materialised config = cluster-less defaults until placed) | `003.4` | ⬜ | |
 | 10.4 | Usecases: Get, List (selector), Update (`labels` only — `channel_partitions` / `type` / `access_policy` **not** maskable), Delete (cascade: channel + all shards → `DELETED`), Pause / Resume (propagate to shards) | `003.4` | ⬜ | |

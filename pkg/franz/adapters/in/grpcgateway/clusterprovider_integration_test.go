@@ -45,7 +45,7 @@ func TestClusterProviderE2E(t *testing.T) {
 	if err := db.Migrate(ctx); err != nil {
 		t.Fatalf("migrate: %v", err)
 	}
-	for _, tbl := range []string{"cluster_provider_event", "kafka_cluster", "agent"} {
+	for _, tbl := range []string{"kafka_topic", "async_channel", "cluster_provider_event", "kafka_cluster", "agent"} {
 		if _, err := db.Pool().Exec(ctx, "DELETE FROM "+tbl); err != nil {
 			t.Fatalf("clean %s: %v", tbl, err)
 		}
