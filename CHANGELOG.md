@@ -201,6 +201,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     `franz.default-kafka-config/partitions` on a Cluster Provider agent and
     asserts the Kafka Cluster form pre-fills `cluster_configuration` from it. The
     `deployment-type` / `kafka-image` / provisioning-schema steps are gone.
+  - **Fix:** `LabelEditor` now commits a key/value pair that was typed but not
+    "Add label"-ed when focus leaves the widget (e.g. straight to Save /
+    Register). Previously that pair was silently dropped, so a label added on the
+    Kafka Cluster / Agent form without pressing "Add label" was not saved.
 - Renamed the agent's Go paths for consistency: `cmd/local-kafka-agent` →
   `cmd/localkafkaagent`, `pkg/localkafka` → `pkg/localkafkaagent` (import path
   and package clause follow). The registered agent **name** `local-kafka-agent`

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type FocusEvent } from "react";
 
 // A key/value label builder — ported from register-kafka-cluster.html's inline
 // script. Controlled: the parent owns the label map.
@@ -25,6 +25,16 @@ export function LabelEditor({
     setV("");
   };
 
+  // Commit a half-typed row when focus leaves the editor — e.g. the user filled
+  // both fields and clicked "Save" / "Register" without pressing "Add label".
+  // `add()` no-ops unless both fields are non-empty, so tabbing between the two
+  // inputs is safe. relatedTarget staying inside the editor (moving to the other
+  // input or the button) is left alone.
+  const flushOnBlur = (e: FocusEvent<HTMLDivElement>) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+    add();
+  };
+
   const remove = (key: string) => {
     const next = { ...value };
     delete next[key];
@@ -34,7 +44,7 @@ export function LabelEditor({
   const entries = Object.entries(value);
 
   return (
-    <div className="label-builder" aria-label="Labels">
+    <div className="label-builder" aria-label="Labels" onBlur={flushOnBlur}>
       <div className="label-builder-controls">
         <input
           aria-label="Label key"
