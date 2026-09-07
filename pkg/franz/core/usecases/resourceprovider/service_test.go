@@ -187,6 +187,42 @@ func TestInitialPartitionAssignmentsIsScoped(t *testing.T) {
 	}
 }
 
+func TestInScopeClustersListsScopeEvenWithNoPlacedShards(t *testing.T) {
+	inScope := clusterRow("east-1", map[string]string{prodLabel: "prod"})
+	alsoInScope := clusterRow("east-2", map[string]string{prodLabel: "prod"})
+	outOfScope := clusterRow("west-1", map[string]string{prodLabel: "staging"})
+	svc := resourceprovider.NewService(
+		&fakeClusters{rows: []*cluster.Cluster{outOfScope, alsoInScope, inScope}},
+		&fakeTopics{})
+
+	got, err := svc.InScopeClusters(agentCtx("gs-1", map[string]string{prodSelector: "prod"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].Name != "east-1" || got[1].Name != "east-2" {
+		t.Fatalf("scope = %+v, want [east-1 east-2] sorted by name", got)
+	}
+	if got[0].FRN.Path() != "default:kafka-cluster:east-1" {
+		t.Errorf("frn = %q", got[0].FRN.Path())
+	}
+	if len(got[0].ConnectionStrings) != 1 || got[0].ConnectionStrings[0].BootstrapURLs[0] != "east-1:9092" {
+		t.Errorf("connection strings = %+v", got[0].ConnectionStrings)
+	}
+}
+
+func TestInScopeClustersEmptyWhenSelectorIsEmpty(t *testing.T) {
+	c := clusterRow("east-1", map[string]string{prodLabel: "prod"})
+	svc := resourceprovider.NewService(&fakeClusters{rows: []*cluster.Cluster{c}}, &fakeTopics{})
+
+	got, err := svc.InScopeClusters(agentCtx("gs-1", map[string]string{"team": "platform"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("got %+v, want none", got)
+	}
+}
+
 func TestInitialPartitionAssignmentsEmptySelectorIsInert(t *testing.T) {
 	c := clusterRow("east-1", map[string]string{prodLabel: "prod"})
 	topics := &fakeTopics{rows: []*topic.KafkaTopic{shardOn(c, "billing-events-0", topic.StatePending, 1)}}
