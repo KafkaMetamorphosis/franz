@@ -52,8 +52,8 @@ deliverable only owns the document's *shape* and *write validation*.
 - **Shard materialisation moved to placement** (ADR-API-009, user decision
   2026-09-06). Deliverable 13's task 13.3 now *creates* the shard `kafka_topic`
   rows (seeding `partitions` / `replication_factor` / `materialized_configuration`
-  from the assigned cluster's `franz.kafka-config/*` labels — deliverable 11), not
-  just sets `kafka_cluster_id`.
+  from the assigned cluster's `cluster_configuration` map), not just sets
+  `kafka_cluster_id`.
 - Splitting the access-policy work: the **document** (types + write validation)
   is here because `SetAccessPolicy` needs it now; the **engine** (matching,
   evaluation, the two client-access views) has no exercisable consumer until

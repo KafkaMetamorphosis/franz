@@ -1,7 +1,7 @@
 # 12 — Gregor Samsa (Resource Provider agent)
 
 Status: ⬜ not started
-Depends on: [03](./03-kafka-cluster.md) · [04](./04-agent-registry.md) · [05](./05-agent-interaction-cluster-provider.md) · [09](./09-kafka-topic.md) · [10](./10-async-channel.md) · [11](./11-cluster-agent-label-consolidation.md) (`franz.kafka-config/*` is the cluster config surface)
+Depends on: [03](./03-kafka-cluster.md) · [04](./04-agent-registry.md) · [05](./05-agent-interaction-cluster-provider.md) · [09](./09-kafka-topic.md) · [10](./10-async-channel.md) · [11](./11-cluster-and-agent-config.md) (defines `cluster_configuration`, retires `franz.provisioning/*`)
 Specs: `005-gregor-samsa` (the ADR), `003-franz/003.6-kafka-topic`, `003-franz/003.4-async-channel`, `003-franz/003.9-agents`, `003-franz/003.1-conventions`, `003-franz/003.7-placement-and-selection`
 Proto: **new** `agent_resource_provider.proto` (`ResourceProviderService`); change to `telemetry.proto`
 
@@ -33,8 +33,8 @@ row change is picked up on the agent's next reconnect resync.
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
 | 12.1 | `agent_resource_provider.proto` — `ResourceProviderService` { `WatchPartitionAssignments` (server stream), `ReportPartitionReconciliation` (unary) }; messages `PartitionAssignment` (`change` SET/PAUSED/REMOVED + `reason`, `partition_frn`, `generation`, `async_channel`, `topic_name`, `kafka_cluster` + `connection_strings`, `desired_config`, `partitions`, `replication_factor`), `PartitionReconciliationReport` (`partition_frn`, `generation`, `outcome` CREATED/UPDATED/NOOP/DELETED/ERROR, `message`, `applied_config`). gRPC only, no gateway. `buf lint` + `buf breaking` clean | ADR §1.3, §1.5 | ⬜ | |
-| 12.2 | Reserved labels — parse/validate `franz.selector/*` on `Agent.labels` (deliverable 04 domain) and document `franz.placement/*` on `KafkaCluster.labels` as reserved (add both to `003.1` table — spec edit needs sign-off) | ADR §1.2 | ⬜ | |
-| 12.3 | **Scope resolver** — pure domain fn: `(agent.franz.selector/*, []cluster) → in-scope cluster set`; every agent selector pair must equal the cluster's `franz.placement/<key>`; empty selector ⇒ empty scope. Recomputed on agent-label and cluster-label change | ADR §1.2 | ⬜ | |
+| 12.2 | Reserved labels — parse/validate `franz.placement-selector/*` on `Agent.labels` (deliverable 04 domain) and document `franz.placement/*` on `KafkaCluster.labels` as reserved (add both to `003.1` table — spec edit needs sign-off) | ADR §1.2 | ⬜ | |
+| 12.3 | **Scope resolver** — pure domain fn: `(agent.franz.placement-selector/*, []cluster) → in-scope cluster set`; every agent selector pair must equal the cluster's `franz.placement/<key>`; empty selector ⇒ empty scope. Recomputed on agent-label and cluster-label change | ADR §1.2 | ⬜ | |
 | 12.4 | Widen `agentauth.go` — the Bearer interceptor currently only covers `/franz.v1.ClusterProviderService/`; add `/franz.v1.ResourceProviderService/` and `/franz.v1.TelemetryService/` | ADR §Franz-side | ⬜ | |
 | 12.5 | `kafka_topic` — add `reconciled_generation bigint` (nullable) + `last_reconcile_message text` to `V1__init.sql`; `topic` domain: `RecordReconciliation(generation, outcome, message)` → state transition + generation stamp, generation-gated (a stale report is accepted but does not move the row to `READY`) | ADR §1.5, `003.6` | ⬜ | |
 | 12.6 | `core/usecases/resourceprovider` — `InitialPartitionAssignments(ctx)` (agent from context → scope resolver → in-scope partitions as SET), `ReportReconciliation(ctx, input)` (ownership check: the partition's cluster is in the agent's scope → `PERMISSION_DENIED` otherwise; then `RecordReconciliation`) | ADR §1.5, §1.7 | ⬜ | |
@@ -55,7 +55,7 @@ row change is picked up on the agent's next reconnect resync.
 | 12.16 | Outcome reporting — `ReportPartitionReconciliation` per partition whenever its outcome changes; carry `generation` from the assignment and `applied_config` read back from Kafka | ADR §1.5 | ⬜ | |
 | 12.17 | Telemetry loop — configurable sweep (default 60s) of every in-scope cluster + partition: topic-level (`kafka.topic.state`, `partitions`, `replication_factor`, `under_replicated_partitions`, `config_drift`) and cluster-level (`kafka.cluster.broker_count`, `online_broker_count`, `total_partition_replicas`, `replicas_per_broker`, `leaders_per_broker`, `under_replicated_partitions`, `offline_partitions`) indicator samples over the client stream; plus an immediate sample right after a reconcile | ADR §2.1, §2.2 | ⬜ | |
 | 12.18 | Fake-admin unit tests (reconcile create/alter/delete/safety-check/idempotent/RF-decrease-error) + a real-Docker e2e (`make gregorsamsa-e2e`, opt-in `FRANZ_GS_E2E=1`): seed a partition row, agent creates the topic, `kadm` confirms it, edit config → altered, delete → safety-checked + removed | ADR §1 | ⬜ | |
-| 12.19 | `Makefile` — `gregorsamsa` (run against the seeded dev agent) and `gregorsamsa-e2e`; `local/seed/` adds a `RESOURCE_PROVIDER` agent registration (`franz.selector/*` matching the local cluster's `franz.placement/*`) with a fixed dev token | — | ⬜ | |
+| 12.19 | `Makefile` — `gregorsamsa` (run against the seeded dev agent) and `gregorsamsa-e2e`; `local/seed/` adds a `RESOURCE_PROVIDER` agent registration (`franz.placement-selector/*` matching the local cluster's `franz.placement/*`) with a fixed dev token | — | ⬜ | |
 
 ## Done when
 
@@ -78,7 +78,7 @@ row change is picked up on the agent's next reconnect resync.
 - Reuses the deliverable-05 pattern wholesale: `streamhub`, `agentauth`,
   `core/usecases/*` shape, bufconn e2e, real-Docker opt-in e2e.
 - Spec edits this deliverable needs (each needs sign-off before landing):
-  `003.1` reserved-label table (`franz.selector/*`, `franz.placement/*`),
+  `003.1` reserved-label table (`franz.placement-selector/*`, `franz.placement/*`),
   `003.6` (the `generation` reporting semantics + `reconciled_generation`),
   `003.9` (`RESOURCE_PROVIDER` interaction contract now exists → link `005`),
   `telemetry.proto` (client-streaming). A `DECISIONS.md` ADR entry for the

@@ -41,7 +41,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 |---|---|---|---|
 | [09](./09-kafka-topic.md) | Kafka Topic (read model) | 02 · 03 | ✅ |
 | [10](./10-async-channel.md) | Async Channel + access-policy document | 02 · 09 | ✅ |
-| [11](./11-cluster-agent-label-consolidation.md) | Cluster & agent label consolidation | 03 · 04 · 08 | ⬜ |
+| [11](./11-cluster-and-agent-config.md) | Cluster & agent configuration model | 03 · 04 · 08 | ⬜ |
 | [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ⬜ |
 | [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ⬜ |
 | [14](./14-telemetry-ingest.md) | Telemetry ingest | 02 · 15 | ⬜ |
@@ -88,24 +88,23 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
-- 2026-09-06 · **plan** · inserted deliverable **11 — Cluster & agent label
-  consolidation** ahead of Gregor Samsa; renumbered the former 11–17 to **12–18**.
-  Scope: one `Labels` surface on the cluster form (no more separate Provisioning
-  intent / Context labels / Cluster configuration sections); `cluster_configuration`
-  becomes a read-only projection of `franz.kafka-config/*` labels; agents advertise
-  defaults as `franz.default-provisioning/*` + `franz.default-kafka-config/*`
-  labels; **ADR-API-008's structured `Agent.provisioning_labels` schema is removed**
-  (superseded by ADR-API-010). All cross-references, `Depends on`, and internal
-  task IDs updated.
-- 2026-09-06 · **plan** · inserted deliverable **Gregor Samsa (Resource
-  Provider agent)**; design `docs/005-gregor-samsa` (multi-cluster,
-  `franz.selector/*` ↔ `franz.placement/*` scoping; push-driven
-  `WatchPartitionAssignments` server stream + per-partition generation-gated
-  reports; deletion safety checks kept; Part 2 telemetry over `TelemetryService`). Design: `docs/005-gregor-samsa` (multi-cluster, `franz.selector/*` ↔
-  `franz.placement/*` scoping; push-driven `WatchPartitionAssignments` server
-  stream + per-partition generation-gated reports; deletion safety checks kept;
-  Part 2 telemetry over `TelemetryService`). All cross-references, `Depends on`,
+- 2026-09-07 · **plan** · deliverable **11 — Cluster & agent configuration
+  model** reworked after design review. `cluster_configuration` **stays a
+  `map<string,string>`** (not labels); `KafkaCluster` gains typed `brokers` /
+  `disk_size`; `kafka-image` + `deployment-type` dropped; `kafka-version` moves
+  into the config map; `franz.provisioning/*` retired. Agents advertise console
+  defaults as `franz.default-kafka-config/*` labels (unenforced).
+  **ADR-API-008's structured `Agent.provisioning_labels` schema is removed**
+  (superseded by ADR-API-010). Agent→cluster watch scoping
+  (`franz.placement/*` ↔ `franz.placement-selector/*`) moves to deliverable 12.
+- 2026-09-06 · **plan** · inserted deliverable 11 ahead of Gregor Samsa;
+  renumbered the former 11–17 to **12–18**. All cross-references, `Depends on`,
   and internal task IDs updated. No shipped deliverable (01–10) affected.
+- 2026-09-06 · **plan** · added the **Gregor Samsa (Resource Provider agent)**
+  deliverable; design `docs/005-gregor-samsa` — multi-cluster,
+  `franz.placement-selector/*` ↔ `franz.placement/*` scoping; push-driven
+  `WatchPartitionAssignments` server stream + per-partition generation-gated
+  reports; deletion safety checks kept; Part 2 telemetry over `TelemetryService`.
 - 2026-09-06 · **10** Async Channel + access-policy document ·
   `pkg/franz/core/domain/{accesspolicy,channel}`, `channels.NewService`
   (Create = one `async_channel` row, no shards — **ADR-API-009**; Get / List /
