@@ -14,6 +14,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/cluster"
 	placementdomain "github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/placement"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/topic"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/in"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/channels"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/clusters"
@@ -106,6 +107,86 @@ func (f *placementFixture) relabelCluster(t *testing.T, name string, labels map[
 		Labels: &labels,
 	}); err != nil {
 		t.Fatalf("relabel cluster %q: %v", name, err)
+	}
+}
+
+func containsChannel(channels []*channel.AsyncChannel, name string) bool {
+	for _, c := range channels {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (f *placementFixture) relabelChannel(t *testing.T, name string, labels map[string]string) {
+	t.Helper()
+	if _, err := f.channels.Update(f.ctx, in.UpdateChannelInput{
+		Name:   name,
+		Labels: &labels,
+	}); err != nil {
+		t.Fatalf("relabel channel %q: %v", name, err)
+	}
+}
+
+// A shard row that exists but was never given a cluster — the ADR-API-009
+// anomaly a stale fixture or an aborted write can leave. Placement must heal it,
+// not skip it forever because "a row with that name exists".
+func TestPlacementAdoptsAnUnplacedShardRow(t *testing.T) {
+	f := newPlacementFixture(t)
+	f.createChannel(t, "orders", 1, nil) // no selector → 0 rows created
+
+	channelID, err := f.topicRepo.ResolveChannelID(f.ctx, f.realm.ID, "orders")
+	if err != nil {
+		t.Fatal(err)
+	}
+	unplaced, err := topic.New(f.realm, channelID, "orders", 0, nil, nil, 1, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// leave KafkaClusterID nil — the anomaly under test
+	if err := f.topicRepo.Create(f.ctx, unplaced); err != nil {
+		t.Fatalf("seed unplaced shard: %v", err)
+	}
+
+	f.createCluster(t, "east-1", map[string]string{"env": "prod"},
+		map[string]string{"partitions": "6", "replication-factor": "3", "retention.ms": "60000"})
+
+	// The retry sweep must still see `orders` as underplaced — its one row has
+	// no cluster, so it does not count toward channel_partitions.
+	underplaced, err := postgres.NewChannelRepo(f.db).ListUnderplaced(f.ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !containsChannel(underplaced, "orders") {
+		t.Fatal("orders is not in the sweep work list despite its only shard being unplaced")
+	}
+
+	f.relabelChannel(t, "orders", map[string]string{
+		placementdomain.LabelAffinitySelector: "env=prod",
+	})
+
+	shard, err := f.topicRepo.Get(f.ctx, f.realm.ID, "orders-0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if shard.KafkaClusterID == nil || shard.ClusterName != "east-1" {
+		t.Fatalf("orders-0 not placed on east-1: %+v", shard)
+	}
+	if shard.Partitions != 6 || shard.ReplicationFactor != 3 {
+		t.Errorf("shape not seeded: %d/%d", shard.Partitions, shard.ReplicationFactor)
+	}
+	if shard.MaterializedConfiguration["retention.ms"] != "60000" ||
+		shard.MaterializedConfiguration["partitions"] != "" {
+		t.Errorf("config wrong: %v", shard.MaterializedConfiguration)
+	}
+	if shard.Misplaced {
+		t.Error("adopted shard still marked misplaced")
+	}
+
+	// And it stays a single row — no duplicate created alongside the adopted one.
+	if rows := f.shardRows(t, "orders"); len(rows) != 1 {
+		t.Fatalf("orders has %d shard rows, want 1", len(rows))
 	}
 }
 

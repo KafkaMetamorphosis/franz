@@ -7,6 +7,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **A reconcile reported `ERROR` for a topic it had just created.** Gregor Samsa's
+  read-back requested the topic by name (`ListTopics(ctx, name)`); a by-name
+  metadata request on the same franz-go client right after `CreateTopic`
+  transiently returns `UNKNOWN_TOPIC_OR_PARTITION` for seconds. It now lists all
+  topics and filters client-side, which is correct on the first try.
+- **Placement skipped a shard row that existed but had no cluster.** The "create
+  a row for every unplaced shard index" step keyed on "a row with that name
+  exists" — so a leftover unplaced row (a stale fixture, an aborted write) was
+  never given a cluster, and the retry sweep counted it toward
+  `channel_partitions` and stopped revisiting the channel. Placement now
+  *adopts* such a row (`KafkaTopic.AdoptPlacement` — assign the cluster, seed the
+  shape, re-freeze the config, bump `generation`), and `ListUnderplaced` counts
+  only placed rows.
+- **Console: the Async Channel detail page showed a static "placement not yet
+  enabled" note.** It now lists the channel's materialised shards (topic name,
+  cluster, partitions/RF, state, misplaced marker), polling every 5s while they
+  converge, and tells you to add a `franz.affinity/selector` when none are
+  placed.
 - **`kafka-version` leaked into a shard's Kafka topic config.** `topic.Materialize`
   dropped `partitions` / `replication-factor` from the `cluster_configuration`
   merge but not `kafka-version` — a cluster-substrate key (ADR-API-010), not a

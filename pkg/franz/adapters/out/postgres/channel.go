@@ -201,15 +201,19 @@ func (r *ChannelRepo) ListActive(
 		 WHERE realm_id=$1 AND state='ACTIVE' ORDER BY name ASC`, realmID)
 }
 
-// ListUnderplaced returns every ACTIVE channel, in any realm, that has fewer
-// live kafka_topic rows than `channel_partitions` — the placement retry sweep's
-// work list (003.7). Ordered by (realm, name) so the sweep is deterministic.
+// ListUnderplaced returns every ACTIVE channel, in any realm, with fewer
+// *placed* kafka_topic rows (a non-null kafka_cluster_id) than
+// `channel_partitions` — the placement retry sweep's work list (003.7). An
+// unplaced row does not count, so the sweep keeps revisiting a channel until
+// every async-channel shard has a cluster. Ordered by (realm, name) so the
+// sweep is deterministic.
 func (r *ChannelRepo) ListUnderplaced(ctx context.Context) ([]*channel.AsyncChannel, error) {
 	return r.collectChannels(ctx, `
 		SELECT `+prefixedChannelColumns+` FROM async_channel c
 		WHERE c.state='ACTIVE'
 		  AND (SELECT count(*) FROM kafka_topic t
-		       WHERE t.async_channel_id = c.id AND t.state <> 'DELETED')
+		       WHERE t.async_channel_id = c.id AND t.state <> 'DELETED'
+		         AND t.kafka_cluster_id IS NOT NULL)
 		      < c.channel_partitions
 		ORDER BY c.realm_id ASC, c.name ASC`)
 }

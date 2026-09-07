@@ -35,8 +35,15 @@ func (a *kadmAdmin) Close() { a.client.Close() }
 
 // DescribeTopic reads the topic's shape from metadata and its configuration from
 // DescribeConfigs. An unknown topic is (nil, nil).
+//
+// The metadata read lists *all* topics and looks this one up client-side rather
+// than requesting it by name. A by-name `MetadataRequest` issued on the same
+// franz-go client immediately after `CreateTopic` transiently returns
+// UNKNOWN_TOPIC_OR_PARTITION for seconds — the client's per-topic negative
+// cache lingers — while the unfiltered list is correct on the first try. This
+// matters for the read-back a reconcile does right after creating a topic.
 func (a *kadmAdmin) DescribeTopic(ctx context.Context, topic string) (*Topic, error) {
-	details, err := a.client.ListTopics(ctx, topic)
+	details, err := a.client.ListTopics(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("describe topic %q: %w", topic, err)
 	}
