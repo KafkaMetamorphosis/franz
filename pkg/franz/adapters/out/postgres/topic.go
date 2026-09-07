@@ -215,34 +215,42 @@ func (r *TopicRepo) MutateChannelShards(
 		}
 
 		for _, t := range shards {
-			channelName, clusterName := t.ChannelName, t.ClusterName
-			topicCfg, _ := json.Marshal(nonNilMap(t.TopicConfiguration))
-			matCfg, _ := json.Marshal(nonNilMap(t.MaterializedConfiguration))
-			updated, err := scanTopic(tx.QueryRow(ctx, `
-				UPDATE kafka_topic SET
-					kafka_cluster_id=$1, topic_configuration=$2,
-					materialized_configuration=$3, partitions=$4, replication_factor=$5,
-					state=$6, consumption=$7, traffic_share_value=$8,
-					traffic_share_unit=$9, generation=$10, updated_at=now()
-				WHERE id=$11
-				RETURNING `+topicCols,
-				t.KafkaClusterID, topicCfg, matCfg, t.Partitions, t.ReplicationFactor,
-				string(t.State), string(t.Consumption), t.TrafficShare.Value,
-				t.TrafficShare.Unit, t.Generation, t.ID), false)
-			if err != nil {
+			if err := persistTopicTx(ctx, tx, t); err != nil {
 				return err
 			}
-			updated.ChannelName = channelName
-			// kafka_cluster_id does not change in this deliverable; carry the name.
-			if updated.KafkaClusterID != nil {
-				updated.ClusterName = clusterName
-			}
-			*t = *updated
 		}
 		result = shards
 		return nil
 	})
 	return result, err
+}
+
+// persistTopicTx writes a mutated shard's columns and refreshes it in place,
+// keeping the joined ChannelName / ClusterName (immutable within a mutate).
+func persistTopicTx(ctx context.Context, tx pgx.Tx, t *topic.KafkaTopic) error {
+	channelName, clusterName := t.ChannelName, t.ClusterName
+	topicCfg, _ := json.Marshal(nonNilMap(t.TopicConfiguration))
+	matCfg, _ := json.Marshal(nonNilMap(t.MaterializedConfiguration))
+	updated, err := scanTopic(tx.QueryRow(ctx, `
+		UPDATE kafka_topic SET
+			kafka_cluster_id=$1, topic_configuration=$2,
+			materialized_configuration=$3, partitions=$4, replication_factor=$5,
+			state=$6, consumption=$7, traffic_share_value=$8,
+			traffic_share_unit=$9, generation=$10, updated_at=now()
+		WHERE id=$11
+		RETURNING `+topicCols,
+		t.KafkaClusterID, topicCfg, matCfg, t.Partitions, t.ReplicationFactor,
+		string(t.State), string(t.Consumption), t.TrafficShare.Value,
+		t.TrafficShare.Unit, t.Generation, t.ID), false)
+	if err != nil {
+		return err
+	}
+	updated.ChannelName = channelName
+	if updated.KafkaClusterID != nil {
+		updated.ClusterName = clusterName
+	}
+	*t = *updated
+	return nil
 }
 
 // ResolveChannelID maps an Async Channel name to its id within the realm.

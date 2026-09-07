@@ -98,20 +98,32 @@ CREATE TABLE IF NOT EXISTS cluster_provider_event (
 CREATE INDEX IF NOT EXISTS cluster_provider_event_cluster_time
     ON cluster_provider_event (kafka_cluster_id, occurred_at DESC, id DESC);
 
--- Async Channel — the customer-facing resource (003.4). Deliverable 09 needs
--- only enough of it to be the FK target + name for kafka_topic; deliverable 10
--- extends this table with labels / access_policy / channel_partitions / type /
--- state and the create-with-shards transaction.
+-- Async Channel — the customer-facing resource (003.4). It is abstract: no Kafka
+-- config of its own. `channel_partitions` is the declared shard count; the shard
+-- kafka_topic rows are created by placement (deliverable 11, ADR-API-009), not at
+-- CreateAsyncChannel. `access_policy` is the embedded document (003.5), changed
+-- only via SetAccessPolicy. `state` has no PENDING/ERROR — that lives on shards.
 CREATE TABLE IF NOT EXISTS async_channel (
-    id         uuid        PRIMARY KEY,
-    realm_id   uuid        NOT NULL REFERENCES realm (id),
-    name       text        NOT NULL,
-    frn        text        NOT NULL,
-    created_at timestamptz NOT NULL DEFAULT now(),
-    updated_at timestamptz NOT NULL DEFAULT now(),
+    id                 uuid        PRIMARY KEY,
+    realm_id           uuid        NOT NULL REFERENCES realm (id),
+    name               text        NOT NULL,
+    frn                text        NOT NULL,
+    type               text        NOT NULL DEFAULT 'KAFKA_TOPIC'
+                           CHECK (type IN ('KAFKA_TOPIC')),
+    channel_partitions integer     NOT NULL DEFAULT 1
+                           CHECK (channel_partitions >= 1),
+    labels             jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    access_policy      jsonb       NOT NULL DEFAULT '{"statements":[]}'::jsonb,
+    state              text        NOT NULL DEFAULT 'ACTIVE'
+                           CHECK (state IN ('ACTIVE', 'PAUSED', 'DELETED')),
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now(),
     UNIQUE (realm_id, name),
     UNIQUE (frn)
 );
+
+CREATE INDEX IF NOT EXISTS async_channel_labels_gin
+    ON async_channel USING gin (labels);
 
 -- Kafka Topic — one shard of an Async Channel, placed on one Kafka Cluster,
 -- tracking reconciliation with the real topic (003.6). Franz owns every field;

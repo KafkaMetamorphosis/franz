@@ -40,7 +40,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | # | Deliverable | Depends on | Status |
 |---|---|---|---|
 | [09](./09-kafka-topic.md) | Kafka Topic (read model) | 02 · 03 | ✅ |
-| [10](./10-async-channel.md) | Async Channel + access-policy document | 02 · 09 | ⬜ |
+| [10](./10-async-channel.md) | Async Channel + access-policy document | 02 · 09 | ✅ |
 | [11](./11-placement.md) | Placement & selection | 03 · 10 | ⬜ |
 | [12](./12-telemetry-ingest.md) | Telemetry ingest | 02 · 13 | ⬜ |
 | [13](./13-governance.md) | Governance (non-placement actions) | 02 · 03 · 09 · 10 · 12 | ⬜ |
@@ -86,6 +86,14 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-06 · **10** Async Channel + access-policy document ·
+  `pkg/franz/core/domain/{accesspolicy,channel}`, `channels.NewService`
+  (Create = one `async_channel` row, no shards — **ADR-API-009**; Get / List /
+  Update-labels / Delete-Pause-Resume cascade to any shards), postgres
+  `ChannelRepo`, `AsyncChannelService` REST handler (`ListChannelClients` →
+  `Unimplemented`, ships with 15). `access_policy` validated on write, no cap.
+  `async_channel` table extended. No proto change. Plan updated: shard
+  materialisation moved to deliverable 11. codex out of quota → claude.
 - 2026-09-06 · **09** Kafka Topic (read model) · `pkg/franz/core/domain/topic`
   (state machine + `Consumption` + `TrafficShare` + config `Materialize`),
   `topics.NewService` (Get / List / SetConsumption with equal-split

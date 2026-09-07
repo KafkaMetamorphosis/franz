@@ -7,6 +7,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Async Channel** (impls_plan deliverable 10): the customer-facing `AsyncChannel`
+  entity (003.4) — abstract, no Kafka config of its own. `CreateAsyncChannel`
+  records **only the channel row** and its `channel_partitions` count; the shard
+  `kafka_topic` rows are materialised by **placement**, not at create
+  (ADR-API-009). CRUD + `PauseAsyncChannel` / `ResumeAsyncChannel` (cascade to
+  any shards) + `DeleteAsyncChannel` (cascade); `UpdateAsyncChannel` masks
+  `labels` only. Embedded **access-policy document** (003.5) — `Effect` /
+  `Principal` / `Permission` / `Statement` — validated on write (`effect`
+  set, `permissions` non-empty, `principal` has a criterion), replaced wholesale
+  via `SetAccessPolicy`. `ListChannelClients` returns `UNIMPLEMENTED` (the
+  evaluation engine + the two client-access views ship with deliverable 15).
+  `pkg/franz/core/domain/{accesspolicy,channel}`, `usecases/channels`,
+  `adapters/{out/postgres/channel,in/grpcgateway/asyncchannel}`. `async_channel`
+  table extended in `V1__init.sql`. No proto change.
 - **Kafka Topic** (impls_plan deliverable 09): the `KafkaTopic` entity — one
   shard of an Async Channel, tracking reconciliation with the real topic. Franz
   owns every field; the only client mutation is **`SetConsumption`**, which
