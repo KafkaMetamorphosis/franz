@@ -39,14 +39,14 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 | # | Deliverable | Depends on | Status |
 |---|---|---|---|
-| [09](./09-access-policy-engine.md) | Access-policy engine | 02 | ⬜ |
-| [10](./10-kafka-topic.md) | Kafka Topic (read model) | 02 · 03 | ⬜ |
-| [11](./11-async-channel.md) | Async Channel + access-policy wiring | 02 · 09 · 10 | ⬜ |
-| [12](./12-placement.md) | Placement & selection | 03 · 11 | ⬜ |
-| [13](./13-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ⬜ |
-| [14](./14-governance.md) | Governance (non-placement actions) | 02 · 03 · 10 · 11 · 13 | ⬜ |
-| [15](./15-client.md) | Client | 02 · 11 · 13 | ⬜ |
-| [16](./16-migration-and-data-movement.md) | Migration & data movement | 10 · 11 · 12 | ⛔ |
+| [09](./09-kafka-topic.md) | Kafka Topic (read model) | 02 · 03 | ⬜ |
+| [10](./10-async-channel.md) | Async Channel + access-policy document | 02 · 09 | ⬜ |
+| [11](./11-placement.md) | Placement & selection | 03 · 10 | ⬜ |
+| [12](./12-telemetry-ingest.md) | Telemetry ingest | 02 · 13 | ⬜ |
+| [13](./13-governance.md) | Governance (non-placement actions) | 02 · 03 · 09 · 10 · 12 | ⬜ |
+| [14](./14-client.md) | Client | 02 · 12 | ⬜ |
+| [15](./15-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 14 | ⬜ |
+| [16](./16-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 11 | ⛔ |
 
 ## Decisions already locked (`DECISIONS.md` ADR-API-005)
 
@@ -86,6 +86,14 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-06 · **plan** · split the access-policy work along the validate/evaluate
+  seam. The standalone **09 — Access-policy engine** is removed: the policy
+  *document* (types + write validation) folds into **10 — Async Channel**; the
+  *engine* (principal matching, evaluation, and the `ListChannelClients` /
+  `ListClientChannelAccess` views) becomes a new **15 — Access-policy engine &
+  channel-access views**, sequenced after Client — both views iterate Clients so
+  the engine had no exercisable consumer before then. Former 10–15 shift to
+  09–14; migration stays 16. Cross-references + `Depends on` updated.
 - 2026-09-06 · **08** Resource management & agent provisioning schema ·
   `Agent.provisioning_labels` (advisory schema, ADR-API-008) through proto →
   deliverable-04 backend → console. Console edit pages for Agent + Kafka Cluster

@@ -33,7 +33,7 @@ slice. It establishes the pattern every other entity follows.
 
 ## Notes
 
-- This slice's repo/usecase/handler shape is copied by 04, 10, 11, 15.
+- This slice's repo/usecase/handler shape is copied by 04, 09, 10, 14.
 - `state` is only ever changed via pause/resume/delete — never in an Update mask.
 
 ### What landed
@@ -46,7 +46,7 @@ slice. It establishes the pattern every other entity follows.
 | Application service | `pkg/franz/core/usecases/clusters` |
 | Postgres adapter | `pkg/franz/adapters/out/postgres/cluster.go` (hand-written pgx; `Mutate` = `SELECT … FOR UPDATE` in one txn) |
 | gRPC + REST handler | `pkg/franz/adapters/in/grpcgateway/kafkacluster.go` (`RegisterKafkaClusterService`) |
-| Delete-guard stub | `pkg/franz/adapters/out/stub` (`NoTopicGuard`, replaced in 10) |
+| Delete-guard stub | `pkg/franz/adapters/out/stub` (`NoTopicGuard`, replaced in 09) |
 | Migration | `migrations/V1__init.sql` — `kafka_cluster` |
 | Shared | `pkg/shared/fieldmask` gained `CanonicalPaths` + `update_mask` in the immutable set |
 

@@ -1,14 +1,14 @@
 # 16 — Migration & data movement
 
 Status: ⛔ blocked
-Depends on: [10](./10-kafka-topic.md) · [11](./11-async-channel.md) · [12](./12-placement.md)
+Depends on: [09](./09-kafka-topic.md) · [10](./10-async-channel.md) · [11](./11-placement.md)
 Blocked on: `003-franz/003.13-migration-and-data-movement` open questions 1–2
 Specs: `003-franz/003.13-migration-and-data-movement`, `003-franz/003.3`, `003-franz/003.4`, `003-franz/003.7`, `003-franz/003.8`
 
 ## Goal
 
 The single staged flow that moves a shard's serving position from one cluster to
-another. Once it exists it unblocks: placed-shard relocation (12.5 → real move),
+another. Once it exists it unblocks: placed-shard relocation (11.5 → real move),
 cluster delete with live topics (`003.3`), re-shard execution (`003.4`
 `channel_partitions` change), and governance's placement / taint / re-shard
 actions (`003.8` OQ1a–c).
@@ -29,7 +29,7 @@ actions (`003.8` OQ1a–c).
 | 16.1 | `shard_migration` table + state machine (`PROVISIONING` → `CUTOVER` → `DRAINING` → `RETIRING` → `DONE` / `FAILED`), one per in-flight shard; idempotent, resumable | `003.13` | ⛔ | |
 | 16.2 | Provision — create the target shard topic on the destination cluster; flip `kafka_topic.kafka_cluster_id` at cut-over | `003.13` | ⛔ | |
 | 16.3 | Drain — hold `RETIRING` until consumer lag = 0 or the deadline; then `SetConsumption(DISABLED)` + delete the source topic after a grace period | `003.13` | ⛔ | |
-| 16.4 | Triggers — `drain` taint (all shards on a cluster), misplaced shard (12.5), governance placement action, operator RPC | `003.7`, `003.8` | ⛔ | |
+| 16.4 | Triggers — `drain` taint (all shards on a cluster), misplaced shard (11.5), governance placement action, operator RPC | `003.7`, `003.8` | ⛔ | |
 | 16.5 | Concurrency limits — max simultaneous migrations per cluster / fleet | `003.13` | ⛔ | |
 | 16.6 | Cluster delete with live topics — resolve `003.3` OQ1 / `003.13` OQ5 and wire it | `003.3` | ⛔ | |
 | 16.7 | Re-shard execution — `channel_partitions` change adds/removes shard topics + shifts routing; removed shards drain then delete | `003.4` | ⛔ | |

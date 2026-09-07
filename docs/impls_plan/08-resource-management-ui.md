@@ -127,7 +127,7 @@ startup; that path was removed with `register.go` — see deliverable 07's
 - Realms are not console-managed (single seeded `default`, no `RealmService`
   CRUD) — out of scope.
 - Async Channel / Client / Policy / Indicator management ships with their own
-  features (11 / 15 / 14 / 13), following the edit-page + schema patterns here.
+  features (10 / 14 / 13 / 12), following the edit-page + schema patterns here.
 - `kafka-image` must be an apache/kafka-compatible image (same KRaft env
   contract the recipe renders) — not an arbitrary Kafka distribution.
 
