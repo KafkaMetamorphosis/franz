@@ -36,7 +36,7 @@ func setAssign(name string) assign.Assignment {
 		ClusterName:   name,
 		ClusterFRN:    "frn:default:kafka-cluster:" + name,
 		BootstrapURLs: []string{"localhost:9092"},
-		Provisioning:  map[string]string{recipe.DeploymentTypeLabel: recipe.LocalDocker},
+		Configuration: map[string]string{},
 	}
 }
 
@@ -102,7 +102,7 @@ func TestSyncRecreateOnHashChange(t *testing.T) {
 	_ = rc.Sync(ctx, desiredOf(setAssign("local-1")))
 
 	changed := setAssign("local-1")
-	changed.Provisioning[recipe.KafkaVersionLabel] = "3.8.0"
+	changed.Configuration = map[string]string{recipe.KafkaVersionKey: "3.8.0"}
 	rep.got = nil
 	if err := rc.Sync(ctx, desiredOf(changed)); err != nil {
 		t.Fatal(err)

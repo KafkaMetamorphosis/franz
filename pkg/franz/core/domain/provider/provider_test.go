@@ -23,21 +23,6 @@ func TestPhaseValid(t *testing.T) {
 	}
 }
 
-func TestProvisioningLabels(t *testing.T) {
-	got := ProvisioningLabels(map[string]string{
-		"franz.provisioning/deployment-type": "local-docker",
-		"franz.provisioning/kafka-version":   "3.7.0",
-		"env":                                "prod",
-		"franz.affinity/selector":            "x",
-	})
-	if len(got) != 2 {
-		t.Fatalf("got %v, want only the two franz.provisioning/* keys", got)
-	}
-	if got["franz.provisioning/deployment-type"] != "local-docker" {
-		t.Errorf("value not carried: %v", got)
-	}
-}
-
 func TestNewEventRejectsBadPhase(t *testing.T) {
 	_, err := NewEvent(uuid.New(), uuid.New(), frn.FRN{}, "NONSENSE", true, "", "prov-1", "", time.Now())
 	if errs.KindOf(err) != errs.InvalidArgument {

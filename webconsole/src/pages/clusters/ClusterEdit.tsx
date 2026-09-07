@@ -2,11 +2,10 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Breadcrumbs, ErrorBanner, Loading, PageHeading, Panel } from "../../components/ui";
 import { LabelEditor } from "../../components/LabelEditor";
-import { ProvisioningFields } from "../../components/ProvisioningFields";
 import { ApiError } from "../../api/client";
 import { useAgents, useCluster, useUpdateKafkaCluster, updateMask } from "../../api/hooks";
 import { formatKeyValues, parseKeyValues } from "../../keyvalues";
-import { FALLBACK_PROVISIONING_LABELS, missingRequired, splitLabels } from "../../provisioning";
+import { KAFKA_VERSION_KEY } from "../../clusterConfig";
 
 export function ClusterEdit() {
   const { name = "" } = useParams();
@@ -15,13 +14,20 @@ export function ClusterEdit() {
   const update = useUpdateKafkaCluster(name);
   const agentsQuery = useAgents("AGENT_TYPE_CLUSTER_PROVIDER");
   const cluster = data?.kafkaCluster;
+  const providerAgents = agentsQuery.data?.agents ?? [];
 
   const base = useMemo(() => {
     if (!cluster) return null;
+    const cfg = { ...(cluster.clusterConfiguration ?? {}) };
+    const version = cfg[KAFKA_VERSION_KEY] ?? "";
+    delete cfg[KAFKA_VERSION_KEY];
     return {
       bootstrap: (cluster.connectionStrings?.[0]?.bootstrapUrls ?? []).join(", "),
       labels: { ...(cluster.labels ?? {}) },
-      config: formatKeyValues(cluster.clusterConfiguration ?? {}),
+      config: formatKeyValues(cfg),
+      version,
+      brokers: cluster.brokers ? String(cluster.brokers) : "",
+      diskSize: cluster.diskSize ?? "",
       providerAgent: cluster.clusterProviderAgent ?? "",
     };
   }, [cluster]);
@@ -30,13 +36,6 @@ export function ClusterEdit() {
   const [confirmedReassign, setConfirmedReassign] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
   const form = draft ?? base;
-
-  const providerAgents = agentsQuery.data?.agents ?? [];
-  const selectedAgent = providerAgents.find((a) => a.name === form?.providerAgent);
-  const specs =
-    (selectedAgent?.provisioningLabels?.length ?? 0) > 0
-      ? selectedAgent!.provisioningLabels!
-      : FALLBACK_PROVISIONING_LABELS;
 
   if (isLoading) return <Loading what="cluster" />;
   if (error || !cluster || !form || !base) {
@@ -53,32 +52,24 @@ export function ClusterEdit() {
   const deleted = cluster.state === "KAFKA_CLUSTER_STATE_DELETED";
   const set = (patch: Partial<NonNullable<typeof draft>>) => setDraft({ ...form, ...patch });
 
-  const { schema: schemaLabels, free: freeLabels } = splitLabels(form.labels, specs);
-  const setSchemaLabels = (next: Record<string, string>) =>
-    set({ labels: { ...freeLabels, ...next } });
-  const setFreeLabels = (next: Record<string, string>) =>
-    set({ labels: { ...next, ...schemaLabels } });
-
   const providerChanged = form.providerAgent !== base.providerAgent;
   const needsReassignConfirm = providerChanged && base.providerAgent !== "";
 
-  const changed: string[] = [];
   const bootstrapUrls = form.bootstrap.split(",").map((s) => s.trim()).filter(Boolean);
+  const configChanged = form.config !== base.config || form.version !== base.version;
+  const changed: string[] = [];
   if (form.bootstrap !== base.bootstrap) changed.push("connectionStrings");
   if (JSON.stringify(form.labels) !== JSON.stringify(base.labels)) changed.push("labels");
-  if (form.config !== base.config) changed.push("clusterConfiguration");
+  if (configChanged) changed.push("clusterConfiguration");
   if (providerChanged) changed.push("clusterProviderAgent");
+  if (form.brokers !== base.brokers) changed.push("brokers");
+  if (form.diskSize !== base.diskSize) changed.push("diskSize");
   const noChange = changed.length === 0;
 
   const save = () => {
     setLocalError(null);
     if (changed.includes("connectionStrings") && bootstrapUrls.length === 0) {
       setLocalError("At least one bootstrap URL is required.");
-      return;
-    }
-    const missing = missingRequired(form.labels, specs);
-    if (missing.length > 0) {
-      setLocalError(`Required provisioning label(s) not set: ${missing.join(", ")}.`);
       return;
     }
     if (needsReassignConfirm && !confirmedReassign) {
@@ -92,9 +83,14 @@ export function ClusterEdit() {
         { bootstrapUrls, type: cluster.connectionStrings?.[0]?.type ?? "CONNECTION_TYPE_PLAINTEXT" },
       ];
     if (changed.includes("labels")) body.labels = form.labels;
-    if (changed.includes("clusterConfiguration"))
-      body.clusterConfiguration = parseKeyValues(form.config);
+    if (changed.includes("clusterConfiguration")) {
+      const cfg = parseKeyValues(form.config);
+      if (form.version) cfg[KAFKA_VERSION_KEY] = form.version;
+      body.clusterConfiguration = cfg;
+    }
     if (changed.includes("clusterProviderAgent")) body.clusterProviderAgent = form.providerAgent;
+    if (changed.includes("brokers")) body.brokers = form.brokers ? Number(form.brokers) : 0;
+    if (changed.includes("diskSize")) body.diskSize = form.diskSize;
 
     update.mutate(body, { onSuccess: () => navigate(`/kafka/clusters/${name}`) });
   };
@@ -176,8 +172,7 @@ export function ClusterEdit() {
                       {a.name}
                     </option>
                   ))}
-                  {form.providerAgent &&
-                  !providerAgents.some((a) => a.name === form.providerAgent) ? (
+                  {form.providerAgent && !providerAgents.some((a) => a.name === form.providerAgent) ? (
                     <option value={form.providerAgent}>{form.providerAgent} (not found)</option>
                   ) : null}
                 </select>
@@ -203,32 +198,46 @@ export function ClusterEdit() {
           </div>
 
           <div className="form-section">
-            <h3>Provisioning intent</h3>
-            <p className="form-help">
-              {selectedAgent?.provisioningLabels?.length
-                ? `Fields declared by ${selectedAgent.name}.`
-                : "No schema advertised by the selected agent — showing the common local-docker keys."}
-            </p>
-            <ProvisioningFields specs={specs} value={schemaLabels} onChange={setSchemaLabels} />
-          </div>
-
-          <div className="form-section">
-            <h3>Context labels</h3>
+            <h3>Cluster configuration</h3>
             <div className="field">
-              <label>Labels</label>
+              <label htmlFor="kafka-version">Kafka version</label>
               <div>
-                <LabelEditor value={freeLabels} onChange={setFreeLabels} />
+                <input
+                  id="kafka-version"
+                  value={form.version}
+                  disabled={deleted}
+                  onChange={(e) => set({ version: e.target.value })}
+                />
               </div>
             </div>
-          </div>
-
-          <div className="form-section">
-            <h3>Cluster configuration</h3>
-            <p className="form-help">
-              Default Kafka topic config, one <code>key=value</code> per line.
-            </p>
             <div className="field">
-              <label htmlFor="config">cluster_configuration</label>
+              <label htmlFor="brokers">Brokers</label>
+              <div>
+                <input
+                  id="brokers"
+                  type="number"
+                  min={1}
+                  value={form.brokers}
+                  disabled={deleted}
+                  onChange={(e) => set({ brokers: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="disk-size">Disk size</label>
+              <div>
+                <input
+                  id="disk-size"
+                  value={form.diskSize}
+                  disabled={deleted}
+                  onChange={(e) => set({ diskSize: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="field">
+              <label htmlFor="config">
+                cluster_configuration <small>One <code>key = value</code> per line.</small>
+              </label>
               <div>
                 <textarea
                   id="config"
@@ -236,6 +245,16 @@ export function ClusterEdit() {
                   disabled={deleted}
                   onChange={(e) => set({ config: e.target.value })}
                 />
+              </div>
+            </div>
+          </div>
+
+          <div className="form-section">
+            <h3>Labels</h3>
+            <div className="field">
+              <label>Labels</label>
+              <div>
+                <LabelEditor value={form.labels} onChange={(labels) => set({ labels })} />
               </div>
             </div>
           </div>

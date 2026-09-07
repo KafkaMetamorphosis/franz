@@ -104,7 +104,8 @@ func TestClusterProviderE2E(t *testing.T) {
 		Name:                 proto.String("east-1"),
 		ConnectionStrings:    []*franzv1.ConnectionString{franzv1.ConnectionString_builder{BootstrapUrls: []string{"localhost:9092"}}.Build()},
 		ClusterProviderAgent: proto.String("prov-1"),
-		Labels:               map[string]string{"franz.provisioning/deployment-type": "local-docker"},
+		ClusterConfiguration: map[string]string{"kafka-version": "3.9.0"},
+		Brokers:              proto.Int32(1),
 	}.Build()); err != nil {
 		t.Fatalf("CreateKafkaCluster: %v", err)
 	}
@@ -125,21 +126,21 @@ func TestClusterProviderE2E(t *testing.T) {
 	if a := first.GetAssignment(); a.GetClusterName() != "east-1" || a.GetChange() != franzv1.ClusterAssignment_CHANGE_SET {
 		t.Fatalf("initial assignment = %+v", first.GetAssignment())
 	}
-	if first.GetAssignment().GetProvisioning()["franz.provisioning/deployment-type"] != "local-docker" {
-		t.Errorf("provisioning labels missing on initial assignment")
+	if a := first.GetAssignment(); a.GetClusterConfiguration()["kafka-version"] != "3.9.0" || a.GetBrokers() != 1 {
+		t.Errorf("config / shape missing on initial assignment: %+v", a)
 	}
 
-	// --- edit a provisioning label → expect a CHANGE_SET delta -----------
+	// --- edit cluster_configuration → expect a CHANGE_SET delta ----------
 	if _, err := clusterCli.UpdateKafkaCluster(ctx, franzv1.UpdateKafkaClusterRequest_builder{
-		Name:       proto.String("east-1"),
-		Labels:     map[string]string{"franz.provisioning/deployment-type": "local-docker", "franz.provisioning/kafka-version": "3.7.0"},
-		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"labels"}},
+		Name:                 proto.String("east-1"),
+		ClusterConfiguration: map[string]string{"kafka-version": "3.9.0", "partitions": "6"},
+		UpdateMask:           &fieldmaskpb.FieldMask{Paths: []string{"cluster_configuration"}},
 	}.Build()); err != nil {
 		t.Fatalf("UpdateKafkaCluster: %v", err)
 	}
 	delta := recvWithTimeout(t, stream)
 	if a := delta.GetAssignment(); a.GetChange() != franzv1.ClusterAssignment_CHANGE_SET ||
-		a.GetProvisioning()["franz.provisioning/kafka-version"] != "3.7.0" {
+		a.GetClusterConfiguration()["partitions"] != "6" {
 		t.Fatalf("delta assignment = %+v", delta.GetAssignment())
 	}
 

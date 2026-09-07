@@ -222,6 +222,8 @@ type KafkaCluster struct {
 	xxx_hidden_Labels               map[string]string      `protobuf:"bytes,4,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_ClusterConfiguration map[string]string      `protobuf:"bytes,5,rep,name=cluster_configuration,json=clusterConfiguration" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_ClusterProviderAgent *string                `protobuf:"bytes,6,opt,name=cluster_provider_agent,json=clusterProviderAgent"`
+	xxx_hidden_Brokers              int32                  `protobuf:"varint,11,opt,name=brokers"`
+	xxx_hidden_DiskSize             *string                `protobuf:"bytes,12,opt,name=disk_size,json=diskSize"`
 	xxx_hidden_State                KafkaClusterState      `protobuf:"varint,7,opt,name=state,enum=franz.v1.KafkaClusterState"`
 	xxx_hidden_ProviderStatus       *ClusterProviderStatus `protobuf:"bytes,8,opt,name=provider_status,json=providerStatus"`
 	xxx_hidden_CreatedAt            *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt"`
@@ -310,9 +312,26 @@ func (x *KafkaCluster) GetClusterProviderAgent() string {
 	return ""
 }
 
+func (x *KafkaCluster) GetBrokers() int32 {
+	if x != nil {
+		return x.xxx_hidden_Brokers
+	}
+	return 0
+}
+
+func (x *KafkaCluster) GetDiskSize() string {
+	if x != nil {
+		if x.xxx_hidden_DiskSize != nil {
+			return *x.xxx_hidden_DiskSize
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *KafkaCluster) GetState() KafkaClusterState {
 	if x != nil {
-		if protoimpl.X.Present(&(x.XXX_presence[0]), 6) {
+		if protoimpl.X.Present(&(x.XXX_presence[0]), 8) {
 			return x.xxx_hidden_State
 		}
 	}
@@ -342,12 +361,12 @@ func (x *KafkaCluster) GetUpdatedAt() *timestamppb.Timestamp {
 
 func (x *KafkaCluster) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 10)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 12)
 }
 
 func (x *KafkaCluster) SetFrn(v string) {
 	x.xxx_hidden_Frn = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 10)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 12)
 }
 
 func (x *KafkaCluster) SetConnectionStrings(v []*ConnectionString) {
@@ -364,12 +383,22 @@ func (x *KafkaCluster) SetClusterConfiguration(v map[string]string) {
 
 func (x *KafkaCluster) SetClusterProviderAgent(v string) {
 	x.xxx_hidden_ClusterProviderAgent = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 10)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 12)
+}
+
+func (x *KafkaCluster) SetBrokers(v int32) {
+	x.xxx_hidden_Brokers = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 12)
+}
+
+func (x *KafkaCluster) SetDiskSize(v string) {
+	x.xxx_hidden_DiskSize = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 7, 12)
 }
 
 func (x *KafkaCluster) SetState(v KafkaClusterState) {
 	x.xxx_hidden_State = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 10)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 8, 12)
 }
 
 func (x *KafkaCluster) SetProviderStatus(v *ClusterProviderStatus) {
@@ -405,11 +434,25 @@ func (x *KafkaCluster) HasClusterProviderAgent() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 5)
 }
 
-func (x *KafkaCluster) HasState() bool {
+func (x *KafkaCluster) HasBrokers() bool {
 	if x == nil {
 		return false
 	}
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 6)
+}
+
+func (x *KafkaCluster) HasDiskSize() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 7)
+}
+
+func (x *KafkaCluster) HasState() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 8)
 }
 
 func (x *KafkaCluster) HasProviderStatus() bool {
@@ -448,8 +491,18 @@ func (x *KafkaCluster) ClearClusterProviderAgent() {
 	x.xxx_hidden_ClusterProviderAgent = nil
 }
 
-func (x *KafkaCluster) ClearState() {
+func (x *KafkaCluster) ClearBrokers() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 6)
+	x.xxx_hidden_Brokers = 0
+}
+
+func (x *KafkaCluster) ClearDiskSize() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 7)
+	x.xxx_hidden_DiskSize = nil
+}
+
+func (x *KafkaCluster) ClearState() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 8)
 	x.xxx_hidden_State = KafkaClusterState_KAFKA_CLUSTER_STATE_UNSPECIFIED
 }
 
@@ -477,12 +530,18 @@ type KafkaCluster_builder struct {
 	ConnectionStrings []*ConnectionString
 	// Fleet context. Source of truth for placement matching.
 	Labels map[string]string
-	// Default Kafka configuration applied to topics on this cluster when nothing
-	// more specific is declared (e.g. "default.replication.factor" -> "3").
+	// The single home for this cluster's Kafka config: topic-config defaults
+	// (e.g. "retention.ms"), the shard defaults "partitions" / "replication-factor",
+	// and "kafka-version". Franz-friendly keys; consumers translate. Stored
+	// verbatim — Franz validates neither keys nor value types (ADR-API-010).
 	ClusterConfiguration map[string]string
 	// Optional name of the Cluster Provider agent that deploys and maintains this
 	// cluster's substrate. Empty means the infrastructure is managed outside Franz.
 	ClusterProviderAgent *string
+	// Cluster shape (not Kafka config), forwarded to the Cluster Provider agent.
+	// brokers: desired broker count (>= 1 when set). disk_size: size hint, e.g. "50Gi".
+	Brokers  *int32
+	DiskSize *string
 	// Lifecycle state. Franz sets ACTIVE at registration; PAUSED/DELETED are
 	// reached through PauseKafkaCluster / ResumeKafkaCluster / DeleteKafkaCluster.
 	// See 003.3-kafka-cluster.md for the state machine.
@@ -500,22 +559,30 @@ func (b0 KafkaCluster_builder) Build() *KafkaCluster {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 10)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 12)
 		x.xxx_hidden_Name = b.Name
 	}
 	if b.Frn != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 10)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 12)
 		x.xxx_hidden_Frn = b.Frn
 	}
 	x.xxx_hidden_ConnectionStrings = &b.ConnectionStrings
 	x.xxx_hidden_Labels = b.Labels
 	x.xxx_hidden_ClusterConfiguration = b.ClusterConfiguration
 	if b.ClusterProviderAgent != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 10)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 12)
 		x.xxx_hidden_ClusterProviderAgent = b.ClusterProviderAgent
 	}
+	if b.Brokers != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 12)
+		x.xxx_hidden_Brokers = *b.Brokers
+	}
+	if b.DiskSize != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 7, 12)
+		x.xxx_hidden_DiskSize = b.DiskSize
+	}
 	if b.State != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 10)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 8, 12)
 		x.xxx_hidden_State = *b.State
 	}
 	x.xxx_hidden_ProviderStatus = b.ProviderStatus
@@ -1124,6 +1191,8 @@ type CreateKafkaClusterRequest struct {
 	xxx_hidden_Labels               map[string]string      `protobuf:"bytes,3,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_ClusterConfiguration map[string]string      `protobuf:"bytes,4,rep,name=cluster_configuration,json=clusterConfiguration" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_ClusterProviderAgent *string                `protobuf:"bytes,5,opt,name=cluster_provider_agent,json=clusterProviderAgent"`
+	xxx_hidden_Brokers              int32                  `protobuf:"varint,6,opt,name=brokers"`
+	xxx_hidden_DiskSize             *string                `protobuf:"bytes,7,opt,name=disk_size,json=diskSize"`
 	XXX_raceDetectHookData          protoimpl.RaceDetectHookData
 	XXX_presence                    [1]uint32
 	unknownFields                   protoimpl.UnknownFields
@@ -1198,9 +1267,26 @@ func (x *CreateKafkaClusterRequest) GetClusterProviderAgent() string {
 	return ""
 }
 
+func (x *CreateKafkaClusterRequest) GetBrokers() int32 {
+	if x != nil {
+		return x.xxx_hidden_Brokers
+	}
+	return 0
+}
+
+func (x *CreateKafkaClusterRequest) GetDiskSize() string {
+	if x != nil {
+		if x.xxx_hidden_DiskSize != nil {
+			return *x.xxx_hidden_DiskSize
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *CreateKafkaClusterRequest) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 5)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 7)
 }
 
 func (x *CreateKafkaClusterRequest) SetConnectionStrings(v []*ConnectionString) {
@@ -1217,7 +1303,17 @@ func (x *CreateKafkaClusterRequest) SetClusterConfiguration(v map[string]string)
 
 func (x *CreateKafkaClusterRequest) SetClusterProviderAgent(v string) {
 	x.xxx_hidden_ClusterProviderAgent = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 5)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 7)
+}
+
+func (x *CreateKafkaClusterRequest) SetBrokers(v int32) {
+	x.xxx_hidden_Brokers = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 5, 7)
+}
+
+func (x *CreateKafkaClusterRequest) SetDiskSize(v string) {
+	x.xxx_hidden_DiskSize = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 7)
 }
 
 func (x *CreateKafkaClusterRequest) HasName() bool {
@@ -1234,6 +1330,20 @@ func (x *CreateKafkaClusterRequest) HasClusterProviderAgent() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 4)
 }
 
+func (x *CreateKafkaClusterRequest) HasBrokers() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 5)
+}
+
+func (x *CreateKafkaClusterRequest) HasDiskSize() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 6)
+}
+
 func (x *CreateKafkaClusterRequest) ClearName() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
 	x.xxx_hidden_Name = nil
@@ -1244,6 +1354,16 @@ func (x *CreateKafkaClusterRequest) ClearClusterProviderAgent() {
 	x.xxx_hidden_ClusterProviderAgent = nil
 }
 
+func (x *CreateKafkaClusterRequest) ClearBrokers() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 5)
+	x.xxx_hidden_Brokers = 0
+}
+
+func (x *CreateKafkaClusterRequest) ClearDiskSize() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 6)
+	x.xxx_hidden_DiskSize = nil
+}
+
 type CreateKafkaClusterRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
@@ -1252,6 +1372,8 @@ type CreateKafkaClusterRequest_builder struct {
 	Labels               map[string]string
 	ClusterConfiguration map[string]string
 	ClusterProviderAgent *string
+	Brokers              *int32
+	DiskSize             *string
 }
 
 func (b0 CreateKafkaClusterRequest_builder) Build() *CreateKafkaClusterRequest {
@@ -1259,15 +1381,23 @@ func (b0 CreateKafkaClusterRequest_builder) Build() *CreateKafkaClusterRequest {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 5)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 7)
 		x.xxx_hidden_Name = b.Name
 	}
 	x.xxx_hidden_ConnectionStrings = &b.ConnectionStrings
 	x.xxx_hidden_Labels = b.Labels
 	x.xxx_hidden_ClusterConfiguration = b.ClusterConfiguration
 	if b.ClusterProviderAgent != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 5)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 7)
 		x.xxx_hidden_ClusterProviderAgent = b.ClusterProviderAgent
+	}
+	if b.Brokers != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 5, 7)
+		x.xxx_hidden_Brokers = *b.Brokers
+	}
+	if b.DiskSize != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 7)
+		x.xxx_hidden_DiskSize = b.DiskSize
 	}
 	return m0
 }
@@ -1682,6 +1812,8 @@ type UpdateKafkaClusterRequest struct {
 	xxx_hidden_ClusterConfiguration map[string]string      `protobuf:"bytes,4,rep,name=cluster_configuration,json=clusterConfiguration" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	xxx_hidden_ClusterProviderAgent *string                `protobuf:"bytes,5,opt,name=cluster_provider_agent,json=clusterProviderAgent"`
 	xxx_hidden_UpdateMask           *fieldmaskpb.FieldMask `protobuf:"bytes,6,opt,name=update_mask,json=updateMask"`
+	xxx_hidden_Brokers              int32                  `protobuf:"varint,7,opt,name=brokers"`
+	xxx_hidden_DiskSize             *string                `protobuf:"bytes,8,opt,name=disk_size,json=diskSize"`
 	XXX_raceDetectHookData          protoimpl.RaceDetectHookData
 	XXX_presence                    [1]uint32
 	unknownFields                   protoimpl.UnknownFields
@@ -1763,9 +1895,26 @@ func (x *UpdateKafkaClusterRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	return nil
 }
 
+func (x *UpdateKafkaClusterRequest) GetBrokers() int32 {
+	if x != nil {
+		return x.xxx_hidden_Brokers
+	}
+	return 0
+}
+
+func (x *UpdateKafkaClusterRequest) GetDiskSize() string {
+	if x != nil {
+		if x.xxx_hidden_DiskSize != nil {
+			return *x.xxx_hidden_DiskSize
+		}
+		return ""
+	}
+	return ""
+}
+
 func (x *UpdateKafkaClusterRequest) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 6)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 8)
 }
 
 func (x *UpdateKafkaClusterRequest) SetConnectionStrings(v []*ConnectionString) {
@@ -1782,11 +1931,21 @@ func (x *UpdateKafkaClusterRequest) SetClusterConfiguration(v map[string]string)
 
 func (x *UpdateKafkaClusterRequest) SetClusterProviderAgent(v string) {
 	x.xxx_hidden_ClusterProviderAgent = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 6)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 8)
 }
 
 func (x *UpdateKafkaClusterRequest) SetUpdateMask(v *fieldmaskpb.FieldMask) {
 	x.xxx_hidden_UpdateMask = v
+}
+
+func (x *UpdateKafkaClusterRequest) SetBrokers(v int32) {
+	x.xxx_hidden_Brokers = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 8)
+}
+
+func (x *UpdateKafkaClusterRequest) SetDiskSize(v string) {
+	x.xxx_hidden_DiskSize = &v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 7, 8)
 }
 
 func (x *UpdateKafkaClusterRequest) HasName() bool {
@@ -1810,6 +1969,20 @@ func (x *UpdateKafkaClusterRequest) HasUpdateMask() bool {
 	return x.xxx_hidden_UpdateMask != nil
 }
 
+func (x *UpdateKafkaClusterRequest) HasBrokers() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 6)
+}
+
+func (x *UpdateKafkaClusterRequest) HasDiskSize() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 7)
+}
+
 func (x *UpdateKafkaClusterRequest) ClearName() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
 	x.xxx_hidden_Name = nil
@@ -1824,6 +1997,16 @@ func (x *UpdateKafkaClusterRequest) ClearUpdateMask() {
 	x.xxx_hidden_UpdateMask = nil
 }
 
+func (x *UpdateKafkaClusterRequest) ClearBrokers() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 6)
+	x.xxx_hidden_Brokers = 0
+}
+
+func (x *UpdateKafkaClusterRequest) ClearDiskSize() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 7)
+	x.xxx_hidden_DiskSize = nil
+}
+
 type UpdateKafkaClusterRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
@@ -1834,6 +2017,8 @@ type UpdateKafkaClusterRequest_builder struct {
 	ClusterProviderAgent *string
 	// Fields to update; unset fields are left unchanged.
 	UpdateMask *fieldmaskpb.FieldMask
+	Brokers    *int32
+	DiskSize   *string
 }
 
 func (b0 UpdateKafkaClusterRequest_builder) Build() *UpdateKafkaClusterRequest {
@@ -1841,17 +2026,25 @@ func (b0 UpdateKafkaClusterRequest_builder) Build() *UpdateKafkaClusterRequest {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 6)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 8)
 		x.xxx_hidden_Name = b.Name
 	}
 	x.xxx_hidden_ConnectionStrings = &b.ConnectionStrings
 	x.xxx_hidden_Labels = b.Labels
 	x.xxx_hidden_ClusterConfiguration = b.ClusterConfiguration
 	if b.ClusterProviderAgent != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 6)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 8)
 		x.xxx_hidden_ClusterProviderAgent = b.ClusterProviderAgent
 	}
 	x.xxx_hidden_UpdateMask = b.UpdateMask
+	if b.Brokers != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 8)
+		x.xxx_hidden_Brokers = *b.Brokers
+	}
+	if b.DiskSize != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 7, 8)
+		x.xxx_hidden_DiskSize = b.DiskSize
+	}
 	return m0
 }
 
@@ -3623,14 +3816,16 @@ var File_franz_v1_kafka_proto protoreflect.FileDescriptor
 
 const file_franz_v1_kafka_proto_rawDesc = "" +
 	"\n" +
-	"\x14franz/v1/kafka.proto\x12\bfranz.v1\x1a\x1cgoogle/api/annotations.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15franz/v1/common.proto\"\xcf\x05\n" +
+	"\x14franz/v1/kafka.proto\x12\bfranz.v1\x1a\x1cgoogle/api/annotations.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x15franz/v1/common.proto\"\x86\x06\n" +
 	"\fKafkaCluster\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03frn\x18\x02 \x01(\tR\x03frn\x12I\n" +
 	"\x12connection_strings\x18\x03 \x03(\v2\x1a.franz.v1.ConnectionStringR\x11connectionStrings\x12:\n" +
 	"\x06labels\x18\x04 \x03(\v2\".franz.v1.KafkaCluster.LabelsEntryR\x06labels\x12e\n" +
 	"\x15cluster_configuration\x18\x05 \x03(\v20.franz.v1.KafkaCluster.ClusterConfigurationEntryR\x14clusterConfiguration\x124\n" +
-	"\x16cluster_provider_agent\x18\x06 \x01(\tR\x14clusterProviderAgent\x121\n" +
+	"\x16cluster_provider_agent\x18\x06 \x01(\tR\x14clusterProviderAgent\x12\x18\n" +
+	"\abrokers\x18\v \x01(\x05R\abrokers\x12\x1b\n" +
+	"\tdisk_size\x18\f \x01(\tR\bdiskSize\x121\n" +
 	"\x05state\x18\a \x01(\x0e2\x1b.franz.v1.KafkaClusterStateR\x05state\x12H\n" +
 	"\x0fprovider_status\x18\b \x01(\v2\x1f.franz.v1.ClusterProviderStatusR\x0eproviderStatus\x129\n" +
 	"\n" +
@@ -3666,13 +3861,15 @@ const file_franz_v1_kafka_proto_rawDesc = "" +
 	"occurredAt\"g\n" +
 	"\x10ConnectionString\x12%\n" +
 	"\x0ebootstrap_urls\x18\x01 \x03(\tR\rbootstrapUrls\x12,\n" +
-	"\x04type\x18\x02 \x01(\x0e2\x18.franz.v1.ConnectionTypeR\x04type\"\xf1\x03\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x18.franz.v1.ConnectionTypeR\x04type\"\xa8\x04\n" +
 	"\x19CreateKafkaClusterRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12I\n" +
 	"\x12connection_strings\x18\x02 \x03(\v2\x1a.franz.v1.ConnectionStringR\x11connectionStrings\x12G\n" +
 	"\x06labels\x18\x03 \x03(\v2/.franz.v1.CreateKafkaClusterRequest.LabelsEntryR\x06labels\x12r\n" +
 	"\x15cluster_configuration\x18\x04 \x03(\v2=.franz.v1.CreateKafkaClusterRequest.ClusterConfigurationEntryR\x14clusterConfiguration\x124\n" +
-	"\x16cluster_provider_agent\x18\x05 \x01(\tR\x14clusterProviderAgent\x1a9\n" +
+	"\x16cluster_provider_agent\x18\x05 \x01(\tR\x14clusterProviderAgent\x12\x18\n" +
+	"\abrokers\x18\x06 \x01(\x05R\abrokers\x12\x1b\n" +
+	"\tdisk_size\x18\a \x01(\tR\bdiskSize\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aG\n" +
@@ -3690,7 +3887,7 @@ const file_franz_v1_kafka_proto_rawDesc = "" +
 	"\bselector\x18\x02 \x01(\tR\bselector\"\x86\x01\n" +
 	"\x19ListKafkaClustersResponse\x12=\n" +
 	"\x0ekafka_clusters\x18\x01 \x03(\v2\x16.franz.v1.KafkaClusterR\rkafkaClusters\x12*\n" +
-	"\x04page\x18\x02 \x01(\v2\x16.franz.v1.PageResponseR\x04page\"\xae\x04\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.franz.v1.PageResponseR\x04page\"\xe5\x04\n" +
 	"\x19UpdateKafkaClusterRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12I\n" +
 	"\x12connection_strings\x18\x02 \x03(\v2\x1a.franz.v1.ConnectionStringR\x11connectionStrings\x12G\n" +
@@ -3698,7 +3895,9 @@ const file_franz_v1_kafka_proto_rawDesc = "" +
 	"\x15cluster_configuration\x18\x04 \x03(\v2=.franz.v1.UpdateKafkaClusterRequest.ClusterConfigurationEntryR\x14clusterConfiguration\x124\n" +
 	"\x16cluster_provider_agent\x18\x05 \x01(\tR\x14clusterProviderAgent\x12;\n" +
 	"\vupdate_mask\x18\x06 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x1a9\n" +
+	"updateMask\x12\x18\n" +
+	"\abrokers\x18\a \x01(\x05R\abrokers\x12\x1b\n" +
+	"\tdisk_size\x18\b \x01(\tR\bdiskSize\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aG\n" +

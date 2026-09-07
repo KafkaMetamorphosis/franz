@@ -7,6 +7,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Async Channel console screens** (impls_plan deliverable 19): the web console
+  can now manage Async Channels end to end — `/async-channels` list (name + FRN,
+  type, channel partitions, labels, state), `/async-channels/register`
+  (name, the sole `kafka-topic` type, `channel_partitions`, labels),
+  `/async-channels/:name` detail (declared intent, pause / resume / delete) and
+  `/async-channels/:name/edit`. Editing is **labels-only**, matching
+  `UpdateAsyncChannel`'s mask — `type` is immutable, `channel_partitions` is a
+  staged re-shard, and the access policy has its own RPC, so none of the three is
+  ever presented as editable or sent in a mask. The sidebar's disabled
+  "Async Channels" placeholder becomes a real **Channels** link (Clients stays
+  disabled for deliverable 16 / 17), and Home gains an Async Channels stat and
+  service card. **Access-policy UI is deferred to deliverable 17**:
+  `CreateAsyncChannel` is called without `access_policy` (an empty policy is a
+  closed, zero-trust channel), and the detail page shows a non-interactive
+  placeholder note plus a "0 of N placed" shard note instead of the
+  policy / clients / generated-topics panels — shard rows are materialised by
+  placement (deliverable 13, ADR-API-009). `useChannels` / `useChannel` /
+  `useCreateChannel` / `useUpdateChannel` / `useChannelLifecycle` hooks,
+  `CHANNEL_TYPES` + `channelTypeLabel` / `channelStateLabel`,
+  `src/pages/channels/*`. New vitest suites for list / register / edit and a
+  Playwright smoke (`e2e/channels.spec.ts`). No proto or backend change.
 - **Async Channel** (impls_plan deliverable 10): the customer-facing `AsyncChannel`
   entity (003.4) — abstract, no Kafka config of its own. `CreateAsyncChannel`
   records **only the channel row** and its `channel_partitions` count; the shard
@@ -173,6 +194,38 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
+- **Cluster & agent configuration model** (impls_plan deliverable 11,
+  **ADR-API-010**, supersedes ADR-API-008):
+  - `KafkaCluster.cluster_configuration` stays a `map<string,string>` — the single
+    home for a cluster's Kafka config (topic-config defaults + `partitions` /
+    `replication-factor` + `kafka-version`, Franz-friendly keys).
+  - `KafkaCluster` gains typed `brokers` (int32) + `disk_size` (string), carried
+    on `Create` / `Update` (mask paths) and the provider assignment.
+  - **Removed** `Agent.provisioning_labels` / `ProvisioningLabelSpec` (proto
+    message + fields, the `agent.provisioning_labels` jsonb column,
+    `ValidateProvisioningLabels`, the console's `ProvisioningLabelEditor` /
+    `ProvisioningFields`). Agents advertise console defaults as plain
+    `franz.default-kafka-config/*` labels instead — **never enforced**.
+  - `franz.provisioning/*` cluster labels retired; `kafka-image` and
+    `deployment-type` dropped (image is the agent's choice; the agent *is* the
+    recipe family).
+  - `agent_cluster_provider.proto` `ClusterAssignment`: `provisioning` map removed
+    (`reserved 6`), typed `brokers` / `disk_size` added. The `local-docker` recipe
+    reads `kafka-version` from `cluster_configuration` and translates
+    Franz-friendly keys (`partitions` → `num.partitions`, …) to broker config.
+  - Console: a **Cluster configuration** form section (pre-filled `key = value`
+    textarea + Kafka-version select + brokers / disk-size inputs) and a plain
+    **Labels** section; the "Provisioning intent" section and the
+    provisioning-label schema editor are gone.
+  - Console e2e (`webconsole/e2e/console.spec.ts`) follows the reworked forms: it
+    drives the generic `LabelEditor` to advertise
+    `franz.default-kafka-config/partitions` on a Cluster Provider agent and
+    asserts the Kafka Cluster form pre-fills `cluster_configuration` from it. The
+    `deployment-type` / `kafka-image` / provisioning-schema steps are gone.
+  - **Fix:** `LabelEditor` now commits a key/value pair that was typed but not
+    "Add label"-ed when focus leaves the widget (e.g. straight to Save /
+    Register). Previously that pair was silently dropped, so a label added on the
+    Kafka Cluster / Agent form without pressing "Add label" was not saved.
 - Renamed the agent's Go paths for consistency: `cmd/local-kafka-agent` →
   `cmd/localkafkaagent`, `pkg/localkafka` → `pkg/localkafkaagent` (import path
   and package clause follow). The registered agent **name** `local-kafka-agent`

@@ -45,7 +45,6 @@ test("register agent → token → register cluster → provider status panel", 
   await page.getByLabel(/Cluster name/).fill(CLUSTER);
   await page.getByLabel(/Bootstrap URL/).fill("localhost:9092");
   await page.getByLabel("Cluster Provider").selectOption(AGENT);
-  await page.getByLabel("deployment-type").fill("local-docker");
   await page.getByRole("button", { name: "Register Kafka Cluster" }).click();
 
   // --- detail page: intent + provider-status panel + timeline ---
@@ -67,15 +66,14 @@ test("edit an agent's type and a cluster's config from the browser", async ({ pa
   await page.getByLabel("Email address").fill("op@acme.com");
   await page.getByRole("button", { name: "Sign in" }).click();
 
-  // register an agent that advertises a kafka-image provisioning label
+  // register an agent that advertises a franz.default-kafka-config/* label
   await nav.getByRole("link", { name: "Agents" }).click();
   await page.getByRole("link", { name: "Register Agent" }).click();
   await page.getByLabel(/Agent name/).fill(agent);
   await page.getByLabel("Agent type").selectOption({ label: "Cluster Provider" });
-  await page.getByRole("button", { name: "Add provisioning label" }).click();
-  const schemaRow = page.locator(".provisioning-schema-row");
-  await schemaRow.getByLabel("Key", { exact: true }).fill("franz.provisioning/kafka-image");
-  await schemaRow.getByLabel("Default value", { exact: true }).fill("apache/kafka:3.7.0");
+  await page.getByLabel("Label key").fill("franz.default-kafka-config/partitions");
+  await page.getByLabel("Label value").fill("7");
+  await page.getByRole("button", { name: "Add label" }).click();
   await page.getByRole("button", { name: "Register Agent" }).click();
   await page.getByRole("link", { name: "Open agent" }).click();
 
@@ -93,13 +91,14 @@ test("edit an agent's type and a cluster's config from the browser", async ({ pa
   await page.getByRole("button", { name: "Save changes" }).click();
   await page.waitForURL(`**/agents/${agent}`);
 
-  // register a cluster — the kafka-image field is pre-filled from the agent
+  // register a cluster — cluster_configuration is pre-filled from the agent's
+  // franz.default-kafka-config/* labels
   await nav.getByRole("link", { name: "Clusters" }).click();
   await page.getByRole("link", { name: "Register Kafka Cluster" }).click();
   await page.getByLabel(/Cluster name/).fill(cluster);
   await page.getByLabel(/Bootstrap URL/).fill("localhost:9092");
   await page.getByLabel("Cluster Provider").selectOption(agent);
-  await expect(page.getByLabel("kafka-image")).toHaveValue("apache/kafka:3.7.0");
+  await expect(page.getByLabel("cluster_configuration")).toHaveValue(/partitions=7/);
   await page.getByRole("button", { name: "Register Kafka Cluster" }).click();
   await expect(page.getByRole("heading", { name: cluster })).toBeVisible();
 

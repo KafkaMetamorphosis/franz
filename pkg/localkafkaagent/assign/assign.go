@@ -19,8 +19,12 @@ type Assignment struct {
 	ClusterName   string
 	ClusterFRN    string
 	BootstrapURLs []string
+	// Configuration is KafkaCluster.cluster_configuration verbatim
+	// (Franz-friendly keys — the recipe translates). "kafka-version" is one key.
 	Configuration map[string]string
-	Provisioning  map[string]string
+	// Brokers / DiskSize are the cluster's typed shape (ADR-API-010).
+	Brokers  int32
+	DiskSize string
 }
 
 // FromProto decodes a ClusterAssignment stream message.
@@ -29,7 +33,8 @@ func FromProto(a *franzv1.ClusterAssignment) Assignment {
 		ClusterName:   a.GetClusterName(),
 		ClusterFRN:    a.GetClusterFrn(),
 		Configuration: a.GetClusterConfiguration(),
-		Provisioning:  a.GetProvisioning(),
+		Brokers:       a.GetBrokers(),
+		DiskSize:      a.GetDiskSize(),
 	}
 	switch a.GetChange() {
 	case franzv1.ClusterAssignment_CHANGE_PAUSED:

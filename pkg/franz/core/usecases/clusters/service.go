@@ -43,6 +43,9 @@ func (s *Service) Create(ctx context.Context, input in.CreateClusterInput) (*clu
 	if err != nil {
 		return nil, err
 	}
+	if err := c.SetShape(input.Brokers, input.DiskSize); err != nil {
+		return nil, err
+	}
 	if err := s.repo.Create(ctx, c); err != nil {
 		return nil, err
 	}
@@ -118,6 +121,18 @@ func (s *Service) Update(ctx context.Context, input in.UpdateClusterInput) (*clu
 		}
 		if input.ProviderAgent != nil {
 			c.ProviderAgent = *input.ProviderAgent
+		}
+		if input.Brokers != nil || input.DiskSize != nil {
+			brokers, diskSize := c.Brokers, c.DiskSize
+			if input.Brokers != nil {
+				brokers = *input.Brokers
+			}
+			if input.DiskSize != nil {
+				diskSize = *input.DiskSize
+			}
+			if err := c.SetShape(brokers, diskSize); err != nil {
+				return err
+			}
 		}
 		return nil
 	})

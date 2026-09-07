@@ -8,19 +8,17 @@ import (
 
 // CreateAgentInput is the client-settable state for a new agent.
 type CreateAgentInput struct {
-	Name               string
-	Type               agent.Type
-	Labels             map[string]string
-	ProvisioningLabels []agent.ProvisioningLabelSpec
+	Name   string
+	Type   agent.Type
+	Labels map[string]string
 }
 
 // UpdateAgentInput carries only the masked fields; a nil pointer means
 // "leave unchanged". `name` selects the agent.
 type UpdateAgentInput struct {
-	Name               string
-	Type               *agent.Type
-	Labels             *map[string]string
-	ProvisioningLabels *[]agent.ProvisioningLabelSpec
+	Name   string
+	Type   *agent.Type
+	Labels *map[string]string
 }
 
 // ListAgentsInput parameterises List. TypeFilter is empty for "any".

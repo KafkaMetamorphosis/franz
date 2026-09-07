@@ -46,7 +46,7 @@ func (f *fakeAgentSvc) RotateToken(context.Context, string) (string, error)  { r
 
 func sampleAgent(t *testing.T) *agent.Agent {
 	t.Helper()
-	a, err := agent.New(realm.Realm{Slug: "default"}, "prov-1", agent.TypeClusterProvider, map[string]string{"team": "infra"}, nil, "hash")
+	a, err := agent.New(realm.Realm{Slug: "default"}, "prov-1", agent.TypeClusterProvider, map[string]string{"team": "infra"}, "hash")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,53 +110,41 @@ func TestUpdateAgentMaskForwarding(t *testing.T) {
 	}
 }
 
-func TestCreateAgentForwardsProvisioningLabels(t *testing.T) {
+func TestCreateAgentForwardsLabels(t *testing.T) {
 	fake := &fakeAgentSvc{ret: sampleAgent(t), tok: "frnat_x"}
 	h := newAgentHandler(fake, "frn")
 
 	_, err := h.CreateAgent(context.Background(), franzv1.CreateAgentRequest_builder{
-		Name: proto.String("prov-1"),
-		Type: franzv1.AgentType_AGENT_TYPE_CLUSTER_PROVIDER.Enum(),
-		ProvisioningLabels: []*franzv1.ProvisioningLabelSpec{
-			franzv1.ProvisioningLabelSpec_builder{
-				Key:           proto.String("franz.provisioning/kafka-image"),
-				AllowedValues: []string{"apache/kafka:3.7.0"},
-				DefaultValue:  proto.String("apache/kafka:3.7.0"),
-				Required:      proto.Bool(true),
-			}.Build(),
-		},
+		Name:   proto.String("prov-1"),
+		Type:   franzv1.AgentType_AGENT_TYPE_CLUSTER_PROVIDER.Enum(),
+		Labels: map[string]string{"franz.default-kafka-config/partitions": "4"},
 	}.Build())
 	if err != nil {
 		t.Fatalf("CreateAgent: %v", err)
 	}
-	if len(fake.created.ProvisioningLabels) != 1 ||
-		fake.created.ProvisioningLabels[0].Key != "franz.provisioning/kafka-image" ||
-		!fake.created.ProvisioningLabels[0].Required {
-		t.Fatalf("provisioning labels not forwarded: %+v", fake.created.ProvisioningLabels)
+	if fake.created.Labels["franz.default-kafka-config/partitions"] != "4" {
+		t.Fatalf("labels not forwarded: %+v", fake.created.Labels)
 	}
 }
 
-func TestUpdateAgentProvisioningLabelsMask(t *testing.T) {
+func TestUpdateAgentLabelsMask(t *testing.T) {
 	fake := &fakeAgentSvc{ret: sampleAgent(t)}
 	h := newAgentHandler(fake, "frn")
 
 	_, err := h.UpdateAgent(context.Background(), franzv1.UpdateAgentRequest_builder{
-		Name:   proto.String("prov-1"),
-		Type:   franzv1.AgentType_AGENT_TYPE_TELEMETRY_AGENT.Enum(),
-		Labels: map[string]string{"team": "obs"},
-		ProvisioningLabels: []*franzv1.ProvisioningLabelSpec{
-			franzv1.ProvisioningLabelSpec_builder{Key: proto.String("franz.provisioning/x")}.Build(),
-		},
-		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"provisioning_labels"}},
+		Name:       proto.String("prov-1"),
+		Type:       franzv1.AgentType_AGENT_TYPE_TELEMETRY_AGENT.Enum(),
+		Labels:     map[string]string{"team": "obs"},
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"labels"}},
 	}.Build())
 	if err != nil {
 		t.Fatalf("UpdateAgent: %v", err)
 	}
-	if fake.updated.ProvisioningLabels == nil || len(*fake.updated.ProvisioningLabels) != 1 {
-		t.Fatalf("provisioning_labels not forwarded: %+v", fake.updated)
+	if fake.updated.Labels == nil || (*fake.updated.Labels)["team"] != "obs" {
+		t.Fatalf("labels not forwarded: %+v", fake.updated)
 	}
-	if fake.updated.Type != nil || fake.updated.Labels != nil {
-		t.Error("unmasked fields forwarded")
+	if fake.updated.Type != nil {
+		t.Error("unmasked type forwarded")
 	}
 }
 

@@ -15,7 +15,7 @@ Franz is built one deliverable at a time (`docs/impls_plan/`). Shipped so far:
 | Area | What works |
 |---|---|
 | **Kafka Cluster** registry | full CRUD + pause/resume, hand-written `pgx`, `SELECT … FOR UPDATE` |
-| **Agent** registry | CRUD + pause/resume, one-time bearer tokens (stored hashed), rotate; an advisory `provisioning_labels` schema per agent |
+| **Agent** registry | CRUD + pause/resume, one-time bearer tokens (stored hashed), rotate; advisory `franz.default-kafka-config/*` label defaults the console pre-fills |
 | **Cluster Provider protocol** | `WatchClusterAssignments` server-stream + `ReportClusterStatus`; an append-only `cluster_provider_event` log surfaced as `KafkaCluster.provider_status` |
 | **local-kafka-docker-agent** | a Cluster Provider agent that turns a Kafka Cluster registration into a running `apache/kafka` KRaft container in local Docker, keeps it converged, and reports health |
 | **Web console** | Vite + React + TS operator UI: register + **edit** Agents and Kafka Clusters, watch a cluster go `READY` |
@@ -68,9 +68,9 @@ make agent      # the local-kafka-docker-agent (needs Docker)
 (`local/seed/01-local-agent.sql`) — no console step. Then, in the console:
 
 1. **Kafka Clusters → Register** — give it a name, a bootstrap URL
-   (e.g. `localhost:19092`), pick `local-kafka-agent` as the provider. Its
-   provisioning fields (`deployment-type`, `kafka-version`, `kafka-image`)
-   pre-fill from the agent's schema.
+   (e.g. `localhost:19092`), pick `local-kafka-agent` as the provider. The
+   **Cluster configuration** section (Kafka version, brokers, `cluster_configuration`)
+   pre-fills from the agent's `franz.default-kafka-config/*` labels.
 2. The agent brings an `apache/kafka` container up in Docker and reports
    `PROVISIONING → READY`; the cluster detail page turns green.
 3. Connect any Kafka client at the bootstrap URL you declared.

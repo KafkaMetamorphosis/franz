@@ -65,11 +65,14 @@ func mkCluster(t *testing.T, name, providerAgent string) *cluster.Cluster {
 		realm.Realm{ID: uuid.New(), Slug: "default"},
 		name,
 		[]cluster.ConnectionString{{BootstrapURLs: []string{"b:9092"}, Type: cluster.ConnectionPlaintext}},
-		map[string]string{"franz.provisioning/deployment-type": "local-docker", "env": "prod"},
-		map[string]string{"num.partitions": "3"},
+		map[string]string{"env": "prod"},
+		map[string]string{"partitions": "3", "kafka-version": "3.9.0"},
 		providerAgent,
 	)
 	if err != nil {
+		t.Fatal(err)
+	}
+	if err := c.SetShape(1, "10Gi"); err != nil {
 		t.Fatal(err)
 	}
 	c.ID = uuid.New()
@@ -108,11 +111,11 @@ func TestInitialAssignments(t *testing.T) {
 	if byName["west-1"].Change != prov.ChangePaused {
 		t.Errorf("west-1 change = %v, want PAUSED (cluster is paused)", byName["west-1"].Change)
 	}
-	if byName["east-1"].Provisioning["franz.provisioning/deployment-type"] != "local-docker" {
-		t.Errorf("provisioning labels missing / includes non-provisioning keys: %v", byName["east-1"].Provisioning)
+	if byName["east-1"].Configuration["partitions"] != "3" || byName["east-1"].Configuration["kafka-version"] != "3.9.0" {
+		t.Errorf("cluster_configuration not carried on the assignment: %v", byName["east-1"].Configuration)
 	}
-	if _, leaked := byName["east-1"].Provisioning["env"]; leaked {
-		t.Error("non-provisioning label leaked into assignment")
+	if byName["east-1"].Brokers != 1 || byName["east-1"].DiskSize != "10Gi" {
+		t.Errorf("typed shape not carried: brokers=%d disk=%q", byName["east-1"].Brokers, byName["east-1"].DiskSize)
 	}
 }
 

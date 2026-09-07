@@ -112,6 +112,10 @@ export function ClusterDetail() {
                   </span>
                 ))}
               </dd>
+              <dt>Brokers</dt>
+              <dd>{cluster.brokers ? cluster.brokers : <span className="panel-note">unset</span>}</dd>
+              <dt>Disk size</dt>
+              <dd>{cluster.diskSize ? cluster.diskSize : <span className="panel-note">unset</span>}</dd>
               <dt>cluster_configuration</dt>
               <dd>
                 {Object.entries(cluster.clusterConfiguration ?? {}).map(([k, v]) => (

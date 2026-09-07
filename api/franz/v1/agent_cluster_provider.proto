@@ -35,11 +35,18 @@ message ClusterAssignment {
   string cluster_name = 2;
   string cluster_frn = 3;
 
-  // Desired-state inputs the agent's recipe consumes.
+  // Desired-state inputs the agent's recipe consumes. cluster_configuration is
+  // KafkaCluster.cluster_configuration verbatim (Franz-friendly keys — the
+  // recipe translates); "kafka-version" is one of its keys.
   repeated ConnectionString connection_strings = 4;
   map<string, string> cluster_configuration = 5;
-  // The cluster's `franz.provisioning/*` labels (those keys only).
-  map<string, string> provisioning = 6;
+  // Removed by ADR-API-010 (was the `franz.provisioning/*` label map).
+  reserved 6;
+  reserved provisioning;
+  // Cluster shape (typed on KafkaCluster). brokers >= 1 when set; a value > 1 is
+  // a hint the recipe may down-scale (local-docker provisions a single node).
+  int32 brokers = 7;
+  string disk_size = 8;
 }
 
 message ReportClusterStatusRequest {

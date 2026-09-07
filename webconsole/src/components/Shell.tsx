@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 
-// The console shell — ported from 001-ux/demo/home.html. Nav groups that belong
-// to features not built yet (Async Channels, Governance) are shown disabled so
-// the information architecture stays recognisable.
+// The console shell — ported from 001-ux/demo/home.html. Nav entries that belong
+// to features not built yet (Clients, Governance) are shown disabled so the
+// information architecture stays recognisable.
 export function Shell({ children }: { children: ReactNode }) {
   const { session, signOut } = useAuth();
   const navigate = useNavigate();
@@ -36,10 +36,13 @@ export function Shell({ children }: { children: ReactNode }) {
           <NavLink className="nav-link" to="/" end>
             Home
           </NavLink>
-          <details className="nav-group">
+          <details className="nav-group" open>
             <summary>Async Channels</summary>
+            <NavLink className="nav-link" to="/async-channels">
+              Channels
+            </NavLink>
             <span className="nav-link" aria-disabled="true" style={{ color: "#9aa4ad" }}>
-              Coming with the feature
+              Clients — coming with the feature
             </span>
           </details>
           <details className="nav-group">

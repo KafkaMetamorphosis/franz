@@ -308,7 +308,8 @@ func TestAssignmentPublishedOnLifecycle(t *testing.T) {
 		Name:              "east-1",
 		ConnectionStrings: plainConns(),
 		ProviderAgent:     "prov-1",
-		Labels:            map[string]string{"franz.provisioning/deployment-type": "local-docker"},
+		Configuration:     map[string]string{"kafka-version": "3.9.0"},
+		Brokers:           1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -317,17 +318,17 @@ func TestAssignmentPublishedOnLifecycle(t *testing.T) {
 	if !ok || a.Change != provider.ChangeSet {
 		t.Fatalf("create → %+v ok=%v, want SET", a, ok)
 	}
-	if a.Provisioning["franz.provisioning/deployment-type"] != "local-docker" {
-		t.Errorf("provisioning labels not carried: %v", a.Provisioning)
+	if a.Configuration["kafka-version"] != "3.9.0" || a.Brokers != 1 {
+		t.Errorf("config / shape not carried: %+v", a)
 	}
 
-	// editing a provisioning label pushes a SET delta
-	newLabels := map[string]string{"franz.provisioning/deployment-type": "local-docker", "franz.provisioning/kafka-version": "3.7.0"}
-	if _, err := svc.Update(ctx, in.UpdateClusterInput{Name: "east-1", Labels: &newLabels}); err != nil {
+	// editing cluster_configuration pushes a SET delta
+	newCfg := map[string]string{"kafka-version": "3.9.0", "partitions": "6"}
+	if _, err := svc.Update(ctx, in.UpdateClusterInput{Name: "east-1", Configuration: &newCfg}); err != nil {
 		t.Fatal(err)
 	}
-	if a, _ := pub.last("prov-1"); a.Change != provider.ChangeSet || a.Provisioning["franz.provisioning/kafka-version"] != "3.7.0" {
-		t.Errorf("update → %+v, want SET with new label", a)
+	if a, _ := pub.last("prov-1"); a.Change != provider.ChangeSet || a.Configuration["partitions"] != "6" {
+		t.Errorf("update → %+v, want SET with new config", a)
 	}
 
 	if _, err := svc.Pause(ctx, "east-1"); err != nil {

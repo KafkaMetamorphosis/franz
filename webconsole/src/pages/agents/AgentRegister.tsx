@@ -2,9 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Breadcrumbs, CopyButton, ErrorBanner, PageHeading, Panel } from "../../components/ui";
 import { LabelEditor } from "../../components/LabelEditor";
-import { ProvisioningLabelEditor } from "../../components/ProvisioningLabelEditor";
-import { validateSchema } from "../../provisioning";
-import { useCreateAgent, type ProvisioningLabelSpec } from "../../api/hooks";
+import { useCreateAgent } from "../../api/hooks";
 import { AGENT_TYPES } from "../../api/enums";
 
 export function AgentRegister() {
@@ -13,7 +11,6 @@ export function AgentRegister() {
   const [name, setName] = useState("");
   const [type, setType] = useState<string>(AGENT_TYPES[0].value);
   const [labels, setLabels] = useState<Record<string, string>>({});
-  const [provisioningLabels, setProvisioningLabels] = useState<ProvisioningLabelSpec[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [createdName, setCreatedName] = useState<string | null>(null);
@@ -71,17 +68,11 @@ export function AgentRegister() {
           onSubmit={(e) => {
             e.preventDefault();
             setLocalError(null);
-            const problem = validateSchema(provisioningLabels);
-            if (problem) {
-              setLocalError(problem);
-              return;
-            }
             createAgent.mutate(
               {
                 name: name.trim(),
                 type: type as never,
                 labels,
-                ...(provisioningLabels.length ? { provisioningLabels } : {}),
               },
               {
                 onSuccess: (res) => {
@@ -124,21 +115,17 @@ export function AgentRegister() {
           </div>
           <div className="form-section">
             <h3>Labels</h3>
-            <p className="form-help">Optional free-form metadata — owner, team, environment.</p>
+            <p className="form-help">
+              Free-form metadata, plus reserved prefixes: <code>franz.default-kafka-config/*</code>
+              {" "}(config defaults the console pre-fills into a Kafka Cluster form that targets this
+              agent) and <code>franz.placement-selector/*</code> (agent-watch scoping).
+            </p>
             <div className="field">
               <label>Labels</label>
               <div>
                 <LabelEditor value={labels} onChange={setLabels} />
               </div>
             </div>
-          </div>
-          <div className="form-section">
-            <h3>Provisioning-label schema</h3>
-            <p className="form-help">
-              Optional. Advisory hints the console uses to pre-fill and constrain resource forms
-              that target this agent. Franz does not enforce them.
-            </p>
-            <ProvisioningLabelEditor value={provisioningLabels} onChange={setProvisioningLabels} />
           </div>
           <div className="form-actions">
             <Link className="button" to="/agents">
