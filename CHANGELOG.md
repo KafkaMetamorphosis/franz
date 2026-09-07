@@ -5,6 +5,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **`kafka-version` leaked into a shard's Kafka topic config.** `topic.Materialize`
+  dropped `partitions` / `replication-factor` from the `cluster_configuration`
+  merge but not `kafka-version` — a cluster-substrate key (ADR-API-010), not a
+  Kafka topic-config key. A Resource Provider agent then passed it to
+  `createTopics` and the broker rejected the whole call with
+  `INVALID_CONFIG`, leaving every placed async-channel shard stuck in `ERROR`.
+  All three Franz-vocabulary keys are now excluded from the merge, on both the
+  cluster and the per-shard layer.
+
 ### Added
 
 - **Resource Provider scope visibility**: `WatchPartitionAssignments` now sends a
