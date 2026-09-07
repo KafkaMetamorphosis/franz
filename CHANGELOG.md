@@ -7,11 +7,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
-- **A reconcile reported `ERROR` for a topic it had just created.** Gregor Samsa's
-  read-back requested the topic by name (`ListTopics(ctx, name)`); a by-name
-  metadata request on the same franz-go client right after `CreateTopic`
-  transiently returns `UNKNOWN_TOPIC_OR_PARTITION` for seconds. It now lists all
-  topics and filters client-side, which is correct on the first try.
+- **A reconcile reported `ERROR` for a topic it had just created**
+  ("topic still absent after created and waiting for it to appear in cluster
+  metadata"), while the topic plainly existed. A metadata request routed through
+  kadm's client caches a negative result for a not-yet-created topic and keeps
+  serving it for ~`MetadataMinAge` (~5s), so the "does it exist?" check *before*
+  `CreateTopic` poisoned the read-back *after* it. `DescribeTopic` now decides
+  existence and reads config via `DescribeConfigs` (no such cache), and reads the
+  topic shape with a raw `MetadataRequest` (a fresh broker round-trip). The
+  read-back also keeps polling for partition metadata to converge before
+  reporting `applied_config`.
 - **Placement skipped a shard row that existed but had no cluster.** The "create
   a row for every unplaced shard index" step keyed on "a row with that name
   exists" — so a leftover unplaced row (a stale fixture, an aborted write) was
