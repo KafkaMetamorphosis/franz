@@ -152,6 +152,11 @@ label suffixes. Translation to real Kafka broker/topic keys is the consumer's jo
   `ClusterConfiguration` section rendered inline in `ClusterRegister` /
   `ClusterEdit` (no separate component). `ProvisioningFields` /
   `ProvisioningLabelEditor` deleted.
-- Playwright `npm run e2e` not run (needs a live stack); REST smokes exercised
-  create/GET/PATCH-mask for `brokers` / `disk_size` / `cluster_configuration` and
-  agent create/GET without `provisioning_labels`.
+- REST smokes exercised create/GET/PATCH-mask for `brokers` / `disk_size` /
+  `cluster_configuration` and agent create/GET without `provisioning_labels`.
+- **Follow-up (2026-09-07):** task 11.24's Playwright half was marked done but the
+  spec still drove the removed provisioning UI, so the `console e2e` CI job failed.
+  `webconsole/e2e/console.spec.ts` now uses the generic `LabelEditor` to advertise
+  `franz.default-kafka-config/partitions` on the Cluster Provider agent and asserts
+  the pre-filled `cluster_configuration` textarea; the `deployment-type` and
+  `kafka-image` steps are gone. Suite run green against a live stack (2 passed).

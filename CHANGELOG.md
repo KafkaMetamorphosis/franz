@@ -196,6 +196,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     textarea + Kafka-version select + brokers / disk-size inputs) and a plain
     **Labels** section; the "Provisioning intent" section and the
     provisioning-label schema editor are gone.
+  - Console e2e (`webconsole/e2e/console.spec.ts`) follows the reworked forms: it
+    drives the generic `LabelEditor` to advertise
+    `franz.default-kafka-config/partitions` on a Cluster Provider agent and
+    asserts the Kafka Cluster form pre-fills `cluster_configuration` from it. The
+    `deployment-type` / `kafka-image` / provisioning-schema steps are gone.
 - Renamed the agent's Go paths for consistency: `cmd/local-kafka-agent` →
   `cmd/localkafkaagent`, `pkg/localkafka` → `pkg/localkafkaagent` (import path
   and package clause follow). The registered agent **name** `local-kafka-agent`
