@@ -53,8 +53,9 @@ type PartitionNotifier interface {
 }
 
 // IndicatorSampleRepository persists the append-only indicator_sample time
-// series (003.14). Deliverable 14 extends it with the history and current-value
-// queries governance reads; deliverable 12 needs ingest and the prune.
+// series (003.14). Deliverable 12 shipped ingest and the prune; deliverable 14
+// added the history and current-value reads governance and ListIndicatorSamples
+// need.
 type IndicatorSampleRepository interface {
 	// Append writes a batch in one statement and returns how many rows landed.
 	Append(ctx context.Context, samples []*indicator.Sample) (int, error)
@@ -62,4 +63,13 @@ type IndicatorSampleRepository interface {
 	// PruneOlderThan deletes samples with sample_at < cutoff (003.14 — nightly
 	// 30-day prune) and returns the count removed.
 	PruneOlderThan(ctx context.Context, cutoff time.Time) (int64, error)
+
+	// List returns one page of the history, newest first (ListIndicatorSamples).
+	List(ctx context.Context, q SampleQuery) (SamplePage, error)
+
+	// LatestPerResource returns the newest sample per resource_frn for one
+	// indicator — the "current" value view governance reads (003.14). Ordered by
+	// resource_frn ascending, so a dry run is deterministic. limit caps the
+	// result; <= 0 applies the repository's own bound.
+	LatestPerResource(ctx context.Context, realmID uuid.UUID, name string, limit int) ([]*indicator.Sample, error)
 }
