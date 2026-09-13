@@ -12,6 +12,28 @@ Spec references (`003-franz/003.x`, `002-monorepo-structure`, `001-ux`,
 **`KafkaMetamorphosis/docs`** repo. `franz/api/franz/v1/*.proto` is authoritative
 for message/RPC shapes.
 
+## Conventions for every new deliverable
+
+Two things go missing if they aren't scoped up front, because nothing forces
+them to exist later — 14 and 15 both shipped without either, and the gap
+wasn't caught until someone asked "can I see this in the UI?" (see
+[20](./20-governance-ui.md)'s Notes):
+
+1. **Console UI.** If the deliverable adds anything an operator would
+   otherwise only reach through a raw gRPC/REST call, its task list either
+   builds the screens or explicitly names the follow-up deliverable that will
+   (the way 19 and 20 do for 10 and 14/15). A backend-only deliverable with no
+   UI plan at all — not even a forward reference — is a planning gap, not a
+   deferral.
+2. **A local seed.** If the deliverable's feature needs data to exist before
+   it does anything visible (a registered indicator, a labeled cluster, a
+   linked agent), its task list adds or extends a `local/seed/*.sql` file so
+   `make dev` demonstrates the feature with no hand-authored API calls first.
+   Enforcement gaps count too — deliverable 15 made indicator pre-registration
+   real and broke Gregor Samsa's publish path until `04-indicators.sql`
+   backfilled it; a deliverable that *tightens* a precondition needs the seed
+   at least as much as one that adds a new resource.
+
 ## Feature 1 — Local Kafka via a Docker Cluster Provider agent
 
 Register a `CLUSTER_PROVIDER` agent in the console; register a Kafka Cluster
