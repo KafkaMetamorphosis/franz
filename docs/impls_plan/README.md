@@ -50,6 +50,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ⬜ |
 | [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ⛔ |
 | [19](./19-async-channel-ui.md) | Async Channel UI (console screens for 10) | 06 · 08 · 10 · 11 | ✅ |
+| [20](./20-governance-ui.md) | Governance UI (console screens for 14 · 15) | 06 · 08 · 14 · 15 | ⬜ |
 
 ## Decisions already locked (`DECISIONS.md` ADR-API-005)
 
@@ -89,6 +90,13 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-13 · **plan** · inserted deliverable **20 — Governance UI**, scoping
+  the console screens 14 (Indicator registry, Policy engine) and 15 (telemetry
+  ingest) never got — raised while answering "is it possible to see indicators
+  in the UI?" (no). Also added `local/seed/04-indicators.sql`, registering the
+  13 structural indicators Gregor Samsa publishes (005 ADR §2.1), since 15's
+  pre-registration enforcement means Gregor Samsa's sweep now fails every
+  publish against a fresh local database without it.
 - 2026-09-13 · **15** Telemetry ingest · the two inbound agent streams become
   real: `PublishIndicatorSamples` / `StreamIndicatorSamples` now enforce
   pre-registration (`FAILED_PRECONDITION` on an unknown indicator, no

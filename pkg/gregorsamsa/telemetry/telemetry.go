@@ -21,7 +21,11 @@ import (
 )
 
 // Indicator names published by Gregor Samsa (005 ADR §2.1). Deliverable 14
-// registers them; until the registry exists Franz accepts any name.
+// added the registry these must be pre-registered against, and deliverable 15
+// enforces it: PublishIndicatorSamples now rejects an unregistered name with
+// FAILED_PRECONDITION. local/seed/04-indicators.sql registers this exact set
+// for the local dev loop; a real deployment needs an equivalent provisioning
+// step (see the open note in docs/impls_tracker/15-telemetry-ingest.md).
 const (
 	IndicatorTopicState             = "kafka.topic.state"
 	IndicatorTopicPartitions        = "kafka.topic.partitions"
