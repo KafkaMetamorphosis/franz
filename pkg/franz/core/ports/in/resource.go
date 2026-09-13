@@ -3,6 +3,7 @@ package in
 import (
 	"context"
 
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/consumergroup"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/indicator"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/resource"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/topic"
@@ -43,11 +44,28 @@ type ResourceProviderService interface {
 	ReportReconciliation(ctx context.Context, in ReportReconciliationInput) (applied bool, err error)
 }
 
-// TelemetryIngestService is the driving port for TelemetryService's sample
-// ingest (003.14). Deliverable 12 needs ingest only; the indicator registry,
-// history queries, and governance trigger land with deliverable 14.
+// TelemetryIngestService is the driving port for TelemetryService — the two
+// inbound agent streams of 003.14. The reads over what it writes are elsewhere
+// by design: sample history is GovernanceService.ListIndicatorSamples, and the
+// consumer-group views are ClientService's, so an agent's port grants no read
+// access to the fleet.
 type TelemetryIngestService interface {
-	// IngestSamples appends a batch for the agent in context and returns how many
-	// rows landed.
+	// IngestSamples validates and appends a batch for the agent in context and
+	// returns how many rows landed.
+	//
+	// Validation is per 003.14 and the batch is atomic: an unregistered indicator
+	// (FAILED_PRECONDITION), a resource_entity that disagrees with the indicator's
+	// applies_to, or a value that does not parse in the indicator's unit rejects
+	// the whole call. Nothing is written, because the response carries only a
+	// count and so has no way to say which rows landed.
+	//
+	// A sample that advances an indicator's current value also triggers governance
+	// evaluation (003.14 "Governance coupling"); an out-of-order sample is stored
+	// as history and triggers nothing.
 	IngestSamples(ctx context.Context, samples []indicator.Sample) (int, error)
+
+	// IngestConsumerGroups appends a batch of consumer-group sightings for the
+	// agent in context. They are read-only context: no governance evaluation
+	// follows (003.14).
+	IngestConsumerGroups(ctx context.Context, observations []consumergroup.Observation) (int, error)
 }

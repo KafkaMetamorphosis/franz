@@ -40,6 +40,9 @@ const (
 	// policyActionRetention is the 003.8 / 003.12 audit window for the
 	// policy_action series. Same nightly job, same 30 days.
 	policyActionRetention = 30 * 24 * time.Hour
+	// observedConsumerGroupRetention is the 003.14 window for the second inbound
+	// telemetry stream. Same nightly job, same 30 days.
+	observedConsumerGroupRetention = 30 * 24 * time.Hour
 )
 
 func main() {
@@ -66,6 +69,8 @@ func main() {
 			fx.Annotate(postgres.NewIndicatorRepo, fx.As(new(out.IndicatorRepository))),
 			fx.Annotate(postgres.NewPolicyRepo, fx.As(new(out.PolicyRepository))),
 			fx.Annotate(postgres.NewPolicyActionRepo, fx.As(new(out.PolicyActionRepository))),
+			fx.Annotate(postgres.NewObservedConsumerGroupRepo,
+				fx.As(new(out.ObservedConsumerGroupRepository))),
 			fx.Annotate(resourceprovider.NewNotifier, fx.As(new(out.PartitionNotifier))),
 			// Provided concretely as well as behind the port: the entity services
 			// take out.ShardPlacer, while the retry sweep drives Sweep directly.
@@ -79,10 +84,9 @@ func main() {
 			fx.Annotate(resourceprovider.NewService, fx.As(new(in.ResourceProviderService))),
 			fx.Annotate(telemetry.NewService, fx.As(new(in.TelemetryIngestService))),
 			fx.Annotate(governance.NewService, fx.As(new(in.GovernanceService))),
-			// The real evaluator is wired now even though the only caller —
-			// telemetry ingest's post-sample hook — arrives with deliverable 15.
-			// Wiring it here means 15 has a working port to call rather than a
-			// no-op to replace.
+			// Telemetry ingest's post-sample hook is the evaluator's only caller
+			// (003.14 "Governance coupling"): evaluation is event-driven, never a
+			// scheduled sweep.
 			fx.Annotate(governance.NewEvaluator, fx.As(new(in.GovernanceEvaluator))),
 			func(r out.RealmRepository) *grpcgateway.Authenticator {
 				return grpcgateway.NewAuthenticator(r)
@@ -98,13 +102,10 @@ func main() {
 		// Force the FRN codec early so an invalid resource_prefix fails the boot
 		// before anything else starts.
 		fx.Invoke(func(frn.Codec) {}),
-		// Nothing consumes the governance evaluator until deliverable 15 wires the
-		// ingest hook, and fx builds lazily — so force it, or a broken dependency
-		// graph would stay invisible until the first sample arrived in production.
-		fx.Invoke(func(in.GovernanceEvaluator) {}),
 		fx.Invoke(startProviderEventPrune),
 		fx.Invoke(startIndicatorSamplePrune),
 		fx.Invoke(startPolicyActionPrune),
+		fx.Invoke(startObservedConsumerGroupPrune),
 		fx.Invoke(startPlacementSweep),
 		fx.Invoke(registerServer),
 	).Run()
@@ -252,6 +253,42 @@ func startPolicyActionPrune(lc fx.Lifecycle, log *slog.Logger, repo out.PolicyAc
 						}
 						if n > 0 {
 							log.Info("pruned policy actions", "count", n)
+						}
+					}
+				}
+			}()
+			return nil
+		},
+		OnStop: func(context.Context) error { close(stop); return nil },
+	})
+}
+
+// startObservedConsumerGroupPrune runs the nightly observed_consumer_group
+// prune (003.14). Consumer-group sightings are the highest-cardinality series
+// Franz keeps — every agent re-reports every group it sees on every sweep — so
+// the 30-day window is what keeps the current view answerable from the index.
+func startObservedConsumerGroupPrune(
+	lc fx.Lifecycle, log *slog.Logger, repo out.ObservedConsumerGroupRepository,
+) {
+	stop := make(chan struct{})
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			go func() {
+				ticker := time.NewTicker(24 * time.Hour)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-stop:
+						return
+					case <-ticker.C:
+						n, err := repo.PruneOlderThan(context.Background(),
+							time.Now().Add(-observedConsumerGroupRetention))
+						if err != nil {
+							log.Warn("consumer-group observation prune failed", "err", err)
+							continue
+						}
+						if n > 0 {
+							log.Info("pruned consumer group observations", "count", n)
 						}
 					}
 				}

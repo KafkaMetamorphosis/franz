@@ -41,6 +41,38 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Telemetry ingest (`003.14`)** — the two inbound agent streams become real.
+  - `PublishIndicatorSamples` / `StreamIndicatorSamples` now enforce
+    pre-registration: an unknown indicator is `FAILED_PRECONDITION` (no
+    auto-creation), a `resource_entity` that disagrees with the Indicator's
+    `applies_to` and a `value` that does not parse in its `unit` are
+    `INVALID_ARGUMENT`. A batch is **all-or-nothing** — the response carries only
+    a count, so a partial accept could not tell the agent which rows landed.
+  - Ingest maintains each Indicator's `current_value` / `current_resource_frn` /
+    `last_sample_at`, from which `health` is derived (`STALE` past
+    `staleness_threshold`). An **out-of-order** sample is stored as history but
+    does not become current.
+  - **Ingest → eval hook**: a sample that advances the current value calls the
+    governance evaluation entry point synchronously, in-process (`003.14` OQ4
+    resolved in favour of the simple option). An out-of-order sample triggers
+    nothing, and a failing evaluation never fails the ingest.
+  - `indicator_sample.indicator` is now a composite foreign key to
+    `indicator (realm_id, name)`, `ON DELETE CASCADE` — values are encoded per
+    the indicator's `unit`, so the history goes with the registration.
+  - **`ReportConsumerGroups` is implemented**, writing the new append-only
+    `observed_consumer_group` series (30-day nightly prune, like every other
+    Franz time series). `custom` — whether the group departs from the default
+    `<client>.<topic>` name — is derived by Franz on write, not reported by the
+    agent, so two agents cannot disagree about the same group. The current-view
+    and history queries behind `ClientService.ListObservedConsumerGroups` /
+    `ListConsumerGroupObservations` ship with the repository; deliverable 16
+    wires those RPCs.
+  - New categorical unit family (`string` / `enum`), which `005` §2.1 requires
+    for `kafka.topic.state` and `kafka.cluster.controller_id`: any non-empty
+    label parses, and labels compare lexicographically so `EQUAL` / `NOT_EQUAL`
+    mean what an operator expects. An *unrecognised* unit still compares
+    numerically, so a typo'd unit surfaces as an unparseable value.
+
 - **Governance (`003.8`)** — reactive fleet policies. An admin pre-registers an
   **Indicator** (`GovernanceService` Indicator CRUD; `unit`, `applies_to`,
   `staleness_threshold`, `source_agents`, with `health` derived on read from

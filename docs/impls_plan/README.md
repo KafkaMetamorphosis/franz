@@ -45,7 +45,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ✅ |
 | [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ✅ |
 | [14](./14-governance.md) | Governance (Indicator registry + non-placement actions) | 02 · 03 · 09 · 10 | ✅ |
-| [15](./15-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ⬜ |
+| [15](./15-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ✅ |
 | [16](./16-client.md) | Client | 02 · 15 | ⬜ |
 | [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ⬜ |
 | [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ⛔ |
@@ -89,6 +89,22 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-13 · **15** Telemetry ingest · the two inbound agent streams become
+  real: `PublishIndicatorSamples` / `StreamIndicatorSamples` now enforce
+  pre-registration (`FAILED_PRECONDITION` on an unknown indicator, no
+  auto-creation), `resource_entity` / `value`-unit validation, atomic batches
+  (all-or-nothing — the response carries only a count), current-value /
+  `last_sample_at` / derived `health` maintenance, and the synchronous
+  ingest → `GovernanceEvaluator.Evaluate` hook (an out-of-order sample stores
+  but triggers nothing, a failing evaluation never fails ingest —
+  `003.14` OQ4 resolved for the simple option). `ReportConsumerGroups`
+  implemented against a new `observed_consumer_group` append table (30-day
+  prune); `custom` is derived by Franz from the `<client>.<topic>` convention,
+  never accepted from the wire. New categorical unit family (`string`/`enum`)
+  for `005` §2.1's `kafka.topic.state` / `...controller_id`. The
+  `ListObservedConsumerGroups` / `ListConsumerGroupObservations` **handlers**
+  wait on deliverable 16 (`ClientService`); their repository methods ship
+  here. codex out of quota → claude (architect agent) implemented it.
 - 2026-09-10 · **14** Governance · Indicator registry (`GovernanceService`
   Indicator CRUD, `health` derived / `applies_to` immutable) + Policy engine:
   `core/domain/governance` (Policy / whitelist matrix / per-action caps —
