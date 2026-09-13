@@ -68,6 +68,12 @@ made pre-registration real (`PublishIndicatorSamples` now rejects an unknown
 indicator), so without this seed Gregor Samsa's sweep fails every publish
 against a fresh local database.
 
+### `seed/05-clients.sql`
+
+Registers two example Clients (003.10) — `billing` and `payments-consumer` —
+so `ListClients` and the observed-consumer-group views have real rows to show
+without a hand-authored `CreateClient` call first.
+
 ## Reset
 
 ```

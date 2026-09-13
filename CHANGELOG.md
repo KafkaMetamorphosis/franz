@@ -41,6 +41,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Client (`003.10`)** — the fleet-wide SDK identity. `ClientService` CRUD
+  (gRPC+REST); a `Client` carries no Type/Role/Status field, matching the spec
+  exactly, so `labels` is its only mutable state. `ListObservedConsumerGroups`
+  / `ListConsumerGroupObservations` read deliverable 15's
+  `observed_consumer_group` series scoped to one client's FRN.
+  `DeleteClient` is a **real row removal** (Client has no state column to
+  soft-delete into) backed by a new `deleted_client_frn` ledger — a name is
+  never reusable, the same guarantee every other entity gets from
+  `state = 'DELETED'`, delivered a different way here. `ListClientChannelAccess`
+  stays `Unimplemented` until deliverable 17's access-policy engine.
+  `local/seed/05-clients.sql` seeds two example clients for the local loop;
+  **deliverable 21 — Client UI** is scoped (not built) since this ships no
+  console screens.
+
 - **Telemetry ingest (`003.14`)** — the two inbound agent streams become real.
   - `PublishIndicatorSamples` / `StreamIndicatorSamples` now enforce
     pre-registration: an unknown indicator is `FAILED_PRECONDITION` (no
