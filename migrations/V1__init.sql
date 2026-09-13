@@ -404,3 +404,36 @@ CREATE INDEX IF NOT EXISTS policy_action_series
     ON policy_action (realm_id, policy_name, occurred_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS policy_action_occurred_at
     ON policy_action (occurred_at);
+
+-- Client — the fleet-wide SDK identity (003.10). Deliberately no `state`
+-- column: 003.10 is explicit a Client has "no type, role, or state field", so
+-- unlike every other entity in this file, DeleteClient is a real row removal —
+-- see deleted_client_frn below for how the name/FRN stays reserved anyway.
+CREATE TABLE IF NOT EXISTS client (
+    id         uuid        PRIMARY KEY,
+    realm_id   uuid        NOT NULL REFERENCES realm (id),
+    name       text        NOT NULL,
+    frn        text        NOT NULL,
+    -- Free-form; should carry org.com/owner (003.10 OQ1 leaves enforcement
+    -- open). Channel access policies (003.5) match a Principal against this.
+    labels     jsonb       NOT NULL DEFAULT '{}'::jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (realm_id, name),
+    UNIQUE (frn)
+);
+
+-- Deletion ledger for Client (003.10 "DeleteClient does not free the name /
+-- FRN" — consistent with every other entity's rule even though Client has no
+-- state column to carry it). A dormant access-policy statement (003.5) still
+-- names this FRN after delete; without this table, a *different* client could
+-- later register the same name and silently inherit that statement's grants.
+-- No foreign key back to client — the row it reserves is gone by the time this
+-- one is written (same transaction, see ClientRepo.Delete).
+CREATE TABLE IF NOT EXISTS deleted_client_frn (
+    realm_id   uuid        NOT NULL REFERENCES realm (id),
+    name       text        NOT NULL,
+    frn        text        NOT NULL,
+    deleted_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (realm_id, name)
+);

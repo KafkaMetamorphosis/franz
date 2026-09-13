@@ -68,11 +68,12 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ✅ |
 | [14](./14-governance.md) | Governance (Indicator registry + non-placement actions) | 02 · 03 · 09 · 10 | ✅ |
 | [15](./15-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ✅ |
-| [16](./16-client.md) | Client | 02 · 15 | ⬜ |
+| [16](./16-client.md) | Client | 02 · 15 | ✅ |
 | [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ⬜ |
 | [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ⛔ |
 | [19](./19-async-channel-ui.md) | Async Channel UI (console screens for 10) | 06 · 08 · 10 · 11 | ✅ |
 | [20](./20-governance-ui.md) | Governance UI (console screens for 14 · 15) | 06 · 08 · 14 · 15 | ⬜ |
+| [21](./21-client-ui.md) | Client UI (console screens for 16) | 06 · 08 · 16 | ⬜ |
 
 ## Decisions already locked (`DECISIONS.md` ADR-API-005)
 
@@ -112,6 +113,18 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-13 · **16** Client · `core/domain/client` (no Type/Role/Status field —
+  003.10 is explicit), full `ClientService` CRUD (gRPC+REST), and the two
+  observed-consumer-group reads (`ListObservedConsumerGroups`/
+  `ListConsumerGroupObservations`), scoped by the client's FRN over
+  deliverable 15's `ObservedConsumerGroupRepository`. Deletion is a real row
+  removal (Client has no state column to soft-delete into) backed by a new
+  `deleted_client_frn` ledger table so a name is never reusable, matching
+  every other entity's "name/FRN never freed" rule by a different mechanism.
+  `ListClientChannelAccess` stays `Unimplemented` pending 17's access-policy
+  engine. Per the new UI/seed convention: `local/seed/05-clients.sql` seeds
+  two example clients, and **21 — Client UI** was scoped (not built) since 16
+  ships no console screens. Executed by claude (codex out of quota).
 - 2026-09-13 · **plan** · inserted deliverable **20 — Governance UI**, scoping
   the console screens 14 (Indicator registry, Policy engine) and 15 (telemetry
   ingest) never got — raised while answering "is it possible to see indicators

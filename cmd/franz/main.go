@@ -20,6 +20,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/out"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/agents"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/channels"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/clients"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/clusters"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/governance"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/placement"
@@ -71,6 +72,7 @@ func main() {
 			fx.Annotate(postgres.NewPolicyActionRepo, fx.As(new(out.PolicyActionRepository))),
 			fx.Annotate(postgres.NewObservedConsumerGroupRepo,
 				fx.As(new(out.ObservedConsumerGroupRepository))),
+			fx.Annotate(postgres.NewClientRepo, fx.As(new(out.ClientRepository))),
 			fx.Annotate(resourceprovider.NewNotifier, fx.As(new(out.PartitionNotifier))),
 			// Provided concretely as well as behind the port: the entity services
 			// take out.ShardPlacer, while the retry sweep drives Sweep directly.
@@ -88,6 +90,7 @@ func main() {
 			// (003.14 "Governance coupling"): evaluation is event-driven, never a
 			// scheduled sweep.
 			fx.Annotate(governance.NewEvaluator, fx.As(new(in.GovernanceEvaluator))),
+			fx.Annotate(clients.NewService, fx.As(new(in.ClientService))),
 			func(r out.RealmRepository) *grpcgateway.Authenticator {
 				return grpcgateway.NewAuthenticator(r)
 			},
@@ -144,6 +147,7 @@ func newServer(
 	providerSvc in.ClusterProviderService, topicSvc in.KafkaTopicService,
 	channelSvc in.AsyncChannelService, resourceSvc in.ResourceProviderService,
 	telemetrySvc in.TelemetryIngestService, governanceSvc in.GovernanceService,
+	clientSvc in.ClientService,
 ) (*grpcgateway.Server, error) {
 	s := grpcgateway.New(c.GRPCPort, c.HTTPPort, log,
 		grpcgateway.WithAuthenticator(auth),
@@ -165,6 +169,9 @@ func newServer(
 	grpcgateway.RegisterResourceProviderService(s, resourceSvc, hub, codec)
 	grpcgateway.RegisterTelemetryService(s, telemetrySvc)
 	if err := grpcgateway.RegisterGovernanceService(s, governanceSvc, codec); err != nil {
+		return nil, err
+	}
+	if err := grpcgateway.RegisterClientService(s, clientSvc, codec); err != nil {
 		return nil, err
 	}
 	return s, nil
