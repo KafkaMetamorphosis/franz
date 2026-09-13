@@ -41,6 +41,53 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Governance (`003.8`)** — reactive fleet policies. An admin pre-registers an
+  **Indicator** (`GovernanceService` Indicator CRUD; `unit`, `applies_to`,
+  `staleness_threshold`, `source_agents`, with `health` derived on read from
+  `last_sample_at` and never stored, and `applies_to` immutable once
+  registered), then attaches **Policies** that watch it. When a sample crosses a
+  Policy's `limit`, its whitelisted `actions` run on every resource the
+  `matcher` selects, changing Franz's *declared* state — the normal
+  reconciliation path realises the change, and no agent is ever called.
+  - Policy CRUD, `DryRunPolicy` (an inline unsaved definition evaluated against
+    the latest sample per resource; no mutation, no `PolicyAction`),
+    `ListPolicyActions`, and `ListIndicatorSamples` over the deliverable-12
+    sample series.
+  - Write-time validation against the `003.8` **write whitelist**: the
+    `(entity, field, ops)` matrix, argument arity and shape, real Kafka
+    topic-config keys, `applies_to` vs `matcher.entity` agreement, and an
+    unknown indicator (`FAILED_PRECONDITION`). `DeleteIndicator` refuses while
+    any policy — enabled or not — still names it.
+  - Event-driven evaluation entry point for telemetry ingest: a `STALE`
+    indicator never acts (and an indicator that has never been sampled counts as
+    stale); several triggered policies on one resource apply in
+    `(weight desc, name asc)` order with last-write-wins; every action is
+    recorded as a `PolicyAction`, failures included, and one failing rule never
+    fails the pass. There is deliberately **no cooldown / anti-thrash**
+    (`003.8` OQ2).
+  - Actions: `ADD_LABEL` / `REMOVE_LABEL` (non-`franz.*`), `SET_STATUS`
+    (`ACTIVE` / `PAUSED` / `DELETED`, channel and cluster only), and
+    `UPDATE_FIELD` / `INCREASE_FIELD_BY` / `DECREASE_FIELD_BY` on
+    `KafkaTopic.{partitions (increase-only), replication_factor,
+    topic_configuration.<key>, consumption}` and
+    `KafkaCluster.{brokers, disk_size, cluster_configuration.<key>}`. Amounts
+    may be absolute or a percentage of the current value.
+  - **Per-action caps** (`003.8` OQ1, resolved): an optional third positional
+    arg — `"max=<ceiling>"` on `INCREASE_FIELD_BY`, `"min=<floor>"` on
+    `DECREASE_FIELD_BY` — bounding the *resulting field value* rather than the
+    per-fire delta, and clamping rather than failing, so a policy that has
+    driven a field to its ceiling settles into a no-op. Mandatory on
+    `INCREASE_FIELD_BY partitions`, which is irreversible under `003.6`.
+  - New `indicator`, `policy` and `policy_action` tables; `policy_action` is
+    append-only, carries no foreign key to `policy` (a deleted policy's history
+    stays readable by name), and is pruned nightly at 30 days like every other
+    Franz time series.
+  - The placement rows `003.8` whitelists — `franz.affinity/*` /
+    `franz.antiaffinity/*` on a channel, `franz.taint` on a cluster, and
+    `channel_partitions` — need the migration flow (`003.13`) and are **rejected
+    at write** (`FAILED_PRECONDITION`) rather than accepted and silently ignored
+    at evaluation time.
+
 - **Resource Provider scope visibility**: `WatchPartitionAssignments` now sends a
   `StreamScope` message as the first message of every (re)connected stream —
   the Kafka Clusters the agent's `franz.placement-selector/*` labels currently

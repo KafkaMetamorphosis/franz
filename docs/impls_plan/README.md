@@ -44,7 +44,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [11](./11-cluster-and-agent-config.md) | Cluster & agent configuration model | 03 · 04 · 08 | ✅ |
 | [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ✅ |
 | [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ✅ |
-| [14](./14-governance.md) | Governance (Indicator registry + non-placement actions) | 02 · 03 · 09 · 10 | ⬜ |
+| [14](./14-governance.md) | Governance (Indicator registry + non-placement actions) | 02 · 03 · 09 · 10 | ✅ |
 | [15](./15-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ⬜ |
 | [16](./16-client.md) | Client | 02 · 15 | ⬜ |
 | [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ⬜ |
@@ -88,6 +88,20 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 ## Progress log
 
 _(newest first — date · deliverable/task · note · commit)_
+
+- 2026-09-10 · **14** Governance · Indicator registry (`GovernanceService`
+  Indicator CRUD, `health` derived / `applies_to` immutable) + Policy engine:
+  `core/domain/governance` (Policy / whitelist matrix / per-action caps —
+  003.8 OQ1 resolved as an optional `max=` / `min=` third arg clamping the
+  resulting value), `usecases/governance` (CRUD, `DryRunPolicy`, the
+  event-driven `Evaluator` + `NoopEvaluator`, the non-placement action applier,
+  `(weight desc, name asc)` conflict order), pgx `IndicatorRepo` / `PolicyRepo`
+  / `PolicyActionRepo`, the `GovernanceService` gRPC+REST handler,
+  `indicator` / `policy` / `policy_action` tables, nightly `policy_action`
+  prune. Placement actions rejected at write (need 16/18). No proto change.
+  `go build/vet/test` (35 pkg, incl. Postgres integration + eval e2e),
+  `buf lint`, console typecheck/build — green. Nothing calls the evaluator
+  until deliverable 15. codex out of quota → claude.
 
 - 2026-09-07 · **plan** · **swapped deliverables 14 ↔ 15**: Governance is now 14,
   Telemetry ingest is 15. They had a mutual dependency (`14.6` ingest→eval hook

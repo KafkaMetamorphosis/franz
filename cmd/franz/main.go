@@ -21,6 +21,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/agents"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/channels"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/clusters"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/governance"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/placement"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/resourceprovider"
@@ -36,6 +37,9 @@ const (
 	// indicatorSampleRetention is the 003.14 append-only sample window. Same
 	// nightly job, same 30 days.
 	indicatorSampleRetention = 30 * 24 * time.Hour
+	// policyActionRetention is the 003.8 / 003.12 audit window for the
+	// policy_action series. Same nightly job, same 30 days.
+	policyActionRetention = 30 * 24 * time.Hour
 )
 
 func main() {
@@ -59,6 +63,9 @@ func main() {
 				fx.As(new(out.ClusterTopicGuard))),
 			fx.Annotate(postgres.NewChannelRepo, fx.As(new(out.AsyncChannelRepository))),
 			fx.Annotate(postgres.NewIndicatorSampleRepo, fx.As(new(out.IndicatorSampleRepository))),
+			fx.Annotate(postgres.NewIndicatorRepo, fx.As(new(out.IndicatorRepository))),
+			fx.Annotate(postgres.NewPolicyRepo, fx.As(new(out.PolicyRepository))),
+			fx.Annotate(postgres.NewPolicyActionRepo, fx.As(new(out.PolicyActionRepository))),
 			fx.Annotate(resourceprovider.NewNotifier, fx.As(new(out.PartitionNotifier))),
 			// Provided concretely as well as behind the port: the entity services
 			// take out.ShardPlacer, while the retry sweep drives Sweep directly.
@@ -71,6 +78,12 @@ func main() {
 			fx.Annotate(channels.NewService, fx.As(new(in.AsyncChannelService))),
 			fx.Annotate(resourceprovider.NewService, fx.As(new(in.ResourceProviderService))),
 			fx.Annotate(telemetry.NewService, fx.As(new(in.TelemetryIngestService))),
+			fx.Annotate(governance.NewService, fx.As(new(in.GovernanceService))),
+			// The real evaluator is wired now even though the only caller —
+			// telemetry ingest's post-sample hook — arrives with deliverable 15.
+			// Wiring it here means 15 has a working port to call rather than a
+			// no-op to replace.
+			fx.Annotate(governance.NewEvaluator, fx.As(new(in.GovernanceEvaluator))),
 			func(r out.RealmRepository) *grpcgateway.Authenticator {
 				return grpcgateway.NewAuthenticator(r)
 			},
@@ -85,8 +98,13 @@ func main() {
 		// Force the FRN codec early so an invalid resource_prefix fails the boot
 		// before anything else starts.
 		fx.Invoke(func(frn.Codec) {}),
+		// Nothing consumes the governance evaluator until deliverable 15 wires the
+		// ingest hook, and fx builds lazily — so force it, or a broken dependency
+		// graph would stay invisible until the first sample arrived in production.
+		fx.Invoke(func(in.GovernanceEvaluator) {}),
 		fx.Invoke(startProviderEventPrune),
 		fx.Invoke(startIndicatorSamplePrune),
+		fx.Invoke(startPolicyActionPrune),
 		fx.Invoke(startPlacementSweep),
 		fx.Invoke(registerServer),
 	).Run()
@@ -124,7 +142,7 @@ func newServer(
 	clusterSvc in.KafkaClusterService, agentSvc in.AgentService,
 	providerSvc in.ClusterProviderService, topicSvc in.KafkaTopicService,
 	channelSvc in.AsyncChannelService, resourceSvc in.ResourceProviderService,
-	telemetrySvc in.TelemetryIngestService,
+	telemetrySvc in.TelemetryIngestService, governanceSvc in.GovernanceService,
 ) (*grpcgateway.Server, error) {
 	s := grpcgateway.New(c.GRPCPort, c.HTTPPort, log,
 		grpcgateway.WithAuthenticator(auth),
@@ -145,6 +163,9 @@ func newServer(
 	grpcgateway.RegisterClusterProviderService(s, providerSvc, hub, codec)
 	grpcgateway.RegisterResourceProviderService(s, resourceSvc, hub, codec)
 	grpcgateway.RegisterTelemetryService(s, telemetrySvc)
+	if err := grpcgateway.RegisterGovernanceService(s, governanceSvc, codec); err != nil {
+		return nil, err
+	}
 	return s, nil
 }
 
@@ -198,6 +219,39 @@ func startIndicatorSamplePrune(lc fx.Lifecycle, log *slog.Logger, repo out.Indic
 						}
 						if n > 0 {
 							log.Info("pruned indicator samples", "count", n)
+						}
+					}
+				}
+			}()
+			return nil
+		},
+		OnStop: func(context.Context) error { close(stop); return nil },
+	})
+}
+
+// startPolicyActionPrune runs the nightly policy_action prune (003.8 / 003.12).
+// The audit series is the only record that a policy changed anything, so it is
+// pruned on the same 30-day window as every other Franz time series rather than
+// kept indefinitely.
+func startPolicyActionPrune(lc fx.Lifecycle, log *slog.Logger, repo out.PolicyActionRepository) {
+	stop := make(chan struct{})
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			go func() {
+				ticker := time.NewTicker(24 * time.Hour)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-stop:
+						return
+					case <-ticker.C:
+						n, err := repo.PruneOlderThan(context.Background(), time.Now().Add(-policyActionRetention))
+						if err != nil {
+							log.Warn("policy-action prune failed", "err", err)
+							continue
+						}
+						if n > 0 {
+							log.Info("pruned policy actions", "count", n)
 						}
 					}
 				}

@@ -219,6 +219,75 @@ func (t *KafkaTopic) IncreasePartitions(n int32) error {
 	return nil
 }
 
+// SetReplicationFactor changes the desired replication factor. Unlike
+// `partitions` this may move in either direction — 003.6 constrains only
+// partitions — but it must stay >= 1, and 003.8 additionally bounds it by the
+// target cluster's broker count, which the caller checks because the shard does
+// not know its cluster's shape. Bumps `generation` on a change.
+func (t *KafkaTopic) SetReplicationFactor(n int32) error {
+	if err := t.EnsureMutable(); err != nil {
+		return err
+	}
+	if n < 1 {
+		return errs.InvalidField("replication_factor", "must be >= 1")
+	}
+	if n == t.ReplicationFactor {
+		return nil
+	}
+	t.ReplicationFactor = n
+	t.bumpGeneration()
+	return nil
+}
+
+// SetTopicConfigurationKey writes one key of this shard's `topic_configuration`
+// layer and re-freezes the cluster⊕topic merge from clusterConfig, so the
+// materialized view an agent reconciles matches the new declared state. An empty
+// value removes the key, dropping the shard back to the cluster default.
+//
+// It is the governance write path (003.8) for `topic_configuration.<key>`; a
+// key-at-a-time signature rather than a whole-map replace, because a policy
+// changes one setting and must not clobber the rest. Returns whether anything
+// changed; Rematerialize bumps `generation` when it did.
+func (t *KafkaTopic) SetTopicConfigurationKey(
+	key, value string, clusterConfig map[string]string,
+) (changed bool, err error) {
+	if err := t.EnsureMutable(); err != nil {
+		return false, err
+	}
+	if key == "" {
+		return false, errs.InvalidField("topic_configuration", "key must not be empty")
+	}
+	if t.TopicConfiguration == nil {
+		t.TopicConfiguration = map[string]string{}
+	}
+	current, present := t.TopicConfiguration[key]
+	switch {
+	case value == "" && !present:
+		return false, nil
+	case value == "":
+		delete(t.TopicConfiguration, key)
+	case present && current == value:
+		return false, nil
+	default:
+		t.TopicConfiguration[key] = value
+	}
+	t.Rematerialize(clusterConfig)
+	return true, nil
+}
+
+// EffectiveConfigValue is the value of one configuration key as the shard
+// currently declares it: its own layer first, then the frozen cluster⊕topic
+// merge. It is what an arithmetic governance action reads before computing a
+// delta (003.8), so an INCREASE against a cluster-default key starts from that
+// default rather than from zero.
+func (t *KafkaTopic) EffectiveConfigValue(key string) (string, bool) {
+	if v, ok := t.TopicConfiguration[key]; ok {
+		return v, true
+	}
+	v, ok := t.MaterializedConfiguration[key]
+	return v, ok
+}
+
 // Rematerialize recomputes the frozen config merge from the given (current)
 // cluster configuration and this shard's topic_configuration, and bumps
 // `generation`. Called on a governance-driven config change (deliverable 13),

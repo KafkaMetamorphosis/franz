@@ -219,3 +219,110 @@ CREATE INDEX IF NOT EXISTS indicator_sample_series
     ON indicator_sample (indicator, resource_frn, sample_at DESC, id DESC);
 CREATE INDEX IF NOT EXISTS indicator_sample_sample_at
     ON indicator_sample (sample_at);
+
+-- Indicator registry — the pre-registered signals a Telemetry Agent publishes
+-- samples for and a governance Policy watches (003.14 "Indicators are
+-- pre-registered", 003.8). Registration is an admin action; there is no
+-- auto-creation, so `indicator_sample.indicator` names a row here.
+--
+-- `applies_to` is immutable once registered (003.14). That is enforced in the
+-- repository (IndicatorRepo.Mutate never writes the column) and in the domain
+-- (UpdateIndicatorInput has no applies_to field) rather than by a trigger:
+-- 003.12 keeps behaviour in Go, and a trigger would hide the rule from the code
+-- that has to explain it to the operator.
+--
+-- `health` is NOT a column. It is derived on every read from `last_sample_at`
+-- and `staleness_threshold` (003.14), so it can never go stale itself.
+CREATE TABLE IF NOT EXISTS indicator (
+    id                   uuid        PRIMARY KEY,
+    realm_id             uuid        NOT NULL REFERENCES realm (id),
+    name                 text        NOT NULL,
+    frn                  text        NOT NULL,
+    -- Free-form ("bytes", "count", "duration", "boolean", ...). Franz classifies
+    -- rather than enumerates: an unrecognised unit compares numerically.
+    unit                 text        NOT NULL,
+    applies_to           text        NOT NULL
+                             CHECK (applies_to IN ('ASYNC_CHANNEL', 'KAFKA_TOPIC',
+                                                   'KAFKA_CLUSTER')),
+    -- Operator-authored text ("90d", "12h", "5m"), kept verbatim so a read
+    -- returns what was written; Go parses it.
+    staleness_threshold  text        NOT NULL,
+    source_agents        jsonb       NOT NULL DEFAULT '[]'::jsonb,
+    -- The ingest-maintained projection of the newest sample (003.14). Written by
+    -- the telemetry ingest path; empty / NULL until the first sample lands.
+    current_value        text        NOT NULL DEFAULT '',
+    current_resource_frn text        NOT NULL DEFAULT '',
+    last_sample_at       timestamptz,
+    created_at           timestamptz NOT NULL DEFAULT now(),
+    updated_at           timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (realm_id, name),
+    UNIQUE (frn)
+);
+
+-- Governance policies (003.8). One policy watches one indicator; when the latest
+-- sample crosses `limit`, its `actions` run on every resource `matcher` selects.
+-- `limit` is a reserved word, so the two halves are stored as their own columns.
+CREATE TABLE IF NOT EXISTS policy (
+    id              uuid        PRIMARY KEY,
+    realm_id        uuid        NOT NULL REFERENCES realm (id),
+    name            text        NOT NULL,
+    frn             text        NOT NULL,
+    -- The Indicator name this policy watches. Not a foreign key: the guard that
+    -- keeps it referential is DeleteIndicator refusing while a policy names it
+    -- (003.8), which gives a FAILED_PRECONDITION with an explanation rather than
+    -- a constraint violation.
+    indicator       text        NOT NULL,
+    -- {"entity": "...", "selector": "..."} — 003.8 Matcher.
+    matcher         jsonb       NOT NULL,
+    limit_operator  text        NOT NULL,
+    -- Encoded in the indicator's unit ("150Gi", "3", "90d").
+    limit_value     text        NOT NULL,
+    -- Ordered [{"kind": "...", "args": [...]}, ...] — applied front to back.
+    actions         jsonb       NOT NULL,
+    weight          integer     NOT NULL DEFAULT 0,
+    enabled         boolean     NOT NULL DEFAULT true,
+    last_fired_at   timestamptz,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (realm_id, name),
+    UNIQUE (frn)
+);
+
+-- The evaluation pass's work list: every enabled policy in a realm bound to the
+-- indicator a sample just advanced.
+CREATE INDEX IF NOT EXISTS policy_indicator
+    ON policy (realm_id, indicator);
+
+-- PolicyAction — the append-only audit of every automated change (003.8
+-- "Auditability": "every automated change is a PolicyAction; there is no silent
+-- mutation"). Pruned nightly at 30 days like every other Franz time series
+-- (003.12 / 003.14).
+--
+-- `policy_id` carries NO foreign key and `policy_name` is denormalised beside
+-- it: the record of what a policy did outlives the policy, so a deleted policy's
+-- history stays queryable by the name the operator remembers.
+CREATE TABLE IF NOT EXISTS policy_action (
+    id              uuid        PRIMARY KEY,
+    realm_id        uuid        NOT NULL REFERENCES realm (id),
+    policy_id       uuid        NOT NULL,
+    policy_name     text        NOT NULL,
+    occurred_at     timestamptz NOT NULL,
+    -- The resource the action changed, stored prefix-less like every other FRN.
+    resource_frn    text        NOT NULL,
+    -- The sample that made the policy trigger, verbatim.
+    indicator_value text        NOT NULL,
+    -- {"kind": "...", "args": [...]} — the single action this row records.
+    action          jsonb       NOT NULL,
+    -- Operator-facing outcome: the new field value, a "capped at ..." note, "no
+    -- change", or the reason the action failed. A failure is a logged row, not a
+    -- lost one.
+    result          text        NOT NULL DEFAULT '',
+    received_at     timestamptz NOT NULL DEFAULT now()
+);
+
+-- ListPolicyActions reads one policy's series newest-first with a
+-- (occurred_at, id) cursor.
+CREATE INDEX IF NOT EXISTS policy_action_series
+    ON policy_action (realm_id, policy_name, occurred_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS policy_action_occurred_at
+    ON policy_action (occurred_at);

@@ -89,15 +89,5 @@ func samplesFromProto(in []*franzv1.IndicatorSample) []indicator.Sample {
 	return out
 }
 
-func entityFromProto(e franzv1.Entity) indicator.Entity {
-	switch e {
-	case franzv1.Entity_ENTITY_ASYNC_CHANNEL:
-		return indicator.EntityAsyncChannel
-	case franzv1.Entity_ENTITY_KAFKA_TOPIC:
-		return indicator.EntityKafkaTopic
-	case franzv1.Entity_ENTITY_KAFKA_CLUSTER:
-		return indicator.EntityKafkaCluster
-	default:
-		return "" // domain rejects
-	}
-}
+// entityFromProto and its inverse live in governance.go, which owns the Entity
+// mapping pair; telemetry ingest shares the read half.
