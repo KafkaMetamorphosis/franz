@@ -10,7 +10,7 @@ intent and make it real. Franz never connects to a Kafka broker itself.
 
 ## What's here today
 
-Franz is built one deliverable at a time (`docs/impls_plan/`). Shipped so far:
+Franz is built one deliverable at a time (`docs/impl_plans/`). Shipped so far:
 
 | Area | What works |
 |---|---|
@@ -24,7 +24,7 @@ Franz is built one deliverable at a time (`docs/impls_plan/`). Shipped so far:
 Kafka broker come up in Docker on your machine" — is end-to-end complete.
 
 Async Channel, Access Policy, Placement, Telemetry, Governance, Client and
-Migration are planned (`docs/impls_plan/README.md`).
+Migration are planned (`docs/impl_plans/README.md`).
 
 ## Stack
 
@@ -78,7 +78,7 @@ make gregorsamsa  # Gregor Samsa — reconciles async-channel partitions on loca
 client at `localhost:9092`.
 
 `make gregorsamsa` connects and holds `local-1` in scope, but has **no work**
-until [placement (deliverable 13)](docs/impls_plan/13-placement.md) materialises
+until [placement (deliverable 13)](docs/impl_plans/13-placement.md) materialises
 shard rows — creating an Async Channel does not yet create them. Use
 `make gregorsamsa-e2e` to exercise it end-to-end today.
 
@@ -120,7 +120,7 @@ pkg/gen/go/         generated protobuf Go (do not edit)
 migrations/         SQL schema (idempotent; applied on boot)
 webconsole/         React operator console
 local/              local-dev docker-compose (Postgres + seed + pgAdmin)
-docs/impls_plan/    the deliverable-by-deliverable build plan
+docs/impl_plans/    the deliverable-by-deliverable build plan
 docs/impls_tracker/ per-deliverable decision + verification records
 ```
 

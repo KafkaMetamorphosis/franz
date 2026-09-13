@@ -41,6 +41,38 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Telemetry ingest (`003.14`)** — the two inbound agent streams become real.
+  - `PublishIndicatorSamples` / `StreamIndicatorSamples` now enforce
+    pre-registration: an unknown indicator is `FAILED_PRECONDITION` (no
+    auto-creation), a `resource_entity` that disagrees with the Indicator's
+    `applies_to` and a `value` that does not parse in its `unit` are
+    `INVALID_ARGUMENT`. A batch is **all-or-nothing** — the response carries only
+    a count, so a partial accept could not tell the agent which rows landed.
+  - Ingest maintains each Indicator's `current_value` / `current_resource_frn` /
+    `last_sample_at`, from which `health` is derived (`STALE` past
+    `staleness_threshold`). An **out-of-order** sample is stored as history but
+    does not become current.
+  - **Ingest → eval hook**: a sample that advances the current value calls the
+    governance evaluation entry point synchronously, in-process (`003.14` OQ4
+    resolved in favour of the simple option). An out-of-order sample triggers
+    nothing, and a failing evaluation never fails the ingest.
+  - `indicator_sample.indicator` is now a composite foreign key to
+    `indicator (realm_id, name)`, `ON DELETE CASCADE` — values are encoded per
+    the indicator's `unit`, so the history goes with the registration.
+  - **`ReportConsumerGroups` is implemented**, writing the new append-only
+    `observed_consumer_group` series (30-day nightly prune, like every other
+    Franz time series). `custom` — whether the group departs from the default
+    `<client>.<topic>` name — is derived by Franz on write, not reported by the
+    agent, so two agents cannot disagree about the same group. The current-view
+    and history queries behind `ClientService.ListObservedConsumerGroups` /
+    `ListConsumerGroupObservations` ship with the repository; deliverable 16
+    wires those RPCs.
+  - New categorical unit family (`string` / `enum`), which `005` §2.1 requires
+    for `kafka.topic.state` and `kafka.cluster.controller_id`: any non-empty
+    label parses, and labels compare lexicographically so `EQUAL` / `NOT_EQUAL`
+    mean what an operator expects. An *unrecognised* unit still compares
+    numerically, so a typo'd unit surfaces as an unparseable value.
+
 - **Governance (`003.8`)** — reactive fleet policies. An admin pre-registers an
   **Indicator** (`GovernanceService` Indicator CRUD; `unit`, `applies_to`,
   `staleness_threshold`, `source_agents`, with `health` derived on read from
@@ -100,7 +132,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `WatchPartitionAssignmentsResponse.scope`; new
   `ResourceProviderService.InScopeClusters` port method.
 
-- **Placement & selection** (impls_plan deliverable 13): Franz now decides which
+- **Placement & selection** (impl_plans deliverable 13): Franz now decides which
   Kafka Cluster each async-channel shard lives on, and materialises the shard
   rows (`003.7`, ADR-API-009). New pure domain package
   `core/domain/placement` implements the selection algorithm — candidates
@@ -134,7 +166,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Placement changes are pushed to the in-scope Resource Provider agents through
   the deliverable-12 notifier, so a materialised shard reaches a connected agent
   as a `SET` `PartitionAssignment` without a reconnect.
-- **Gregor Samsa — Resource Provider agent** (impls_plan deliverable 12): the
+- **Gregor Samsa — Resource Provider agent** (impl_plans deliverable 12): the
   second agent-interaction contract and its reference implementation (005 ADR
   Parts 1 + 2). New gRPC `ResourceProviderService` (`agent_resource_provider.proto`,
   no REST gateway): `WatchPartitionAssignments` (server stream — full in-scope
@@ -168,7 +200,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`franz.placement-selector/env=local`), so the whole local loop —
   `make dev` + `make agent` + `make gregorsamsa` — has a cluster in scope with
   no console step.
-- **Async Channel console screens** (impls_plan deliverable 19): the web console
+- **Async Channel console screens** (impl_plans deliverable 19): the web console
   can now manage Async Channels end to end — `/async-channels` list (name + FRN,
   type, channel partitions, labels, state), `/async-channels/register`
   (name, the sole `kafka-topic` type, `channel_partitions`, labels),
@@ -189,7 +221,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `CHANNEL_TYPES` + `channelTypeLabel` / `channelStateLabel`,
   `src/pages/channels/*`. New vitest suites for list / register / edit and a
   Playwright smoke (`e2e/channels.spec.ts`). No proto or backend change.
-- **Async Channel** (impls_plan deliverable 10): the customer-facing `AsyncChannel`
+- **Async Channel** (impl_plans deliverable 10): the customer-facing `AsyncChannel`
   entity (003.4) — abstract, no Kafka config of its own. `CreateAsyncChannel`
   records **only the channel row** and its `channel_partitions` count; the shard
   `kafka_topic` rows are materialised by **placement**, not at create
@@ -203,7 +235,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `pkg/franz/core/domain/{accesspolicy,channel}`, `usecases/channels`,
   `adapters/{out/postgres/channel,in/grpcgateway/asyncchannel}`. `async_channel`
   table extended in `V1__init.sql`. No proto change.
-- **Kafka Topic** (impls_plan deliverable 09): the `KafkaTopic` entity — one
+- **Kafka Topic** (impl_plans deliverable 09): the `KafkaTopic` entity — one
   shard of an Async Channel, tracking reconciliation with the real topic. Franz
   owns every field; the only client mutation is **`SetConsumption`**, which
   drains (`DISABLED` → `traffic_share` 0) or restores a shard and re-normalises
@@ -220,7 +252,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `V1__init.sql` gains `kafka_topic` and a minimal `async_channel` stub
   (extended by deliverable 10). No proto change.
 - **`README.md`** — project overview + local-dev quickstart.
-- **Resource management & agent provisioning schema** (impls_plan deliverable 08):
+- **Resource management & agent provisioning schema** (impl_plans deliverable 08):
   - `Agent.provisioning_labels` — a new `ProvisioningLabelSpec` (`key`,
     `description`, `allowed_values`, `default_value`, `required`) carried on
     `CreateAgent` / `UpdateAgent` (mask `provisioning_labels`) and returned by
@@ -249,7 +281,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
     path from deliverable 07 — `pkg/localkafkaagent/register.go` and the `Register`
     config field are removed; the agent takes `FRANZ_TOKEN` only.
 
-- **local-kafka-docker-agent** (impls_plan deliverable 07): `cmd/localkafkaagent`
+- **local-kafka-docker-agent** (impl_plans deliverable 07): `cmd/localkafkaagent`
   — the first Cluster Provider agent. It registers with Franz, watches
   `WatchClusterAssignments` (reconnect + backoff, debounced into one reconcile),
   renders the `local-docker` recipe (a single `apache/kafka` KRaft container per
@@ -266,7 +298,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `agent` / `agent-e2e`. New deps: `github.com/twmb/franz-go`,
   `github.com/docker/docker`. Local dev: `make agent` uses the seeded dev token
   (see `franz/local/` above) — no console step.
-- **Web console bootstrap** (impls_plan deliverable 06): `webconsole/` — a
+- **Web console bootstrap** (impl_plans deliverable 06): `webconsole/` — a
   Vite + React + TypeScript operator console (separate static build, not
   embedded). App shell ported from the `001-ux` prototype; Login stub; **Agents**
   screens (list, register with one-time token reveal, detail with pause / resume
@@ -281,7 +313,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **`Makefile`** for local development: `make dev` starts Postgres, the control
   plane, and the console together (Ctrl-C stops all); plus `make run`,
   `make console`, `make gen`, `make test`, `make e2e`, `make lint`.
-- **Agent interaction — Cluster Provider** (impls_plan deliverable 05): the
+- **Agent interaction — Cluster Provider** (impl_plans deliverable 05): the
   Franz side of the `004-local-kafka-docker-agent` contract.
   `core/domain/provider` (phase / status / assignment value objects,
   `franz.provisioning/*` label filter); an agent-auth gRPC interceptor
@@ -297,7 +329,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`adapters/out/postgres/provider.go`) with a nightly 30-day prune; and
   `KafkaCluster.provider_status` + `ListClusterProviderEvents` on the console
   API. `pkg/internal/dbtest` serialises the DB integration tests.
-- **Agent registry** (impls_plan deliverable 04): `core/domain/agent` (entity,
+- **Agent registry** (impl_plans deliverable 04): `core/domain/agent` (entity,
   `AgentType` organisational filter, `ACTIVE ↔ PAUSED → DELETED` status machine),
   `core/ports/{in,out}` + `core/usecases/agents`, a hand-written pgx adapter
   (`adapters/out/postgres/agent.go`, type filter pushed to SQL), and the
@@ -306,7 +338,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   (`pkg/shared/token`: `frnat_` + 32 random bytes; only the sha256 is stored);
   `RotateAgentToken` replaces it. New `agent` table with a `token_hash` column.
   Registration is inert — no connection, no work protocol (that is a later ADR).
-- **Kafka Cluster** (impls_plan deliverable 03): the first full
+- **Kafka Cluster** (impl_plans deliverable 03): the first full
   `domain → ports → postgres → grpc-gateway` vertical slice —
   `core/domain/cluster` (entity + `ACTIVE ↔ PAUSED → DELETED` state machine),
   `core/ports/in.KafkaClusterService` / `core/ports/out.ClusterRepository`,
@@ -320,7 +352,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   until deliverable 05.
 - `pkg/shared/fieldmask`: `CanonicalPaths` helper; `update_mask` added to the
   immutable set.
-- **Project scaffolding** (impls_plan deliverable 01): Go module
+- **Project scaffolding** (impl_plans deliverable 01): Go module
   `github.com/KafkaMetamorphosis/franz` rooted at `franz/`; hexagonal package
   skeleton (`cmd/franz`, `pkg/franz/core/{domain,usecases,ports}`,
   `pkg/franz/adapters/{in/grpcgateway,out/postgres}`, `pkg/franz/config`,
@@ -330,7 +362,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `GET /healthz` probe; `koanf` config (`config.yaml` + `FRANZ_` env overrides);
   GitHub Actions CI (`buf lint`/`buf breaking`, `go vet`/`build`/`test`,
   generated-code freshness check).
-- **Domain foundations** (impls_plan deliverable 02): the `003.1` cross-cutting
+- **Domain foundations** (impl_plans deliverable 02): the `003.1` cross-cutting
   primitives every later deliverable reuses —
   the `FRN` (Franz Resource Name) value object (`core/domain/frn`) with a
   `Codec` for the configurable `resource_prefix` (default `frn`; `frn:` / `orn:`
@@ -355,7 +387,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Changed
 
-- **Cluster & agent configuration model** (impls_plan deliverable 11,
+- **Cluster & agent configuration model** (impl_plans deliverable 11,
   **ADR-API-010**, supersedes ADR-API-008):
   - `KafkaCluster.cluster_configuration` stays a `map<string,string>` — the single
     home for a cluster's Kafka config (topic-config defaults + `partitions` /

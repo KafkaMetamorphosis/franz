@@ -44,6 +44,30 @@ with no console step. It installs:
 Re-running the seed refreshes the schema / token / status (`ON CONFLICT DO
 UPDATE`).
 
+### `seed/02-local-cluster.sql`
+
+Registers the **`local-1`** Kafka Cluster, wired to the whole local loop:
+provider = `local-kafka-agent` (seed 01), `franz.placement/env=local` so it's
+in scope for Gregor Samsa (seed 03), bootstrap `localhost:9092` (what the
+`local-docker` recipe advertises).
+
+### `seed/03-gregor-samsa.sql`
+
+Registers **`gregor-samsa`**, the Resource Provider agent, with
+`franz.placement-selector/env=local` — matching seed 02's coordinate so
+`make gregorsamsa` has `local-1` in scope immediately. Also back-fills
+`franz.placement/env=local` onto any other local cluster so one created
+through the console lands in scope too. Fixed public token —
+`frnat_local-dev-gregor-samsa`.
+
+### `seed/04-indicators.sql`
+
+Registers the 13 structural indicators Gregor Samsa's telemetry sweep
+publishes (005 ADR §2.1 — `kafka.topic.*` / `kafka.cluster.*`). Deliverable 15
+made pre-registration real (`PublishIndicatorSamples` now rejects an unknown
+indicator), so without this seed Gregor Samsa's sweep fails every publish
+against a fresh local database.
+
 ## Reset
 
 ```

@@ -2,7 +2,7 @@
 
 The operator console for Feature 1 — register a Cluster Provider agent and stand
 a Kafka cluster up from the browser. Deliverable
-[`06`](../docs/impls_plan/06-web-console-bootstrap.md).
+[`06`](../docs/impl_plans/06-web-console-bootstrap.md).
 
 - **Vite + React + TypeScript**, React Router, TanStack Query.
 - **Separate static build** — the console is not embedded in the Franz binary

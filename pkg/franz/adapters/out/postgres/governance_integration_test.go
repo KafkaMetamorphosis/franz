@@ -481,6 +481,17 @@ func TestIndicatorSampleRepoListAndLatestPerResource(t *testing.T) {
 	r := seededRealm(t, db)
 	ctx := context.Background()
 
+	// indicator_sample.indicator is a foreign key to the registry (003.14 — no
+	// auto-creation), so the series needs its indicator registered first.
+	lag, err := indicator.NewIndicator(r, "lag", indicator.UnitCount,
+		indicator.EntityAsyncChannel, "1h", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := postgres.NewIndicatorRepo(db).Create(ctx, lag); err != nil {
+		t.Fatalf("register indicator: %v", err)
+	}
+
 	base := time.Now().UTC().Truncate(time.Microsecond).Add(-time.Hour)
 	orders := "default:async-channel:orders"
 	invoices := "default:async-channel:invoices"

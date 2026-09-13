@@ -202,6 +202,9 @@ func TestUnitFamily(t *testing.T) {
 		{indicator.Unit("lag"), indicator.FamilyDuration},
 		{indicator.UnitBoolean, indicator.FamilyBoolean},
 		{indicator.Unit("bool"), indicator.FamilyBoolean},
+		{indicator.UnitString, indicator.FamilyString},
+		{indicator.UnitEnum, indicator.FamilyString},
+		{indicator.Unit("STATE"), indicator.FamilyString},
 		{indicator.Unit("widgets-per-fortnight"), indicator.FamilyNumeric},
 	}
 
@@ -227,6 +230,45 @@ func TestCompareRejectsMixedFamilies(t *testing.T) {
 	}
 	if _, err := bytes.Compare(flag); err == nil {
 		t.Fatal("comparing a byte size to a boolean must error")
+	}
+}
+
+// TestCategoricalValues: 005 ADR §2.1 registers `kafka.topic.state` as an enum
+// and `kafka.cluster.controller_id` as a string. Their values are labels, so any
+// non-empty one parses and equality is what a policy asks about — while a
+// numeric unit still refuses a label, so a typo'd unit surfaces rather than
+// silently turning every threshold into a string comparison.
+func TestCategoricalValues(t *testing.T) {
+	provisioned, err := indicator.ParseValue(indicator.UnitEnum, "value", "provisioned")
+	if err != nil {
+		t.Fatalf("an enum label must parse: %v", err)
+	}
+	diverged, err := indicator.ParseValue(indicator.UnitEnum, "value", "diverged")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cmp, err := provisioned.Compare(provisioned); err != nil || cmp != 0 {
+		t.Fatalf("same label compares (%d, %v), want (0, nil)", cmp, err)
+	}
+	if cmp, err := provisioned.Compare(diverged); err != nil || cmp == 0 {
+		t.Fatalf("different labels compare (%d, %v), want non-zero and no error", cmp, err)
+	}
+
+	if _, err := indicator.ParseValue(indicator.UnitString, "value", ""); err == nil {
+		t.Fatal("an empty label must not parse")
+	}
+	if _, err := indicator.ParseValue(indicator.UnitCount, "value", "provisioned"); err == nil {
+		t.Fatal("a label must not parse as a count")
+	}
+
+	// A label and a number are still different families, so a stored limit from
+	// before a unit change cannot be silently compared against a new value.
+	three, err := indicator.ParseValue(indicator.UnitCount, "value", "3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provisioned.Compare(three); err == nil {
+		t.Fatal("comparing a label to a count must error")
 	}
 }
 

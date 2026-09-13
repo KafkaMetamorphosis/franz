@@ -18,7 +18,6 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/adapters/in/grpcgateway"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/adapters/out/postgres"
@@ -31,7 +30,6 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/placement"
 	provideruc "github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/resourceprovider"
-	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/telemetry"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/topics"
 	franzv1 "github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1"
 	"github.com/KafkaMetamorphosis/franz/pkg/internal/dbtest"
@@ -47,7 +45,6 @@ type resourceProviderFixture struct {
 	channels franzv1.AsyncChannelServiceClient
 	topics   franzv1.KafkaTopicServiceClient
 	resource franzv1.ResourceProviderServiceClient
-	tele     franzv1.TelemetryServiceClient
 }
 
 func newResourceProviderFixture(t *testing.T) *resourceProviderFixture {
@@ -67,8 +64,8 @@ func newResourceProviderFixture(t *testing.T) *resourceProviderFixture {
 		t.Fatalf("migrate: %v", err)
 	}
 	for _, tbl := range []string{
-		"indicator_sample", "kafka_topic", "async_channel",
-		"cluster_provider_event", "kafka_cluster", "agent",
+		"indicator_sample", "indicator", "observed_consumer_group", "kafka_topic",
+		"async_channel", "cluster_provider_event", "kafka_cluster", "agent",
 	} {
 		if _, err := db.Pool().Exec(ctx, "DELETE FROM "+tbl); err != nil {
 			t.Fatalf("clean %s: %v", tbl, err)
@@ -86,7 +83,6 @@ func newResourceProviderFixture(t *testing.T) *resourceProviderFixture {
 	topicRepo := postgres.NewTopicRepo(db)
 	channelRepo := postgres.NewChannelRepo(db)
 	eventRepo := postgres.NewProviderEventRepo(db)
-	sampleRepo := postgres.NewIndicatorSampleRepo(db)
 	hub := streamhub.New()
 	codec := frn.MustCodec("frn")
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
@@ -99,7 +95,6 @@ func newResourceProviderFixture(t *testing.T) *resourceProviderFixture {
 	topicSvc := topics.NewService(topicRepo, clusterRepo, notifier)
 	providerSvc := provideruc.NewService(clusterRepo, eventRepo)
 	resourceSvc := resourceprovider.NewService(clusterRepo, topicRepo)
-	telemetrySvc := telemetry.NewService(sampleRepo)
 
 	srv := grpcgateway.New(0, 0, log,
 		grpcgateway.WithAuthenticator(grpcgateway.NewAuthenticator(realmRepo)),
@@ -118,7 +113,6 @@ func newResourceProviderFixture(t *testing.T) *resourceProviderFixture {
 		t.Fatal(err)
 	}
 	grpcgateway.RegisterResourceProviderService(srv, resourceSvc, hub, codec)
-	grpcgateway.RegisterTelemetryService(srv, telemetrySvc)
 
 	lis := bufconn.Listen(1 << 20)
 	go func() { _ = srv.Grpc().Serve(lis) }()
@@ -140,7 +134,6 @@ func newResourceProviderFixture(t *testing.T) *resourceProviderFixture {
 		channels: franzv1.NewAsyncChannelServiceClient(conn),
 		topics:   franzv1.NewKafkaTopicServiceClient(conn),
 		resource: franzv1.NewResourceProviderServiceClient(conn),
-		tele:     franzv1.NewTelemetryServiceClient(conn),
 	}
 }
 
@@ -409,92 +402,6 @@ func TestResourceProviderE2E(t *testing.T) {
 	}
 	if status.Code(err) != codes.Unauthenticated {
 		t.Fatalf("rotated token = %v, want UNAUTHENTICATED", err)
-	}
-}
-
-// The telemetry ingest path is agent-authenticated and appends to the 30-day
-// series — the store the 005 Part 2 sweep feeds.
-func TestTelemetryIngestE2E(t *testing.T) {
-	f := newResourceProviderFixture(t)
-	ctx := context.Background()
-
-	created, err := f.agents.CreateAgent(ctx, franzv1.CreateAgentRequest_builder{
-		Name: proto.String("gregor-samsa-prod"),
-		Type: franzv1.AgentType_AGENT_TYPE_RESOURCE_PROVIDER.Enum(),
-	}.Build())
-	if err != nil {
-		t.Fatal(err)
-	}
-	authCtx := metadata.AppendToOutgoingContext(ctx, "authorization", "Bearer "+created.GetToken())
-
-	samples := []*franzv1.IndicatorSample{
-		franzv1.IndicatorSample_builder{
-			Indicator:      proto.String("kafka.cluster.broker_count"),
-			ResourceFrn:    proto.String("frn:default:kafka-cluster:east-1"),
-			ResourceEntity: franzv1.Entity_ENTITY_KAFKA_CLUSTER.Enum(),
-			Value:          proto.String("3"),
-			SampleAt:       timestamppb.New(time.Now()),
-		}.Build(),
-		franzv1.IndicatorSample_builder{
-			Indicator:      proto.String("kafka.topic.state"),
-			ResourceFrn:    proto.String("frn:default:kafka-topic:billing-events-0"),
-			ResourceEntity: franzv1.Entity_ENTITY_KAFKA_TOPIC.Enum(),
-			Value:          proto.String("provisioned"),
-			SampleAt:       timestamppb.New(time.Now()),
-		}.Build(),
-	}
-
-	resp, err := f.tele.PublishIndicatorSamples(authCtx, franzv1.PublishIndicatorSamplesRequest_builder{
-		Agent: proto.String("gregor-samsa-prod"), Samples: samples,
-	}.Build())
-	if err != nil {
-		t.Fatalf("PublishIndicatorSamples: %v", err)
-	}
-	if resp.GetAccepted() != 2 {
-		t.Fatalf("accepted = %d, want 2", resp.GetAccepted())
-	}
-
-	// The client-streaming form accepts batch after batch and totals on close.
-	stream, err := f.tele.StreamIndicatorSamples(authCtx)
-	if err != nil {
-		t.Fatalf("StreamIndicatorSamples: %v", err)
-	}
-	for range 2 {
-		if err := stream.Send(franzv1.StreamIndicatorSamplesRequest_builder{
-			Agent: proto.String("gregor-samsa-prod"), Samples: samples,
-		}.Build()); err != nil {
-			t.Fatalf("stream.Send: %v", err)
-		}
-	}
-	streamResp, err := stream.CloseAndRecv()
-	if err != nil {
-		t.Fatalf("stream.CloseAndRecv: %v", err)
-	}
-	if streamResp.GetAccepted() != 4 {
-		t.Fatalf("stream accepted = %d, want 4", streamResp.GetAccepted())
-	}
-
-	var total int
-	var reportingAgent string
-	if err := f.db.Pool().QueryRow(ctx,
-		`SELECT count(*), max(reporting_agent) FROM indicator_sample
-		 WHERE indicator='kafka.cluster.broker_count'`).Scan(&total, &reportingAgent); err != nil {
-		t.Fatal(err)
-	}
-	if total != 3 {
-		t.Fatalf("stored broker_count samples = %d, want 3", total)
-	}
-	// The authenticated identity wins over whatever the request claimed.
-	if reportingAgent != "gregor-samsa-prod" {
-		t.Fatalf("reporting_agent = %q", reportingAgent)
-	}
-
-	// TelemetryService is agent-only: an unauthenticated call is rejected.
-	_, err = f.tele.PublishIndicatorSamples(ctx, franzv1.PublishIndicatorSamplesRequest_builder{
-		Samples: samples,
-	}.Build())
-	if status.Code(err) != codes.Unauthenticated {
-		t.Fatalf("missing token = %v, want UNAUTHENTICATED", err)
 	}
 }
 

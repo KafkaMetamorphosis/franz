@@ -9,14 +9,15 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/consumergroup"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/indicator"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/ports/in"
 	franzv1 "github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1"
 )
 
-// telemetryHandler implements the agent-facing TelemetryService sample ingest
-// (003.14). gRPC only — no REST gateway. ReportConsumerGroups lands with
-// deliverable 14 and stays Unimplemented here.
+// telemetryHandler implements the agent-facing TelemetryService — both inbound
+// streams of 003.14. gRPC only, no REST gateway: the two reads over what it
+// writes live on GovernanceService and ClientService.
 type telemetryHandler struct {
 	franzv1.UnimplementedTelemetryServiceServer
 	svc in.TelemetryIngestService
@@ -64,6 +65,46 @@ func (h *telemetryHandler) StreamIndicatorSamples(
 		}
 		total += accepted
 	}
+}
+
+// ReportConsumerGroups appends a batch of consumer-group sightings. Unlike a
+// sample batch it triggers no governance evaluation — 003.14 keeps these as
+// read-only context.
+func (h *telemetryHandler) ReportConsumerGroups(
+	ctx context.Context, req *franzv1.ReportConsumerGroupsRequest,
+) (*franzv1.ReportConsumerGroupsResponse, error) {
+	accepted, err := h.svc.IngestConsumerGroups(ctx, observationsFromProto(req.GetObservations()))
+	if err != nil {
+		return nil, ToError(err)
+	}
+	return franzv1.ReportConsumerGroupsResponse_builder{
+		Accepted: proto.Int32(int32(accepted)),
+	}.Build(), nil
+}
+
+// observationsFromProto maps the wire batch onto the domain. `custom` is absent
+// from the wire on purpose: the agent reports the name it saw and Franz decides
+// whether that name follows the `<client>.<topic>` convention, so two agents
+// cannot disagree about the same group.
+func observationsFromProto(in []*franzv1.ConsumerGroupObservation) []consumergroup.Observation {
+	out := make([]consumergroup.Observation, 0, len(in))
+	for _, o := range in {
+		// An unset observed_at stays the zero time so the service stamps its own
+		// clock; AsTime() on a nil timestamp would yield the Unix epoch instead.
+		var observedAt time.Time
+		if ts := o.GetObservedAt(); ts != nil {
+			observedAt = ts.AsTime()
+		}
+		out = append(out, consumergroup.Observation{
+			Group:        o.GetGroup(),
+			ClientFRN:    o.GetClientFrn(),
+			Owner:        o.GetOwner(),
+			AsyncChannel: o.GetAsyncChannel(),
+			KafkaTopic:   o.GetKafkaTopic(),
+			ObservedAt:   observedAt,
+		})
+	}
+	return out
 }
 
 // samplesFromProto maps the wire batch onto the domain. `agent` on the request

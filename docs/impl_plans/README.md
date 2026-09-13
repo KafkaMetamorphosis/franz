@@ -12,6 +12,28 @@ Spec references (`003-franz/003.x`, `002-monorepo-structure`, `001-ux`,
 **`KafkaMetamorphosis/docs`** repo. `franz/api/franz/v1/*.proto` is authoritative
 for message/RPC shapes.
 
+## Conventions for every new deliverable
+
+Two things go missing if they aren't scoped up front, because nothing forces
+them to exist later — 14 and 15 both shipped without either, and the gap
+wasn't caught until someone asked "can I see this in the UI?" (see
+[20](./20-governance-ui.md)'s Notes):
+
+1. **Console UI.** If the deliverable adds anything an operator would
+   otherwise only reach through a raw gRPC/REST call, its task list either
+   builds the screens or explicitly names the follow-up deliverable that will
+   (the way 19 and 20 do for 10 and 14/15). A backend-only deliverable with no
+   UI plan at all — not even a forward reference — is a planning gap, not a
+   deferral.
+2. **A local seed.** If the deliverable's feature needs data to exist before
+   it does anything visible (a registered indicator, a labeled cluster, a
+   linked agent), its task list adds or extends a `local/seed/*.sql` file so
+   `make dev` demonstrates the feature with no hand-authored API calls first.
+   Enforcement gaps count too — deliverable 15 made indicator pre-registration
+   real and broke Gregor Samsa's publish path until `04-indicators.sql`
+   backfilled it; a deliverable that *tightens* a precondition needs the seed
+   at least as much as one that adds a new resource.
+
 ## Feature 1 — Local Kafka via a Docker Cluster Provider agent
 
 Register a `CLUSTER_PROVIDER` agent in the console; register a Kafka Cluster
@@ -45,11 +67,12 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [12](./12-gregor-samsa.md) | Gregor Samsa (Resource Provider agent) | 03 · 04 · 05 · 09 · 10 · 11 | ✅ |
 | [13](./13-placement.md) | Placement & selection | 03 · 10 · 11 · 12 | ✅ |
 | [14](./14-governance.md) | Governance (Indicator registry + non-placement actions) | 02 · 03 · 09 · 10 | ✅ |
-| [15](./15-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ⬜ |
+| [15](./15-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ✅ |
 | [16](./16-client.md) | Client | 02 · 15 | ⬜ |
 | [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ⬜ |
 | [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ⛔ |
 | [19](./19-async-channel-ui.md) | Async Channel UI (console screens for 10) | 06 · 08 · 10 · 11 | ✅ |
+| [20](./20-governance-ui.md) | Governance UI (console screens for 14 · 15) | 06 · 08 · 14 · 15 | ⬜ |
 
 ## Decisions already locked (`DECISIONS.md` ADR-API-005)
 
@@ -89,6 +112,29 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-13 · **plan** · inserted deliverable **20 — Governance UI**, scoping
+  the console screens 14 (Indicator registry, Policy engine) and 15 (telemetry
+  ingest) never got — raised while answering "is it possible to see indicators
+  in the UI?" (no). Also added `local/seed/04-indicators.sql`, registering the
+  13 structural indicators Gregor Samsa publishes (005 ADR §2.1), since 15's
+  pre-registration enforcement means Gregor Samsa's sweep now fails every
+  publish against a fresh local database without it.
+- 2026-09-13 · **15** Telemetry ingest · the two inbound agent streams become
+  real: `PublishIndicatorSamples` / `StreamIndicatorSamples` now enforce
+  pre-registration (`FAILED_PRECONDITION` on an unknown indicator, no
+  auto-creation), `resource_entity` / `value`-unit validation, atomic batches
+  (all-or-nothing — the response carries only a count), current-value /
+  `last_sample_at` / derived `health` maintenance, and the synchronous
+  ingest → `GovernanceEvaluator.Evaluate` hook (an out-of-order sample stores
+  but triggers nothing, a failing evaluation never fails ingest —
+  `003.14` OQ4 resolved for the simple option). `ReportConsumerGroups`
+  implemented against a new `observed_consumer_group` append table (30-day
+  prune); `custom` is derived by Franz from the `<client>.<topic>` convention,
+  never accepted from the wire. New categorical unit family (`string`/`enum`)
+  for `005` §2.1's `kafka.topic.state` / `...controller_id`. The
+  `ListObservedConsumerGroups` / `ListConsumerGroupObservations` **handlers**
+  wait on deliverable 16 (`ClientService`); their repository methods ship
+  here. codex out of quota → claude (architect agent) implemented it.
 - 2026-09-10 · **14** Governance · Indicator registry (`GovernanceService`
   Indicator CRUD, `health` derived / `applies_to` immutable) + Policy engine:
   `core/domain/governance` (Policy / whitelist matrix / per-action caps —

@@ -190,12 +190,11 @@ CREATE INDEX IF NOT EXISTS kafka_topic_cluster
     ON kafka_topic (kafka_cluster_id) WHERE kafka_cluster_id IS NOT NULL;
 
 -- Indicator samples — the append-only 30-day time series every telemetry
--- producer feeds (003.14). This is the minimal ingest table deliverable 12 needs
--- for Gregor Samsa's structural telemetry (005 ADR Part 2); deliverable 14
--- (telemetry ingest) adopts it and adds the `indicator` registry that makes
--- `indicator` a foreign key and pre-registration enforceable. Until then any
--- indicator name is accepted. Pruned nightly at 30 days, like
--- cluster_provider_event.
+-- producer feeds (003.14). Deliverable 12 created it for Gregor Samsa's
+-- structural telemetry (005 ADR Part 2); deliverable 15 makes `indicator` a
+-- foreign key to the registry below, which is what makes 003.14's
+-- pre-registration rule ("no auto-creation") enforceable in the store and not
+-- only in the service. Pruned nightly at 30 days, like cluster_provider_event.
 CREATE TABLE IF NOT EXISTS indicator_sample (
     id              uuid        PRIMARY KEY,
     realm_id        uuid        NOT NULL REFERENCES realm (id),
@@ -258,6 +257,85 @@ CREATE TABLE IF NOT EXISTS indicator (
     UNIQUE (realm_id, name),
     UNIQUE (frn)
 );
+
+-- 003.14 "Indicators are pre-registered": a sample may only name a registered
+-- indicator. The service rejects an unknown name with FAILED_PRECONDITION before
+-- it ever reaches Postgres; this composite foreign key is the backstop, so no
+-- write path — a future bulk import, a repair script — can leave a sample whose
+-- unit nothing can interpret.
+--
+-- It is added by ALTER rather than declared inline because indicator_sample is
+-- created above, ahead of the registry it now points at, and the file is applied
+-- top to bottom on every boot. The DO block makes that idempotent and clears any
+-- orphan rows a pre-15 database accumulated while the name was free-form.
+--
+-- ON DELETE CASCADE: the values are encoded per the indicator's `unit`, so the
+-- history is uninterpretable once the registration is gone. The alternative,
+-- RESTRICT, would make DeleteIndicator fail for every indicator that has ever
+-- been sampled — which is all of them — with a constraint violation instead of
+-- 003.8's explained FAILED_PRECONDITION.
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'indicator_sample_indicator_fk'
+    ) THEN
+        DELETE FROM indicator_sample s
+        WHERE NOT EXISTS (
+            SELECT 1 FROM indicator i
+            WHERE i.realm_id = s.realm_id AND i.name = s.indicator
+        );
+        ALTER TABLE indicator_sample
+            ADD CONSTRAINT indicator_sample_indicator_fk
+            FOREIGN KEY (realm_id, indicator)
+            REFERENCES indicator (realm_id, name)
+            ON DELETE CASCADE;
+    END IF;
+END
+$$;
+
+-- Observed consumer groups — the second inbound agent stream (003.14
+-- "Consumer-group observations"), append-only and pruned nightly at 30 days.
+-- Written by TelemetryService.ReportConsumerGroups; read by ClientService's
+-- ListObservedConsumerGroups (the current view: one row per (group, topic), the
+-- latest sighting) and ListConsumerGroupObservations (the raw sightings), which
+-- deliverable 16 wires.
+--
+-- 003.14 sketches `kafka_topic_id` / `async_channel_id` foreign keys. They are
+-- text here for the same reason indicator_sample.resource_frn is: the agent
+-- reports what it saw on the substrate, including groups on topics Franz does
+-- not manage, and an observation Franz cannot resolve is still evidence worth
+-- keeping. `client_frn` is likewise unconstrained — the Client entity itself
+-- lands with deliverable 16.
+CREATE TABLE IF NOT EXISTS observed_consumer_group (
+    id                uuid        PRIMARY KEY,
+    realm_id          uuid        NOT NULL REFERENCES realm (id),
+    -- `group` is a reserved word; the column carries the suffix, the domain does
+    -- not.
+    group_name        text        NOT NULL,
+    -- Best-effort attribution (003.10): empty when the agent could not resolve
+    -- the group to a client.
+    client_frn        text        NOT NULL DEFAULT '',
+    owner             text        NOT NULL DEFAULT '',
+    async_channel     text        NOT NULL DEFAULT '',
+    kafka_topic       text        NOT NULL DEFAULT '',
+    -- Derived on write: false only when the name is exactly the default
+    -- `<client>.<topic>` form (003.14). Stored rather than recomputed on read so
+    -- the current view answers from the index.
+    custom            boolean     NOT NULL,
+    reported_by_agent text        NOT NULL,
+    observed_at       timestamptz NOT NULL,
+    received_at       timestamptz NOT NULL DEFAULT now()
+);
+
+-- The current view picks the newest sighting per (group, topic) and pages by
+-- (group_name, kafka_topic).
+CREATE INDEX IF NOT EXISTS observed_consumer_group_current
+    ON observed_consumer_group (realm_id, group_name, kafka_topic, observed_at DESC, id DESC);
+-- Both reads are scoped to one client.
+CREATE INDEX IF NOT EXISTS observed_consumer_group_client
+    ON observed_consumer_group (realm_id, client_frn, observed_at DESC, id DESC);
+CREATE INDEX IF NOT EXISTS observed_consumer_group_observed_at
+    ON observed_consumer_group (observed_at);
 
 -- Governance policies (003.8). One policy watches one indicator; when the latest
 -- sample crosses `limit`, its `actions` run on every resource `matcher` selects.
