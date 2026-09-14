@@ -33,7 +33,10 @@ test("register an Indicator → register a Policy → dry-run → not applied", 
   await page.getByRole("button", { name: "Register Indicator" }).click();
 
   await expect(page.getByRole("heading", { name: INDICATOR })).toBeVisible();
-  await expect(page.getByTestId("indicator-health")).toContainText("No samples yet");
+  // A never-sampled indicator's health is STALE, not "unspecified" — the
+  // server derives health from last_sample_at, and no sample trivially counts
+  // as beyond the staleness threshold (governance/indicator.go).
+  await expect(page.getByTestId("indicator-health")).toContainText("Stale");
 
   // --- register a policy against it ---
   await nav.getByRole("link", { name: "Policies" }).click();
