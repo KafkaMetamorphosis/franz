@@ -16,6 +16,13 @@ export type AgentType = Schemas["v1AgentType"];
 export type AsyncChannel = Schemas["v1AsyncChannel"];
 export type ChannelType = Schemas["v1ChannelType"];
 export type ChannelState = Schemas["v1ChannelState"];
+export type Indicator = Schemas["v1Indicator"];
+export type IndicatorSampleView = Schemas["v1IndicatorSampleView"];
+export type Policy = Schemas["v1Policy"];
+export type PolicyAction = Schemas["v1PolicyAction"];
+export type Action = Schemas["v1Action"];
+export type Matcher = Schemas["v1Matcher"];
+export type Limit = Schemas["v1Limit"];
 
 // The gateway parses `update_mask` with protojson semantics: comma-separated
 // lowerCamelCase paths (snake_case is rejected). Callers pass the body keys they
@@ -278,4 +285,147 @@ export function useChannelLifecycle(name: string) {
       onSuccess: invalidate,
     }),
   };
+}
+
+// --- Governance: Indicators --------------------------------------------------
+
+export function useIndicators() {
+  return useQuery({
+    queryKey: ["indicators"],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/governance/indicators", { params: { query: {} } })),
+  });
+}
+
+export function useIndicator(name: string) {
+  return useQuery({
+    queryKey: ["indicator", name],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/governance/indicators/{name}", { params: { path: { name } } })),
+  });
+}
+
+// No resourceFrn filter: the detail page's "recent samples" table shows the
+// indicator's most recent activity across every resource it applies to.
+export function useIndicatorSamples(indicator: string) {
+  return useQuery({
+    queryKey: ["indicator-samples", indicator],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/governance/indicators/{indicator}/samples", {
+          params: { path: { indicator }, query: {} },
+        }),
+      ),
+    enabled: !!indicator,
+  });
+}
+
+export function useCreateIndicator() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Schemas["v1CreateIndicatorRequest"]) =>
+      unwrap(await api.POST("/v1/governance/indicators", { body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["indicators"] }),
+  });
+}
+
+// UpdateIndicatorBody is the PATCH payload — unit / staleness_threshold /
+// source_agents only. `applies_to` is immutable (003.14).
+export type UpdateIndicatorBody = Schemas["GovernanceServiceUpdateIndicatorBody"];
+
+export function useUpdateIndicator(name: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdateIndicatorBody) =>
+      unwrap(await api.PATCH("/v1/governance/indicators/{name}", { params: { path: { name } }, body })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["indicator", name] });
+      qc.invalidateQueries({ queryKey: ["indicators"] });
+    },
+  });
+}
+
+export function useDeleteIndicator() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) =>
+      unwrap(await api.DELETE("/v1/governance/indicators/{name}", { params: { path: { name } } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["indicators"] }),
+  });
+}
+
+// --- Governance: Policies ----------------------------------------------------
+
+export function usePolicies() {
+  return useQuery({
+    queryKey: ["policies"],
+    queryFn: async () => unwrap(await api.GET("/v1/governance/policies", { params: { query: {} } })),
+  });
+}
+
+export function usePolicy(name: string) {
+  return useQuery({
+    queryKey: ["policy", name],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/governance/policies/{name}", { params: { path: { name } } })),
+  });
+}
+
+export function usePolicyActions(name: string) {
+  return useQuery({
+    queryKey: ["policy-actions", name],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/governance/policies/{name}/actions", {
+          params: { path: { name }, query: {} },
+        }),
+      ),
+    enabled: !!name,
+  });
+}
+
+export function useCreatePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Schemas["v1CreatePolicyRequest"]) =>
+      unwrap(await api.POST("/v1/governance/policies", { body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["policies"] }),
+  });
+}
+
+// UpdatePolicyBody is the PATCH payload — matcher / limit / actions / weight /
+// enabled. `indicator` is immutable: changing it would silently reinterpret an
+// existing Limit's value against a different unit.
+export type UpdatePolicyBody = Schemas["GovernanceServiceUpdatePolicyBody"];
+
+export function useUpdatePolicy(name: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdatePolicyBody) =>
+      unwrap(await api.PATCH("/v1/governance/policies/{name}", { params: { path: { name } }, body })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["policy", name] });
+      qc.invalidateQueries({ queryKey: ["policies"] });
+    },
+  });
+}
+
+export function useDeletePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) =>
+      unwrap(await api.DELETE("/v1/governance/policies/{name}", { params: { path: { name } } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["policies"] }),
+  });
+}
+
+// DryRunPolicy evaluates a definition (matcher/limit/actions/indicator) against
+// the latest real sample per matched resource — no resourceFrn/hypothetical
+// value input on the wire, and no mutation. Not tied to a query key: it is a
+// mutation-shaped read, invoked on demand from a button.
+export function useDryRunPolicy() {
+  return useMutation({
+    mutationFn: async (body: Schemas["v1DryRunPolicyRequest"]) =>
+      unwrap(await api.POST("/v1/governance/policies:dryRun", { body })),
+  });
 }

@@ -45,11 +45,14 @@ export function Shell({ children }: { children: ReactNode }) {
               Clients — coming with the feature
             </span>
           </details>
-          <details className="nav-group">
+          <details className="nav-group" open>
             <summary>Governance</summary>
-            <span className="nav-link" aria-disabled="true" style={{ color: "#9aa4ad" }}>
-              Coming with the feature
-            </span>
+            <NavLink className="nav-link" to="/governance/indicators">
+              Indicators
+            </NavLink>
+            <NavLink className="nav-link" to="/governance/policies">
+              Policies
+            </NavLink>
           </details>
           <details className="nav-group" open>
             <summary>Kafka</summary>

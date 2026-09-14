@@ -15,6 +15,14 @@ import { ChannelList } from "./pages/channels/ChannelList";
 import { ChannelRegister } from "./pages/channels/ChannelRegister";
 import { ChannelDetail } from "./pages/channels/ChannelDetail";
 import { ChannelEdit } from "./pages/channels/ChannelEdit";
+import { IndicatorList } from "./pages/governance/IndicatorList";
+import { IndicatorRegister } from "./pages/governance/IndicatorRegister";
+import { IndicatorDetail } from "./pages/governance/IndicatorDetail";
+import { IndicatorEdit } from "./pages/governance/IndicatorEdit";
+import { PolicyList } from "./pages/governance/PolicyList";
+import { PolicyRegister } from "./pages/governance/PolicyRegister";
+import { PolicyDetail } from "./pages/governance/PolicyDetail";
+import { PolicyEdit } from "./pages/governance/PolicyEdit";
 
 export function App() {
   const { session } = useAuth();
@@ -44,6 +52,14 @@ export function App() {
         <Route path="/async-channels/register" element={<ChannelRegister />} />
         <Route path="/async-channels/:name" element={<ChannelDetail />} />
         <Route path="/async-channels/:name/edit" element={<ChannelEdit />} />
+        <Route path="/governance/indicators" element={<IndicatorList />} />
+        <Route path="/governance/indicators/register" element={<IndicatorRegister />} />
+        <Route path="/governance/indicators/:name" element={<IndicatorDetail />} />
+        <Route path="/governance/indicators/:name/edit" element={<IndicatorEdit />} />
+        <Route path="/governance/policies" element={<PolicyList />} />
+        <Route path="/governance/policies/register" element={<PolicyRegister />} />
+        <Route path="/governance/policies/:name" element={<PolicyDetail />} />
+        <Route path="/governance/policies/:name/edit" element={<PolicyEdit />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

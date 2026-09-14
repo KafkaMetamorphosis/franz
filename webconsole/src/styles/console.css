@@ -88,3 +88,10 @@
   background: #fdf7ec;
   color: #6b4c12;
 }
+
+/* Governance UI (deliverable 20) — a Policy's repeatable actions list. */
+.action-editor { display: flex; flex-direction: column; gap: 10px; }
+.action-row { padding: 10px; border: 1px solid #d5dbdb; border-radius: var(--radius); background: #f7f8f8; }
+.action-row-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.action-row-fields select, .action-row-fields input { min-width: 0; flex: 1 1 140px; border: 1px solid #89949c; border-radius: var(--radius); padding: 8px 10px; background: #fff; color: var(--text); font: inherit; }
+.field-error { margin: 8px 0 0; padding-left: 18px; color: #7a1c0a; font-size: 12px; }

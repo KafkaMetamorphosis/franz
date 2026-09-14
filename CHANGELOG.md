@@ -46,6 +46,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Governance UI** — console screens for the Indicator registry and Policy
+  engine (`003.8`/`003.14`), which shipped API-only in deliverables 14/15:
+  `/governance/indicators` and `/governance/policies`, each with list /
+  register / detail / edit pages. A shared `ActionEditor` component renders a
+  Policy's repeatable actions with a kind-dependent arg shape (including a
+  real `<select>` of `ACTIVE`/`PAUSED`/`DELETED` for `SET_STATUS` — not free
+  text, since the wire value is the plain state name), an optional
+  `max=`/`min=` cap on the two arithmetic kinds, and inline whitelist-
+  violation rendering on the offending action row. `PolicyDetail` adds a
+  Dry-run panel (evaluates the policy's own saved definition against the
+  latest real sample per matched resource — no mutation) and the
+  `PolicyAction` audit trail. Pure console work — no backend or proto change.
+
 - **Migration & data movement (`003.13`)** — the staged flow that moves a
   shard's serving position from one cluster to another, and the last blocker
   in the plan. It reuses three primitives that already existed rather than
