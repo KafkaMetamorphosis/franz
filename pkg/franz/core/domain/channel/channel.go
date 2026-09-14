@@ -108,12 +108,29 @@ func (c *AsyncChannel) EnsureMutable() error {
 	return nil
 }
 
-// SetLabels replaces the label map (the only field UpdateAsyncChannel may mask).
+// SetLabels replaces the label map.
 func (c *AsyncChannel) SetLabels(labels map[string]string) error {
 	if err := c.EnsureMutable(); err != nil {
 		return err
 	}
 	c.Labels = nonNil(labels)
+	return nil
+}
+
+// SetChannelPartitions raises the shard count (003.13 OQ4, resolved: a
+// re-shard only adds shards — never redistributes existing keys, so decrease
+// is not offered). Placement (13) materialises the new indices; migration
+// (18) is what would ever move an already-placed one, which increasing this
+// number never does.
+func (c *AsyncChannel) SetChannelPartitions(n int32) error {
+	if err := c.EnsureMutable(); err != nil {
+		return err
+	}
+	if n <= c.ChannelPartitions {
+		return errs.InvalidField("channel_partitions",
+			fmt.Sprintf("may only increase (currently %d)", c.ChannelPartitions))
+	}
+	c.ChannelPartitions = n
 	return nil
 }
 

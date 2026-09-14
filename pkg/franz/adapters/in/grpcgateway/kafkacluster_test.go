@@ -38,7 +38,7 @@ func (f *fakeClusterSvc) Update(_ context.Context, i in.UpdateClusterInput) (*cl
 	f.updated = i
 	return f.ret, f.err
 }
-func (f *fakeClusterSvc) Delete(context.Context, string) error { return f.err }
+func (f *fakeClusterSvc) Delete(context.Context, string, bool) error { return f.err }
 func (f *fakeClusterSvc) Pause(context.Context, string) (*cluster.Cluster, error) {
 	return f.ret, f.err
 }

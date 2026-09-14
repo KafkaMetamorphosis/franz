@@ -21,6 +21,9 @@ import (
 func cleanupTopics(t *testing.T, db *postgres.DB) {
 	t.Helper()
 	for _, stmt := range []string{
+		// shard_migration FKs into kafka_topic (18) — clear it first, or a
+		// leftover row from a migration test blocks every delete below.
+		`DELETE FROM shard_migration`,
 		`DELETE FROM kafka_topic`,
 		`DELETE FROM async_channel`,
 		`DELETE FROM cluster_provider_event`,
@@ -227,8 +230,8 @@ func TestTopicGuardBlocksClusterDelete(t *testing.T) {
 
 	// DeleteKafkaCluster refuses while a topic lives on it (003.3 done-when)
 	var _ out.ClusterTopicGuard = topicRepo
-	svc := clusters.NewService(clusterRepo, topicRepo, postgres.NewProviderEventRepo(db), streamhub.New(), nil, nil)
-	if err := svc.Delete(ctx, "east-1"); errs.KindOf(err) != errs.FailedPrecondition {
+	svc := clusters.NewService(clusterRepo, topicRepo, postgres.NewProviderEventRepo(db), streamhub.New(), nil, nil, nil)
+	if err := svc.Delete(ctx, "east-1", false); errs.KindOf(err) != errs.FailedPrecondition {
 		t.Fatalf("Delete with live topic → %v, want FAILED_PRECONDITION", err)
 	}
 
@@ -238,7 +241,7 @@ func TestTopicGuardBlocksClusterDelete(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := svc.Delete(ctx, "east-1"); err != nil {
+	if err := svc.Delete(ctx, "east-1", false); err != nil {
 		t.Fatalf("Delete after drain: %v", err)
 	}
 }

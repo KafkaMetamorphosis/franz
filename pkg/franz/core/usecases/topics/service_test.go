@@ -31,6 +31,17 @@ func (f *fakeTopicRepo) Get(_ context.Context, _ uuid.UUID, name string) (*topic
 	}
 	return nil, errs.NotFoundf("kafka topic not found")
 }
+func (f *fakeTopicRepo) GetByID(_ context.Context, _ uuid.UUID, id uuid.UUID) (*topic.KafkaTopic, error) {
+	if f.getErr != nil {
+		return nil, f.getErr
+	}
+	for _, s := range f.shards {
+		if s.ID == id {
+			return s, nil
+		}
+	}
+	return nil, errs.NotFoundf("kafka topic not found")
+}
 func (f *fakeTopicRepo) List(context.Context, out.TopicQuery) (out.TopicPage, error) {
 	return out.TopicPage{}, nil
 }

@@ -306,18 +306,18 @@ func GovernableChannelState(s string) (channel.State, bool) {
 // until then a policy carrying one is refused at write (FAILED_PRECONDITION)
 // rather than accepted and silently ignored at evaluation time — an accepted
 // policy that never acts is the worse failure.
+//
+// Deliverable 18 (the migration flow, 003.13) closed most of this: writing
+// `franz.affinity/*` / `franz.antiaffinity/*` / `franz.taint` now genuinely
+// re-places or drains through channels.Service.Update / clusters.Service.Update,
+// and an INCREASE_FIELD_BY on channel_partitions genuinely re-shards. Only a
+// DECREASE on channel_partitions remains deferred — shrinking needs the removed
+// shards drained and retired on the re-shard's behalf, which 18 does not drive.
 func deferredAction(entity indicator.Entity, field string, a Action) error {
-	// Placement / re-shard actions need the migration flow (003.13, deliverables
-	// 16 and 18): moving a shard, re-shaping a channel, or draining a cluster.
-	if entity == indicator.EntityAsyncChannel && a.Target() == FieldChannelPartitions {
+	if entity == indicator.EntityAsyncChannel && a.Target() == FieldChannelPartitions &&
+		a.Kind == ActionDecreaseFieldBy {
 		return errs.Preconditionf(
-			"%s: changing channel_partitions is a staged re-shard and needs the migration flow (003.13)", field)
-	}
-	if (a.Kind == ActionAddLabel || a.Kind == ActionRemoveLabel) &&
-		isWhitelistedReservedLabel(a.Target()) {
-		return errs.Preconditionf(
-			"%s: writing the placement label %s triggers re-placement / migration and needs the migration flow (003.13)",
-			field, a.Target())
+			"%s: shrinking channel_partitions needs the removed shards drained first, which the migration flow does not yet drive on a re-shard's behalf (003.13)", field)
 	}
 	// A Kafka Topic has no label map — neither kafka.proto's KafkaTopic nor the
 	// kafka_topic table carries one — so 003.8's KAFKA_TOPIC label row has

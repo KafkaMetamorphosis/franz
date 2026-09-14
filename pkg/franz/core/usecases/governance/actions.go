@@ -164,7 +164,10 @@ func (a applier) moveCluster(ctx context.Context, name, state string) (string, e
 	case "PAUSED":
 		_, err = a.clusters.Pause(ctx, name)
 	case "DELETED":
-		err = a.clusters.Delete(ctx, name)
+		// force=false: a governance SET_STATUS action deleting a cluster should
+		// fail loudly if it still has live shards, not silently force-migrate an
+		// entire cluster's worth of traffic as a side effect of a label rule.
+		err = a.clusters.Delete(ctx, name, false)
 	}
 	if err != nil {
 		return "", err
@@ -182,10 +185,42 @@ func (a applier) writeField(
 		return a.writeTopicField(ctx, realmID, res, action)
 	case indicator.EntityKafkaCluster:
 		return a.writeClusterField(ctx, res, action)
+	case indicator.EntityAsyncChannel:
+		return a.writeChannelField(ctx, res, action)
 	default:
 		return "", errs.Preconditionf("%s has no governable field %q",
 			res.Entity, action.Target())
 	}
+}
+
+// writeChannelField changes a channel's declared shard count. Only
+// INCREASE_FIELD_BY reaches here — DECREASE_FIELD_BY on channel_partitions
+// stays in the write whitelist's deferred set (whitelist.go's deferredAction):
+// shrinking needs the removed shards drained and retired first, which this
+// deliverable's migration flow does not yet drive on a re-shard's behalf.
+// channels.Service.Update runs the increase through the same path 18.7's
+// operator-facing UpdateAsyncChannel uses, so the new shards get placed the
+// normal way.
+func (a applier) writeChannelField(
+	ctx context.Context, res *resource, action gov.Action,
+) (string, error) {
+	if action.Target() != gov.FieldChannelPartitions {
+		return "", errs.Preconditionf("ASYNC_CHANNEL has no governable field %q", action.Target())
+	}
+	next, capped, err := resolveNumber(action, float64(res.Channel.ChannelPartitions))
+	if err != nil {
+		return "", err
+	}
+	n := int32(math.Round(next))
+	if n <= res.Channel.ChannelPartitions {
+		return noChange, nil
+	}
+	if _, err := a.channels.Update(ctx, in.UpdateChannelInput{
+		Name: res.Name, ChannelPartitions: &n,
+	}); err != nil {
+		return "", err
+	}
+	return note(gov.FieldChannelPartitions, formatNumber(float64(n)), capped, action), nil
 }
 
 // writeTopicField changes one shard field and re-offers the shard to the agents

@@ -32,6 +32,10 @@ const (
 	IndicatorTopicReplicationFactor = "kafka.topic.replication_factor"
 	IndicatorTopicUnderReplicated   = "kafka.topic.under_replicated_partitions"
 	IndicatorTopicConfigDrift       = "kafka.topic.config_drift"
+	// IndicatorTopicDrained and IndicatorTopicConsumerConnected are 003.13's
+	// migration early-completion signals — see observeMigrationSignals.
+	IndicatorTopicDrained           = "kafka.topic.drained"
+	IndicatorTopicConsumerConnected = "kafka.topic.consumer_connected"
 
 	IndicatorClusterBrokerCount     = "kafka.cluster.broker_count"
 	IndicatorClusterOnlineBrokers   = "kafka.cluster.online_broker_count"
@@ -147,8 +151,14 @@ func (s *Sweeper) Sweep(ctx context.Context) error {
 		go func(clusterName, clusterFRN string, admin kafkaadmin.Admin, assignments []assign.Assignment) {
 			defer wg.Done()
 			add(s.observeCluster(ctx, clusterName, clusterFRN, admin, at))
+			// Fetched once per cluster per sweep, not once per topic — every
+			// topic's consumer_connected check below reads the same list.
+			groups, err := admin.ListConsumerGroups(ctx)
+			if err != nil {
+				s.log.Warn("list consumer groups failed", "cluster", clusterName, "err", err)
+			}
 			for _, a := range assignments {
-				add(s.observeTopic(ctx, admin, a, at))
+				add(s.observeTopic(ctx, admin, a, groups, at))
 			}
 		}(clusterName, clusterFRNs[clusterName], admin, byCluster[clusterName])
 	}
@@ -164,7 +174,11 @@ func (s *Sweeper) Sweep(ctx context.Context) error {
 // reconciles, so `kafka.topic.state` reflects the create/alter without waiting
 // for the next sweep (005 ADR §2.2 "Cadence").
 func (s *Sweeper) ObservePartition(ctx context.Context, a assign.Assignment, admin kafkaadmin.Admin) {
-	samples := s.observeTopic(ctx, admin, a, s.now().UTC())
+	groups, err := admin.ListConsumerGroups(ctx)
+	if err != nil {
+		s.log.Warn("list consumer groups failed", "cluster", a.ClusterName, "err", err)
+	}
+	samples := s.observeTopic(ctx, admin, a, groups, s.now().UTC())
 	if len(samples) == 0 {
 		return
 	}
@@ -174,9 +188,11 @@ func (s *Sweeper) ObservePartition(ctx context.Context, a assign.Assignment, adm
 }
 
 // observeTopic reads one topic and turns it into the 005 §2.1 topic-level
-// indicators, keyed by the async channel partition's FRN.
+// indicators, keyed by the async channel partition's FRN. groups is every
+// consumer group known to the topic's cluster, from ListConsumerGroups — a
+// single per-cluster-per-sweep call the caller shares across every topic.
 func (s *Sweeper) observeTopic(
-	ctx context.Context, admin kafkaadmin.Admin, a assign.Assignment, at time.Time,
+	ctx context.Context, admin kafkaadmin.Admin, a assign.Assignment, groups []string, at time.Time,
 ) []Sample {
 	if a.PartitionFRN == "" {
 		return nil
@@ -208,13 +224,58 @@ func (s *Sweeper) observeTopic(
 		state = TopicStateDiverged
 	}
 
+	drained, connected := s.observeMigrationSignals(ctx, admin, a.TopicName, groups)
+
 	return []Sample{
 		sample(IndicatorTopicState, state),
 		sample(IndicatorTopicPartitions, strconv.Itoa(int(actual.Partitions))),
 		sample(IndicatorTopicReplicationFactor, strconv.Itoa(int(actual.ReplicationFactor))),
 		sample(IndicatorTopicUnderReplicated, strconv.Itoa(int(actual.UnderReplicatedPartitions))),
 		sample(IndicatorTopicConfigDrift, strconv.FormatBool(drift)),
+		sample(IndicatorTopicDrained, strconv.FormatBool(drained)),
+		sample(IndicatorTopicConsumerConnected, strconv.FormatBool(connected)),
 	}
+}
+
+// observeMigrationSignals computes the two 003.13 early-completion signals a
+// shard migration reads: whether the topic still holds any data on disk
+// (drained — RETIRING's readiness check) and whether any consumer group has
+// ever committed an offset to it (consumer_connected — CUTOVER's readiness
+// check, verifying a consumer has already discovered the target before
+// traffic moves to it).
+//
+// Both are read-only, cheap admin calls, computed for every managed topic
+// every sweep — the same "cheap enough to always compute" philosophy the other
+// 13 indicators already use — not conditionally, since Gregor Samsa has no way
+// to know which topics are migration-involved (that's Franz's bookkeeping, not
+// the agent's).
+func (s *Sweeper) observeMigrationSignals(
+	ctx context.Context, admin kafkaadmin.Admin, topicName string, groups []string,
+) (drained, connected bool) {
+	offsets, err := admin.ListOffsets(ctx, topicName)
+	if err != nil {
+		s.log.Warn("list offsets failed", "topic", topicName, "err", err)
+		return false, false // unknown ⇒ conservative: neither drained nor connected
+	}
+	drained = true
+	for _, po := range offsets {
+		if po.HasData() {
+			drained = false
+			break
+		}
+	}
+
+	for _, g := range groups {
+		parts, err := admin.ListConsumerGroupOffsets(ctx, g, topicName)
+		if err != nil {
+			continue
+		}
+		if len(parts) > 0 {
+			connected = true
+			break
+		}
+	}
+	return drained, connected
 }
 
 // observeCluster reads one cluster's metadata and turns it into the 005 §2.1

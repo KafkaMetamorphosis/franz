@@ -124,10 +124,13 @@ message ListAsyncChannelsResponse {
 message UpdateAsyncChannelRequest {
   string name = 1;
   map<string, string> labels = 2;
-  // Fields to update; unset fields are left unchanged. `type` is immutable, the
-  // access policy is changed via SetAccessPolicy, and `channel_partitions` is
-  // changed via the staged re-shard flow (003.11) — none may appear in the mask.
+  // Fields to update; unset fields are left unchanged. `type` is immutable and
+  // the access policy is changed via SetAccessPolicy — neither may appear in
+  // the mask. `channel_partitions` may appear and only increases (003.13's
+  // re-shard, OQ4 resolved as add-only — a decrease would require draining a
+  // shard, which is MigrateKafkaTopic's job, not this one's).
   google.protobuf.FieldMask update_mask = 3;
+  int32 channel_partitions = 4;
 }
 
 message UpdateAsyncChannelResponse {

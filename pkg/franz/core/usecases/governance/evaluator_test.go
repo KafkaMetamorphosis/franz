@@ -331,6 +331,35 @@ func TestEvaluateOnClusterBrokers(t *testing.T) {
 	}
 }
 
+// TestEvaluateAppliesChannelPartitionsReshard is 18.8: an INCREASE_FIELD_BY on
+// channel_partitions, un-deferred by the migration flow, actually re-shards
+// through channels.Service.Update rather than failing at write.
+func TestEvaluateAppliesChannelPartitionsReshard(t *testing.T) {
+	ind := registeredIndicator("throughput", indicator.UnitCount, indicator.EntityAsyncChannel)
+	orders := testChannel("orders", map[string]string{"env": "prod"})
+
+	def := gov.Definition{
+		Indicator: "throughput",
+		Matcher:   gov.Matcher{Entity: indicator.EntityAsyncChannel, Selector: "env=prod"},
+		Limit:     gov.Limit{Operator: gov.OpGreaterThan, Value: "1000"},
+		Actions: []gov.Action{
+			{Kind: gov.ActionIncreaseFieldBy, Args: []string{"channel_partitions", "2"}},
+		},
+	}
+	f := newEvalFixture([]*indicator.Indicator{ind}, []*gov.Policy{policy("scale-out", 0, def)},
+		map[string]*channel.AsyncChannel{"orders": orders}, nil, nil)
+
+	if err := f.eval.Evaluate(ctxWithRealm(), "throughput", orders.FRN.Path(), "2000"); err != nil {
+		t.Fatalf("Evaluate: %v", err)
+	}
+	if orders.ChannelPartitions != 3 {
+		t.Fatalf("channel_partitions = %d, want 3", orders.ChannelPartitions)
+	}
+	if got := f.actions.records[0].Result; got != "channel_partitions=3" {
+		t.Fatalf("result = %q", got)
+	}
+}
+
 // TestEvaluateResolvesClusterSubResource: 005 ADR §2.1 samples per-broker FRNs,
 // which are not Franz resources. The governed parent must still be found.
 func TestEvaluateResolvesClusterSubResource(t *testing.T) {

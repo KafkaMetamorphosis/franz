@@ -41,6 +41,9 @@ message KafkaCluster {
   // brokers: desired broker count (>= 1 when set). disk_size: size hint, e.g. "50Gi".
   int32 brokers = 11;
   string disk_size = 12;
+  // Max simultaneous shard migrations (003.13) with this cluster as source or
+  // target. 0 means unset — Franz applies a conservative built-in default.
+  int32 max_concurrent_migrations = 13;
 
   // Lifecycle state. Franz sets ACTIVE at registration; PAUSED/DELETED are
   // reached through PauseKafkaCluster / ResumeKafkaCluster / DeleteKafkaCluster.
@@ -110,6 +113,7 @@ message CreateKafkaClusterRequest {
   string cluster_provider_agent = 5;
   int32 brokers = 6;
   string disk_size = 7;
+  int32 max_concurrent_migrations = 8;
 }
 
 message CreateKafkaClusterResponse {
@@ -145,6 +149,7 @@ message UpdateKafkaClusterRequest {
   google.protobuf.FieldMask update_mask = 6;
   int32 brokers = 7;
   string disk_size = 8;
+  int32 max_concurrent_migrations = 9;
 }
 
 message UpdateKafkaClusterResponse {
@@ -153,6 +158,12 @@ message UpdateKafkaClusterResponse {
 
 message DeleteKafkaClusterRequest {
   string name = 1;
+  // Required when the cluster still has live (non-DELETED) shards (003.13 OQ5).
+  // Rejected otherwise with FAILED_PRECONDITION. Setting it auto-triggers a
+  // drain migration (reason "cluster-delete") for every live shard; the
+  // cluster itself is not deleted here — it becomes DELETED once every shard
+  // has migrated off, via the same path a manually-drained cluster takes.
+  bool force = 2;
 }
 
 message DeleteKafkaClusterResponse {}

@@ -330,8 +330,8 @@ func persistChannel(ctx context.Context, tx pgx.Tx, c *channel.AsyncChannel) (*c
 	policy := marshalPolicy(c.AccessPolicy)
 	return scanChannel(tx.QueryRow(ctx, `
 		UPDATE async_channel SET
-			labels=$1, access_policy=$2, state=$3, updated_at=now()
-		WHERE id=$4
+			labels=$1, access_policy=$2, state=$3, channel_partitions=$4, updated_at=now()
+		WHERE id=$5
 		RETURNING `+channelColumns,
-		labels, policy, string(c.State), c.ID))
+		labels, policy, string(c.State), c.ChannelPartitions, c.ID))
 }

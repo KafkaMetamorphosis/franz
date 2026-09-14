@@ -44,6 +44,11 @@ CREATE TABLE IF NOT EXISTS kafka_cluster (
     -- Cluster shape, forwarded to the Cluster Provider agent (ADR-API-010).
     brokers                integer     CHECK (brokers IS NULL OR brokers >= 1),
     disk_size              text        NOT NULL DEFAULT '',
+    -- Max simultaneous shard migrations (003.13 OQ6) with this cluster as
+    -- source or target. 0 = unset; the migration usecase applies its own
+    -- conservative built-in default.
+    max_concurrent_migrations integer  NOT NULL DEFAULT 0
+                               CHECK (max_concurrent_migrations >= 0),
     state                  text        NOT NULL DEFAULT 'ACTIVE'
                                CHECK (state IN ('ACTIVE', 'PAUSED', 'DELETED')),
     created_at             timestamptz NOT NULL DEFAULT now(),
@@ -51,6 +56,11 @@ CREATE TABLE IF NOT EXISTS kafka_cluster (
     UNIQUE (realm_id, name),
     UNIQUE (frn)
 );
+
+-- Added for deliverable 18 (003.13) — idempotent so an existing database
+-- (created before this column existed) picks it up on next boot.
+ALTER TABLE kafka_cluster
+    ADD COLUMN IF NOT EXISTS max_concurrent_migrations integer NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS kafka_cluster_labels_gin
     ON kafka_cluster USING gin (labels);
@@ -437,3 +447,66 @@ CREATE TABLE IF NOT EXISTS deleted_client_frn (
     deleted_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (realm_id, name)
 );
+
+-- Shard migration (003.13, deliverable 18) — bookkeeping and the sweep's work
+-- list for the drain-based flow, not a second state machine on kafka_topic.
+-- Both source and target are real, independent kafka_topic rows for the
+-- whole lifetime of a migration: PROVISIONING is an ordinary new shard
+-- (placement's newShard, same as any other shard create) on the target
+-- cluster; cutover is topics.Service.SetConsumption(DISABLED) on the source,
+-- which already re-normalises traffic_share across the channel's siblings
+-- (the same primitive re-shard uses); RETIRING deletes the source shard
+-- through the normal delete path, which already tells the source cluster's
+-- agent to remove the real topic. No new agent protocol.
+CREATE TABLE IF NOT EXISTS shard_migration (
+    id                 uuid        PRIMARY KEY,
+    realm_id           uuid        NOT NULL REFERENCES realm (id),
+    async_channel_id   uuid        NOT NULL REFERENCES async_channel (id),
+    source_topic_id    uuid        NOT NULL REFERENCES kafka_topic (id),
+    target_topic_id    uuid        NOT NULL REFERENCES kafka_topic (id),
+    -- Denormalised from the two topic rows at creation time (003.13 names
+    -- them directly on the row) — the 18.5 concurrency-limit query counts
+    -- active rows by these without joining kafka_topic.
+    source_cluster_id  uuid        NOT NULL REFERENCES kafka_cluster (id),
+    target_cluster_id  uuid        NOT NULL REFERENCES kafka_cluster (id),
+    phase              text        NOT NULL DEFAULT 'PROVISIONING'
+                           CHECK (phase IN ('PROVISIONING', 'CUTOVER', 'DRAINING',
+                                            'RETIRING', 'DONE', 'FAILED')),
+    -- "operator" / "drain-taint" / "cluster-delete" / "misplaced" / "re-shard"
+    -- / "governance:<policy-name>".
+    reason             text        NOT NULL,
+    -- Set once DRAINING starts (003.13 OQ3: a fixed 1h window). NULL before
+    -- DRAINING.
+    drain_deadline     timestamptz,
+    failure_reason     text        NOT NULL DEFAULT '',
+    started_at         timestamptz NOT NULL DEFAULT now(),
+    -- NULL until phase is DONE or FAILED.
+    completed_at       timestamptz,
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now()
+);
+
+-- 003.13 "one migration per shard at a time": a second trigger for a shard
+-- already migrating is queued, not started — enforced here, not just in Go,
+-- so a race between two triggers (an operator call landing beside an
+-- automatic one) can't double-migrate a shard. Partial: a shard can have any
+-- number of *terminal* (DONE/FAILED) migrations in its history.
+CREATE UNIQUE INDEX IF NOT EXISTS shard_migration_one_active_per_source
+    ON shard_migration (source_topic_id)
+    WHERE phase NOT IN ('DONE', 'FAILED');
+
+-- The sweep's work list: every non-terminal migration, realm-agnostic (the
+-- sweep is a single background loop, same as the placement retry sweep).
+CREATE INDEX IF NOT EXISTS shard_migration_active
+    ON shard_migration (phase) WHERE phase NOT IN ('DONE', 'FAILED');
+
+-- 18.5's concurrency-limit query: active migrations touching one cluster,
+-- either as source or target.
+CREATE INDEX IF NOT EXISTS shard_migration_active_source_cluster
+    ON shard_migration (source_cluster_id) WHERE phase NOT IN ('DONE', 'FAILED');
+CREATE INDEX IF NOT EXISTS shard_migration_active_target_cluster
+    ON shard_migration (target_cluster_id) WHERE phase NOT IN ('DONE', 'FAILED');
+
+-- The audit/history view for one channel, newest first.
+CREATE INDEX IF NOT EXISTS shard_migration_channel_history
+    ON shard_migration (async_channel_id, started_at DESC, id DESC);

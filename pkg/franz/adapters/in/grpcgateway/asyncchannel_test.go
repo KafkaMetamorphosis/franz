@@ -103,14 +103,40 @@ func TestCreateAsyncChannelForwardsAndRenders(t *testing.T) {
 	}
 }
 
-func TestUpdateAsyncChannelRejectsNonLabelMask(t *testing.T) {
-	h := newChannelHandler(&fakeChannelSvc{ret: sampleChannel(t)})
+// TestUpdateAsyncChannelRejectsImmutableFields pins that `type` and
+// `access_policy` — genuinely immutable through this RPC (the latter uses
+// SetAccessPolicy) — stay rejected. `channel_partitions` is deliberately NOT
+// in this list any more: 18.7 made it a maskable, increase-only re-shard —
+// see TestUpdateAsyncChannelForwardsChannelPartitions.
+func TestUpdateAsyncChannelRejectsImmutableFields(t *testing.T) {
+	for _, field := range []string{"type", "access_policy"} {
+		h := newChannelHandler(&fakeChannelSvc{ret: sampleChannel(t)})
+		_, err := h.UpdateAsyncChannel(context.Background(), franzv1.UpdateAsyncChannelRequest_builder{
+			Name:       proto.String("orders"),
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{field}},
+		}.Build())
+		if status.Code(err) != codes.InvalidArgument {
+			t.Errorf("%s in mask → %v, want InvalidArgument", field, status.Code(err))
+		}
+	}
+}
+
+// TestUpdateAsyncChannelForwardsChannelPartitions is 18.7: an increase is
+// forwarded to the service as-is; validation (increase-only) is the domain's
+// job, not the handler's.
+func TestUpdateAsyncChannelForwardsChannelPartitions(t *testing.T) {
+	fake := &fakeChannelSvc{ret: sampleChannel(t)}
+	h := newChannelHandler(fake)
 	_, err := h.UpdateAsyncChannel(context.Background(), franzv1.UpdateAsyncChannelRequest_builder{
-		Name:       proto.String("orders"),
-		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"channel_partitions"}},
+		Name:              proto.String("orders"),
+		ChannelPartitions: proto.Int32(4),
+		UpdateMask:        &fieldmaskpb.FieldMask{Paths: []string{"channel_partitions"}},
 	}.Build())
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("channel_partitions in mask → %v", status.Code(err))
+	if err != nil {
+		t.Fatalf("UpdateAsyncChannel: %v", err)
+	}
+	if fake.updated.ChannelPartitions == nil || *fake.updated.ChannelPartitions != 4 {
+		t.Fatalf("ChannelPartitions not forwarded: %+v", fake.updated)
 	}
 }
 
