@@ -18,11 +18,14 @@ type CreateChannelInput struct {
 }
 
 // UpdateChannelInput carries only the masked fields; a nil pointer means "leave
-// unchanged". Only `labels` is maskable (003.4) — `channel_partitions`, `type`
-// and `access_policy` are not.
+// unchanged". `type` and `access_policy` are not maskable here — the latter
+// uses SetAccessPolicy. `channel_partitions` is maskable as an increase-only
+// re-shard (003.13 OQ4 / 18.7): raising it materialises new shards through the
+// same placement pass Create uses; it never moves an already-placed one.
 type UpdateChannelInput struct {
-	Name   string
-	Labels *map[string]string
+	Name              string
+	Labels            *map[string]string
+	ChannelPartitions *int32
 }
 
 // ListChannelsInput parameterises List. Selector is the raw 003.1 selector

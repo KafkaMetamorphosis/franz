@@ -30,6 +30,9 @@
       "name": "GovernanceService"
     },
     {
+      "name": "MigrationService"
+    },
+    {
       "name": "TelemetryService",
       "description": "The protocol Telemetry Agents use to publish fleet observations to Franz.\nAgent-facing; not exposed through the REST gateway."
     }
@@ -1140,6 +1143,84 @@
         ]
       }
     },
+    "/v1/kafka-clusters/{kafkaCluster}/migrate": {
+      "post": {
+        "summary": "MigrateCluster starts moving every live shard off one cluster, each to an\nindependently-selected target. The same entry point DeleteKafkaCluster's\nforce=true and a drain taint call internally.",
+        "operationId": "MigrationService_MigrateCluster",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MigrateClusterResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "kafkaCluster",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/MigrationServiceMigrateClusterBody"
+            }
+          }
+        ],
+        "tags": [
+          "MigrationService"
+        ]
+      }
+    },
+    "/v1/kafka-topics/{kafkaTopic}/migrate": {
+      "post": {
+        "summary": "MigrateKafkaTopic is 003.13 OQ1's resolved operator entry point: an\nexplicit, targeted move of one shard.",
+        "operationId": "MigrationService_MigrateKafkaTopic",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1MigrateKafkaTopicResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "kafkaTopic",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/MigrationServiceMigrateKafkaTopicBody"
+            }
+          }
+        ],
+        "tags": [
+          "MigrationService"
+        ]
+      }
+    },
     "/v1/kafka/agents": {
       "get": {
         "operationId": "AgentService_ListAgents",
@@ -1536,6 +1617,13 @@
             "in": "path",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "force",
+            "description": "Required when the cluster still has live (non-DELETED) shards (003.13 OQ5).\nRejected otherwise with FAILED_PRECONDITION. Setting it auto-triggers a\ndrain migration (reason \"cluster-delete\") for every live shard; the\ncluster itself is not deleted here — it becomes DELETED once every shard\nhas migrated off, via the same path a manually-drained cluster takes.",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
           }
         ],
         "tags": [
@@ -1804,6 +1892,81 @@
           "KafkaTopicService"
         ]
       }
+    },
+    "/v1/shard-migrations": {
+      "get": {
+        "operationId": "MigrationService_ListShardMigrations",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1ListShardMigrationsResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "asyncChannel",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "page.pageSize",
+            "description": "Maximum number of items to return. The server may return fewer.",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "page.pageToken",
+            "description": "Opaque token from a previous response's next_page_token. Empty for the first page.",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "MigrationService"
+        ]
+      }
+    },
+    "/v1/shard-migrations/{id}": {
+      "get": {
+        "operationId": "MigrationService_GetShardMigration",
+        "responses": {
+          "200": {
+            "description": "A successful response.",
+            "schema": {
+              "$ref": "#/definitions/v1GetShardMigrationResponse"
+            }
+          },
+          "default": {
+            "description": "An unexpected error response.",
+            "schema": {
+              "$ref": "#/definitions/rpcStatus"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "tags": [
+          "MigrationService"
+        ]
+      }
     }
   },
   "definitions": {
@@ -1836,7 +1999,11 @@
         },
         "updateMask": {
           "type": "string",
-          "description": "Fields to update; unset fields are left unchanged. `type` is immutable, the\naccess policy is changed via SetAccessPolicy, and `channel_partitions` is\nchanged via the staged re-shard flow (003.11) — none may appear in the mask."
+          "description": "Fields to update; unset fields are left unchanged. `type` is immutable and\nthe access policy is changed via SetAccessPolicy — neither may appear in\nthe mask. `channel_partitions` may appear and only increases (003.13's\nre-shard, OQ4 resolved as add-only — a decrease would require draining a\nshard, which is MigrateKafkaTopic's job, not this one's)."
+        },
+        "channelPartitions": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -1957,6 +2124,10 @@
         },
         "diskSize": {
           "type": "string"
+        },
+        "maxConcurrentMigrations": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -1965,6 +2136,23 @@
       "properties": {
         "consumption": {
           "$ref": "#/definitions/v1Consumption"
+        }
+      }
+    },
+    "MigrationServiceMigrateClusterBody": {
+      "type": "object",
+      "properties": {
+        "reason": {
+          "type": "string",
+          "description": "Free-form audit reason; defaults to \"operator\" when unset. Internal\ncallers (drain taint, cluster-delete force) pass their own."
+        }
+      }
+    },
+    "MigrationServiceMigrateKafkaTopicBody": {
+      "type": "object",
+      "properties": {
+        "targetCluster": {
+          "type": "string"
         }
       }
     },
@@ -2497,6 +2685,10 @@
         },
         "diskSize": {
           "type": "string"
+        },
+        "maxConcurrentMigrations": {
+          "type": "integer",
+          "format": "int32"
         }
       },
       "description": "Only the client-settable fields of a KafkaCluster. Franz assigns the FRN and\nthe timestamps."
@@ -2675,6 +2867,14 @@
         }
       }
     },
+    "v1GetShardMigrationResponse": {
+      "type": "object",
+      "properties": {
+        "migration": {
+          "$ref": "#/definitions/v1ShardMigration"
+        }
+      }
+    },
     "v1Indicator": {
       "type": "object",
       "properties": {
@@ -2780,6 +2980,11 @@
         },
         "diskSize": {
           "type": "string"
+        },
+        "maxConcurrentMigrations": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Max simultaneous shard migrations (003.13) with this cluster as source or\ntarget. 0 means unset — Franz applies a conservative built-in default."
         },
         "state": {
           "$ref": "#/definitions/v1KafkaClusterState",
@@ -3115,6 +3320,21 @@
         }
       }
     },
+    "v1ListShardMigrationsResponse": {
+      "type": "object",
+      "properties": {
+        "migrations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ShardMigration"
+          }
+        },
+        "page": {
+          "$ref": "#/definitions/v1PageResponse"
+        }
+      }
+    },
     "v1Matcher": {
       "type": "object",
       "properties": {
@@ -3126,6 +3346,39 @@
           "description": "Label selector. Empty means every resource of the entity kind."
         }
       }
+    },
+    "v1MigrateClusterResponse": {
+      "type": "object",
+      "properties": {
+        "migrations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1ShardMigration"
+          }
+        }
+      }
+    },
+    "v1MigrateKafkaTopicResponse": {
+      "type": "object",
+      "properties": {
+        "migration": {
+          "$ref": "#/definitions/v1ShardMigration"
+        }
+      }
+    },
+    "v1MigrationPhase": {
+      "type": "string",
+      "enum": [
+        "MIGRATION_PHASE_UNSPECIFIED",
+        "MIGRATION_PHASE_PROVISIONING",
+        "MIGRATION_PHASE_CUTOVER",
+        "MIGRATION_PHASE_DRAINING",
+        "MIGRATION_PHASE_RETIRING",
+        "MIGRATION_PHASE_DONE",
+        "MIGRATION_PHASE_FAILED"
+      ],
+      "default": "MIGRATION_PHASE_UNSPECIFIED"
     },
     "v1ObservedConsumerGroup": {
       "type": "object",
@@ -3364,6 +3617,57 @@
           "$ref": "#/definitions/v1KafkaTopic"
         }
       }
+    },
+    "v1ShardMigration": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Server-assigned."
+        },
+        "asyncChannel": {
+          "type": "string"
+        },
+        "sourceKafkaTopic": {
+          "type": "string",
+          "description": "The two real Kafka Topic shards this migration is between. Both exist as\nordinary KafkaTopic resources for the migration's whole lifetime — the\nsource is deleted, not repointed, once RETIRING completes."
+        },
+        "targetKafkaTopic": {
+          "type": "string"
+        },
+        "sourceKafkaCluster": {
+          "type": "string"
+        },
+        "targetKafkaCluster": {
+          "type": "string"
+        },
+        "phase": {
+          "$ref": "#/definitions/v1MigrationPhase"
+        },
+        "reason": {
+          "type": "string",
+          "description": "Why this migration started: \"operator\", \"drain-taint\", \"cluster-delete\",\n\"misplaced\", \"re-shard\", or \"governance:\u003cpolicy-name\u003e\"."
+        },
+        "drainDeadline": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Set once DRAINING starts (003.13 OQ3: a fixed window, not per-channel or\nlag-derived). Unset before DRAINING."
+        },
+        "failureReason": {
+          "type": "string",
+          "description": "Set only when phase is FAILED."
+        },
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Unset until phase is DONE or FAILED."
+        }
+      },
+      "description": "Shard migration (003.13): the single staged flow that moves a shard's\nserving position from one Kafka Cluster to another. v1 is drain-based — no\nhistorical byte copy; a key's old messages stay on the old shard until\nconsumed or lost past the drain deadline.\n\nThis is orchestration over existing primitives, not a parallel state\nmachine: PROVISIONING is an ordinary new shard on the target cluster;\nCUTOVER re-normalises traffic_share the same way SetConsumption already\ndoes for re-shard; RETIRING deletes the source shard through the normal\ndelete path. shard_migration is bookkeeping + the read view over that\norchestration."
     },
     "v1TrafficShare": {
       "type": "object",

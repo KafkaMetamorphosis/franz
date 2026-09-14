@@ -290,6 +290,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/kafka-clusters/{kafkaCluster}/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * MigrateCluster starts moving every live shard off one cluster, each to an
+         *     independently-selected target. The same entry point DeleteKafkaCluster's
+         *     force=true and a drain taint call internally.
+         */
+        post: operations["MigrationService_MigrateCluster"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/kafka-topics/{kafkaTopic}/migrate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * MigrateKafkaTopic is 003.13 OQ1's resolved operator entry point: an
+         *     explicit, targeted move of one shard.
+         */
+        post: operations["MigrationService_MigrateKafkaTopic"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/kafka/agents": {
         parameters: {
             query?: never;
@@ -498,6 +539,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/shard-migrations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MigrationService_ListShardMigrations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/shard-migrations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["MigrationService_GetShardMigration"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -511,13 +584,17 @@ export interface components {
             updateMask?: string;
         };
         AsyncChannelServiceUpdateAsyncChannelBody: {
+            /** Format: int32 */
+            channelPartitions?: number;
             labels?: {
                 [key: string]: string;
             };
             /**
-             * @description Fields to update; unset fields are left unchanged. `type` is immutable, the
-             *     access policy is changed via SetAccessPolicy, and `channel_partitions` is
-             *     changed via the staged re-shard flow (003.11) — none may appear in the mask.
+             * @description Fields to update; unset fields are left unchanged. `type` is immutable and
+             *     the access policy is changed via SetAccessPolicy — neither may appear in
+             *     the mask. `channel_partitions` may appear and only increases (003.13's
+             *     re-shard, OQ4 resolved as add-only — a decrease would require draining a
+             *     shard, which is MigrateKafkaTopic's job, not this one's).
              */
             updateMask?: string;
         };
@@ -563,11 +640,23 @@ export interface components {
             labels?: {
                 [key: string]: string;
             };
+            /** Format: int32 */
+            maxConcurrentMigrations?: number;
             /** @description Fields to update; unset fields are left unchanged. */
             updateMask?: string;
         };
         KafkaTopicServiceSetConsumptionBody: {
             consumption?: components["schemas"]["v1Consumption"];
+        };
+        MigrationServiceMigrateClusterBody: {
+            /**
+             * @description Free-form audit reason; defaults to "operator" when unset. Internal
+             *     callers (drain taint, cluster-delete force) pass their own.
+             */
+            reason?: string;
+        };
+        MigrationServiceMigrateKafkaTopicBody: {
+            targetCluster?: string;
         };
         protobufAny: {
             "@type"?: string;
@@ -846,6 +935,8 @@ export interface components {
             labels?: {
                 [key: string]: string;
             };
+            /** Format: int32 */
+            maxConcurrentMigrations?: number;
             name?: string;
         };
         v1CreateKafkaClusterResponse: {
@@ -913,6 +1004,9 @@ export interface components {
         };
         v1GetPolicyResponse: {
             policy?: components["schemas"]["v1Policy"];
+        };
+        v1GetShardMigrationResponse: {
+            migration?: components["schemas"]["v1ShardMigration"];
         };
         /**
          * @description An indicator that Telemetry Agents publish samples for and policies read.
@@ -987,6 +1081,12 @@ export interface components {
             labels?: {
                 [key: string]: string;
             };
+            /**
+             * Format: int32
+             * @description Max simultaneous shard migrations (003.13) with this cluster as source or
+             *     target. 0 means unset — Franz applies a conservative built-in default.
+             */
+            maxConcurrentMigrations?: number;
             /** @description Control-plane identifier, provided at registration. Immutable. */
             name?: string;
             providerStatus?: components["schemas"]["v1ClusterProviderStatus"];
@@ -1130,11 +1230,26 @@ export interface components {
             actions?: components["schemas"]["v1PolicyAction"][];
             page?: components["schemas"]["v1PageResponse"];
         };
+        v1ListShardMigrationsResponse: {
+            migrations?: components["schemas"]["v1ShardMigration"][];
+            page?: components["schemas"]["v1PageResponse"];
+        };
         v1Matcher: {
             entity?: components["schemas"]["v1Entity"];
             /** @description Label selector. Empty means every resource of the entity kind. */
             selector?: string;
         };
+        v1MigrateClusterResponse: {
+            migrations?: components["schemas"]["v1ShardMigration"][];
+        };
+        v1MigrateKafkaTopicResponse: {
+            migration?: components["schemas"]["v1ShardMigration"];
+        };
+        /**
+         * @default MIGRATION_PHASE_UNSPECIFIED
+         * @enum {string}
+         */
+        v1MigrationPhase: "MIGRATION_PHASE_UNSPECIFIED" | "MIGRATION_PHASE_PROVISIONING" | "MIGRATION_PHASE_CUTOVER" | "MIGRATION_PHASE_DRAINING" | "MIGRATION_PHASE_RETIRING" | "MIGRATION_PHASE_DONE" | "MIGRATION_PHASE_FAILED";
         /**
          * @description A consumer group observed for this client, reported by a Telemetry Agent.
          *     Not registered in Franz. ListObservedConsumerGroups returns the current view
@@ -1258,6 +1373,54 @@ export interface components {
         };
         v1SetConsumptionResponse: {
             kafkaTopic?: components["schemas"]["v1KafkaTopic"];
+        };
+        /**
+         * @description Shard migration (003.13): the single staged flow that moves a shard's
+         *     serving position from one Kafka Cluster to another. v1 is drain-based — no
+         *     historical byte copy; a key's old messages stay on the old shard until
+         *     consumed or lost past the drain deadline.
+         *
+         *     This is orchestration over existing primitives, not a parallel state
+         *     machine: PROVISIONING is an ordinary new shard on the target cluster;
+         *     CUTOVER re-normalises traffic_share the same way SetConsumption already
+         *     does for re-shard; RETIRING deletes the source shard through the normal
+         *     delete path. shard_migration is bookkeeping + the read view over that
+         *     orchestration.
+         */
+        v1ShardMigration: {
+            asyncChannel?: string;
+            /**
+             * Format: date-time
+             * @description Unset until phase is DONE or FAILED.
+             */
+            completedAt?: string;
+            /**
+             * Format: date-time
+             * @description Set once DRAINING starts (003.13 OQ3: a fixed window, not per-channel or
+             *     lag-derived). Unset before DRAINING.
+             */
+            drainDeadline?: string;
+            /** @description Set only when phase is FAILED. */
+            failureReason?: string;
+            /** @description Server-assigned. */
+            id?: string;
+            phase?: components["schemas"]["v1MigrationPhase"];
+            /**
+             * @description Why this migration started: "operator", "drain-taint", "cluster-delete",
+             *     "misplaced", "re-shard", or "governance:<policy-name>".
+             */
+            reason?: string;
+            sourceKafkaCluster?: string;
+            /**
+             * @description The two real Kafka Topic shards this migration is between. Both exist as
+             *     ordinary KafkaTopic resources for the migration's whole lifetime — the
+             *     source is deleted, not repointed, once RETIRING completes.
+             */
+            sourceKafkaTopic?: string;
+            /** Format: date-time */
+            startedAt?: string;
+            targetKafkaCluster?: string;
+            targetKafkaTopic?: string;
         };
         /** @description A proportion of channel traffic, e.g. value 45, unit "percent". */
         v1TrafficShare: {
@@ -2302,6 +2465,76 @@ export interface operations {
             };
         };
     };
+    MigrationService_MigrateCluster: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kafkaCluster: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MigrationServiceMigrateClusterBody"];
+            };
+        };
+        responses: {
+            /** @description A successful response. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["v1MigrateClusterResponse"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["rpcStatus"];
+                };
+            };
+        };
+    };
+    MigrationService_MigrateKafkaTopic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kafkaTopic: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MigrationServiceMigrateKafkaTopicBody"];
+            };
+        };
+        responses: {
+            /** @description A successful response. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["v1MigrateKafkaTopicResponse"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["rpcStatus"];
+                };
+            };
+        };
+    };
     AgentService_ListAgents: {
         parameters: {
             query?: {
@@ -2673,7 +2906,16 @@ export interface operations {
     };
     KafkaClusterService_DeleteKafkaCluster: {
         parameters: {
-            query?: never;
+            query?: {
+                /**
+                 * @description Required when the cluster still has live (non-DELETED) shards (003.13 OQ5).
+                 *     Rejected otherwise with FAILED_PRECONDITION. Setting it auto-triggers a
+                 *     drain migration (reason "cluster-delete") for every live shard; the
+                 *     cluster itself is not deleted here — it becomes DELETED once every shard
+                 *     has migrated off, via the same path a manually-drained cluster takes.
+                 */
+                force?: boolean;
+            };
             header?: never;
             path: {
                 name: string;
@@ -2926,6 +3168,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["v1SetConsumptionResponse"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["rpcStatus"];
+                };
+            };
+        };
+    };
+    MigrationService_ListShardMigrations: {
+        parameters: {
+            query?: {
+                asyncChannel?: string;
+                /** @description Maximum number of items to return. The server may return fewer. */
+                "page.pageSize"?: number;
+                /** @description Opaque token from a previous response's next_page_token. Empty for the first page. */
+                "page.pageToken"?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A successful response. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["v1ListShardMigrationsResponse"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["rpcStatus"];
+                };
+            };
+        };
+    };
+    MigrationService_GetShardMigration: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A successful response. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["v1GetShardMigrationResponse"];
                 };
             };
             /** @description An unexpected error response. */

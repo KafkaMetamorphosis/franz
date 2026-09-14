@@ -12,6 +12,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/adapters/streamhub"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/channel"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/cluster"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
 	placementdomain "github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/placement"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/topic"
@@ -55,7 +56,7 @@ func newPlacementFixture(t *testing.T) *placementFixture {
 		ctx:       realm.NewContext(context.Background(), r),
 		placer:    placer,
 		channels:  channels.NewService(channelRepo, nil, placer, nil),
-		clusters:  clusters.NewService(clusterRepo, topicRepo, eventRepo, streamhub.New(), nil, placer),
+		clusters:  clusters.NewService(clusterRepo, topicRepo, eventRepo, streamhub.New(), nil, placer, nil),
 		topics:    topics.NewService(topicRepo, clusterRepo, nil),
 		topicRepo: topicRepo,
 	}
@@ -446,5 +447,51 @@ func TestPlacementLabelsAreValidatedOnWrite(t *testing.T) {
 	})
 	if err == nil {
 		t.Fatal("a malformed franz.taint effect was accepted")
+	}
+}
+
+// TestUpdateAsyncChannelChannelPartitionsReshards is 18.7: increasing
+// channel_partitions materialises the new shard indices through the same
+// placement pass Create uses — no data movement, existing shards untouched.
+func TestUpdateAsyncChannelChannelPartitionsReshards(t *testing.T) {
+	f := newPlacementFixture(t)
+	f.createCluster(t, "east-1", map[string]string{"env": "prod"}, nil)
+	f.createChannel(t, "orders", 2, map[string]string{placementdomain.LabelAffinitySelector: "env=prod"})
+
+	before := f.shardRows(t, "orders")
+	if len(before) != 2 {
+		t.Fatalf("initial shards = %v, want 2", before)
+	}
+
+	newCount := int32(4)
+	if _, err := f.channels.Update(f.ctx, in.UpdateChannelInput{
+		Name: "orders", ChannelPartitions: &newCount,
+	}); err != nil {
+		t.Fatalf("Update: %v", err)
+	}
+
+	after := f.shardRows(t, "orders")
+	if len(after) != 4 {
+		t.Fatalf("shards after reshard = %v, want 4", after)
+	}
+	for name, clusterName := range before {
+		if after[name] != clusterName {
+			t.Errorf("existing shard %q moved from %q to %q — re-shard must not relocate", name, clusterName, after[name])
+		}
+	}
+}
+
+// TestUpdateAsyncChannelRejectsChannelPartitionsDecrease pins 003.13 OQ4's
+// resolution: a re-shard only adds shards.
+func TestUpdateAsyncChannelRejectsChannelPartitionsDecrease(t *testing.T) {
+	f := newPlacementFixture(t)
+	f.createCluster(t, "east-1", map[string]string{"env": "prod"}, nil)
+	f.createChannel(t, "orders", 3, map[string]string{placementdomain.LabelAffinitySelector: "env=prod"})
+
+	smaller := int32(1)
+	if _, err := f.channels.Update(f.ctx, in.UpdateChannelInput{
+		Name: "orders", ChannelPartitions: &smaller,
+	}); errs.KindOf(err) != errs.InvalidArgument {
+		t.Fatalf("kind = %v", errs.KindOf(err))
 	}
 }

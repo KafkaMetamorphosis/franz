@@ -23,6 +23,7 @@ import (
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/clients"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/clusters"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/governance"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/migration"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/placement"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/usecases/resourceprovider"
@@ -44,6 +45,15 @@ const (
 	// observedConsumerGroupRetention is the 003.14 window for the second inbound
 	// telemetry stream. Same nightly job, same 30 days.
 	observedConsumerGroupRetention = 30 * 24 * time.Hour
+	// migrationSweepInterval is 18's drain-based state machine's advance
+	// cadence — frequent enough that a migration doesn't visibly stall between
+	// ticks, cheap enough (a handful of in-flight migrations at once, per
+	// 18.5's concurrency limit) to run unconditionally rather than adding a
+	// config key for it.
+	migrationSweepInterval = 30 * time.Second
+	// shardMigrationRetention is the audit window for terminal (DONE/FAILED)
+	// shard_migration rows. Same nightly job, same 30 days.
+	shardMigrationRetention = 30 * 24 * time.Hour
 )
 
 func main() {
@@ -73,6 +83,7 @@ func main() {
 			fx.Annotate(postgres.NewObservedConsumerGroupRepo,
 				fx.As(new(out.ObservedConsumerGroupRepository))),
 			fx.Annotate(postgres.NewClientRepo, fx.As(new(out.ClientRepository))),
+			fx.Annotate(postgres.NewShardMigrationRepo, fx.As(new(out.ShardMigrationRepository))),
 			fx.Annotate(resourceprovider.NewNotifier, fx.As(new(out.PartitionNotifier))),
 			// Provided concretely as well as behind the port: the entity services
 			// take out.ShardPlacer, while the retry sweep drives Sweep directly.
@@ -91,6 +102,14 @@ func main() {
 			// scheduled sweep.
 			fx.Annotate(governance.NewEvaluator, fx.As(new(in.GovernanceEvaluator))),
 			fx.Annotate(clients.NewService, fx.As(new(in.ClientService))),
+			// Provided concretely as well as behind the port, the same as
+			// placement.Service above: the migration sweep (below) drives Sweep
+			// directly, while clusters.Service (DeleteKafkaCluster force=true)
+			// takes in.MigrationService. Reuses KafkaTopicService.SetConsumption
+			// for cutover (003.13) — fx resolves the graph lazily regardless of
+			// declaration order relative to topics.NewService above.
+			migration.NewService,
+			func(m *migration.Service) in.MigrationService { return m },
 			func(r out.RealmRepository) *grpcgateway.Authenticator {
 				return grpcgateway.NewAuthenticator(r)
 			},
@@ -109,7 +128,9 @@ func main() {
 		fx.Invoke(startIndicatorSamplePrune),
 		fx.Invoke(startPolicyActionPrune),
 		fx.Invoke(startObservedConsumerGroupPrune),
+		fx.Invoke(startShardMigrationPrune),
 		fx.Invoke(startPlacementSweep),
+		fx.Invoke(startMigrationSweep),
 		fx.Invoke(registerServer),
 	).Run()
 }
@@ -147,7 +168,7 @@ func newServer(
 	providerSvc in.ClusterProviderService, topicSvc in.KafkaTopicService,
 	channelSvc in.AsyncChannelService, resourceSvc in.ResourceProviderService,
 	telemetrySvc in.TelemetryIngestService, governanceSvc in.GovernanceService,
-	clientSvc in.ClientService,
+	clientSvc in.ClientService, migrationSvc in.MigrationService,
 ) (*grpcgateway.Server, error) {
 	s := grpcgateway.New(c.GRPCPort, c.HTTPPort, log,
 		grpcgateway.WithAuthenticator(auth),
@@ -172,6 +193,9 @@ func newServer(
 		return nil, err
 	}
 	if err := grpcgateway.RegisterClientService(s, clientSvc, codec); err != nil {
+		return nil, err
+	}
+	if err := grpcgateway.RegisterMigrationService(s, migrationSvc); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -338,6 +362,72 @@ func startPlacementSweep(
 						}
 						if n > 0 {
 							log.Info("placement sweep materialised async-channel shards", "count", n)
+						}
+					}
+				}
+			}()
+			return nil
+		},
+		OnStop: func(context.Context) error { close(stop); return nil },
+	})
+}
+
+// startMigrationSweep runs 18's drain-based state machine's advance pass:
+// every migrationSweepInterval it re-evaluates every non-terminal
+// shard_migration row and moves forward whatever is ready (target READY →
+// cutover → drain signals or deadline → retire). Realm-agnostic, like the
+// placement retry sweep.
+func startMigrationSweep(lc fx.Lifecycle, log *slog.Logger, migrator *migration.Service) {
+	stop := make(chan struct{})
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			log.Info("migration sweep started", "sweep_interval", migrationSweepInterval)
+			go func() {
+				ticker := time.NewTicker(migrationSweepInterval)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-stop:
+						return
+					case <-ticker.C:
+						n, err := migrator.Sweep(context.Background())
+						if err != nil {
+							log.Warn("migration sweep failed", "err", err)
+							continue
+						}
+						if n > 0 {
+							log.Info("migration sweep advanced shard migrations", "count", n)
+						}
+					}
+				}
+			}()
+			return nil
+		},
+		OnStop: func(context.Context) error { close(stop); return nil },
+	})
+}
+
+// startShardMigrationPrune runs the nightly terminal-migration prune (003.13,
+// same 30-day retention as every other Franz time series).
+func startShardMigrationPrune(lc fx.Lifecycle, log *slog.Logger, repo out.ShardMigrationRepository) {
+	stop := make(chan struct{})
+	lc.Append(fx.Hook{
+		OnStart: func(context.Context) error {
+			go func() {
+				ticker := time.NewTicker(24 * time.Hour)
+				defer ticker.Stop()
+				for {
+					select {
+					case <-stop:
+						return
+					case <-ticker.C:
+						n, err := repo.PruneOlderThan(context.Background(), time.Now().Add(-shardMigrationRetention))
+						if err != nil {
+							log.Warn("shard-migration prune failed", "err", err)
+							continue
+						}
+						if n > 0 {
+							log.Info("pruned shard migrations", "count", n)
 						}
 					}
 				}

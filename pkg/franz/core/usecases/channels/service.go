@@ -118,8 +118,11 @@ func (s *Service) List(ctx context.Context, input in.ListChannelsInput) (in.Chan
 	}, nil
 }
 
-// Update applies the masked fields (labels only) under a row lock. A change to
-// the reserved `franz.*` placement labels re-runs placement afterwards (003.7).
+// Update applies the masked fields under a row lock. A change to the reserved
+// `franz.*` placement labels, or a `channel_partitions` increase (18.7's
+// re-shard — 003.13 OQ4 resolved as add-only, never redistributing existing
+// keys), re-runs placement afterwards (003.7) to materialise whatever the
+// change now makes possible.
 func (s *Service) Update(ctx context.Context, input in.UpdateChannelInput) (*channel.AsyncChannel, error) {
 	r := realm.MustFromContext(ctx)
 	if input.Labels != nil {
@@ -131,14 +134,24 @@ func (s *Service) Update(ctx context.Context, input in.UpdateChannelInput) (*cha
 	updated, err := s.repo.Mutate(ctx, r.ID, input.Name, func(c *channel.AsyncChannel) error {
 		labelsBefore = c.Labels
 		if input.Labels != nil {
-			return c.SetLabels(*input.Labels)
+			if err := c.SetLabels(*input.Labels); err != nil {
+				return err
+			}
 		}
-		return c.EnsureMutable()
+		if input.ChannelPartitions != nil {
+			if err := c.SetChannelPartitions(*input.ChannelPartitions); err != nil {
+				return err
+			}
+		}
+		if input.Labels == nil && input.ChannelPartitions == nil {
+			return c.EnsureMutable()
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	if placement.RulesChanged(labelsBefore, updated.Labels) {
+	if placement.RulesChanged(labelsBefore, updated.Labels) || input.ChannelPartitions != nil {
 		s.place(ctx, r.ID, updated.Name)
 	}
 	return updated, nil

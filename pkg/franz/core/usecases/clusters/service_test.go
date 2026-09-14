@@ -164,7 +164,7 @@ func mkService(topics int) (*Service, *memRepo) {
 func mkServiceP(topics int) (*Service, *memRepo, *capturePublisher) {
 	repo := newMemRepo()
 	pub := newCapturePublisher()
-	return NewService(repo, guard{n: topics}, noStatus{}, pub, nil, nil), repo, pub
+	return NewService(repo, guard{n: topics}, noStatus{}, pub, nil, nil, nil), repo, pub
 }
 
 func plainConns() []cluster.ConnectionString {
@@ -207,14 +207,14 @@ func TestCreateGetLifecycle(t *testing.T) {
 		t.Fatalf("Resume: %v", err)
 	}
 
-	if err := svc.Delete(ctx, "east-1"); err != nil {
+	if err := svc.Delete(ctx, "east-1", false); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 	// operations on a deleted cluster fail
 	if _, err := svc.Pause(ctx, "east-1"); errs.KindOf(err) != errs.FailedPrecondition {
 		t.Fatalf("pause deleted = %v", err)
 	}
-	if err := svc.Delete(ctx, "east-1"); errs.KindOf(err) != errs.FailedPrecondition {
+	if err := svc.Delete(ctx, "east-1", false); errs.KindOf(err) != errs.FailedPrecondition {
 		t.Fatalf("re-delete = %v", err)
 	}
 }
@@ -225,7 +225,7 @@ func TestDeleteBlockedByLiveTopics(t *testing.T) {
 	if _, err := svc.Create(ctx, in.CreateClusterInput{Name: "east-1", ConnectionStrings: plainConns()}); err != nil {
 		t.Fatal(err)
 	}
-	err := svc.Delete(ctx, "east-1")
+	err := svc.Delete(ctx, "east-1", false)
 	if errs.KindOf(err) != errs.FailedPrecondition {
 		t.Fatalf("delete with live topics = %v, want FAILED_PRECONDITION", err)
 	}
@@ -301,7 +301,7 @@ func TestListSelectorAndPagination(t *testing.T) {
 	}
 
 	// deleted clusters drop out of List but Get still returns them
-	_ = svc.Delete(ctx, "a")
+	_ = svc.Delete(ctx, "a", false)
 	after, _ := svc.List(ctx, in.ListClustersInput{Selector: "env=prod"})
 	if len(after.Clusters) != 2 {
 		t.Errorf("after delete list = %d, want 2", len(after.Clusters))
@@ -356,7 +356,7 @@ func TestAssignmentPublishedOnLifecycle(t *testing.T) {
 		t.Errorf("resume → %v, want SET", a.Change)
 	}
 
-	if err := svc.Delete(ctx, "east-1"); err != nil {
+	if err := svc.Delete(ctx, "east-1", false); err != nil {
 		t.Fatal(err)
 	}
 	if a, _ := pub.last("prov-1"); a.Change != provider.ChangeRemoved {

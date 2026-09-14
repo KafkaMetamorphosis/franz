@@ -93,9 +93,12 @@ func (h *asyncChannelHandler) UpdateAsyncChannel(
 		case "labels":
 			v := req.GetLabels()
 			input.Labels = &v
+		case "channel_partitions":
+			v := req.GetChannelPartitions()
+			input.ChannelPartitions = &v
 		default:
 			return nil, ToError(errs.InvalidField("update_mask",
-				"field "+p+" is not updatable (channel_partitions is a re-shard, access_policy uses SetAccessPolicy)"))
+				"field "+p+" is not updatable (access_policy uses SetAccessPolicy)"))
 		}
 	}
 	c, err := h.svc.Update(ctx, input)

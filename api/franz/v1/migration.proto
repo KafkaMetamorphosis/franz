@@ -1,0 +1,120 @@
+edition = "2024";
+
+package franz.v1;
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "franz/v1/common.proto";
+
+// Shard migration (003.13): the single staged flow that moves a shard's
+// serving position from one Kafka Cluster to another. v1 is drain-based — no
+// historical byte copy; a key's old messages stay on the old shard until
+// consumed or lost past the drain deadline.
+//
+// This is orchestration over existing primitives, not a parallel state
+// machine: PROVISIONING is an ordinary new shard on the target cluster;
+// CUTOVER re-normalises traffic_share the same way SetConsumption already
+// does for re-shard; RETIRING deletes the source shard through the normal
+// delete path. shard_migration is bookkeeping + the read view over that
+// orchestration.
+message ShardMigration {
+  // Server-assigned.
+  string id = 1;
+  string async_channel = 2;
+  // The two real Kafka Topic shards this migration is between. Both exist as
+  // ordinary KafkaTopic resources for the migration's whole lifetime — the
+  // source is deleted, not repointed, once RETIRING completes.
+  string source_kafka_topic = 3;
+  string target_kafka_topic = 4;
+  string source_kafka_cluster = 5;
+  string target_kafka_cluster = 6;
+
+  MigrationPhase phase = 7;
+  // Why this migration started: "operator", "drain-taint", "cluster-delete",
+  // "misplaced", "re-shard", or "governance:<policy-name>".
+  string reason = 8;
+
+  // Set once DRAINING starts (003.13 OQ3: a fixed window, not per-channel or
+  // lag-derived). Unset before DRAINING.
+  google.protobuf.Timestamp drain_deadline = 9;
+  // Set only when phase is FAILED.
+  string failure_reason = 10;
+
+  google.protobuf.Timestamp started_at = 11;
+  // Unset until phase is DONE or FAILED.
+  google.protobuf.Timestamp completed_at = 12;
+}
+
+enum MigrationPhase {
+  MIGRATION_PHASE_UNSPECIFIED = 0;
+  MIGRATION_PHASE_PROVISIONING = 1;
+  MIGRATION_PHASE_CUTOVER = 2;
+  MIGRATION_PHASE_DRAINING = 3;
+  MIGRATION_PHASE_RETIRING = 4;
+  MIGRATION_PHASE_DONE = 5;
+  MIGRATION_PHASE_FAILED = 6;
+}
+
+message MigrateKafkaTopicRequest {
+  string kafka_topic = 1;
+  string target_cluster = 2;
+}
+
+message MigrateKafkaTopicResponse {
+  ShardMigration migration = 1;
+}
+
+message MigrateClusterRequest {
+  string kafka_cluster = 1;
+  // Free-form audit reason; defaults to "operator" when unset. Internal
+  // callers (drain taint, cluster-delete force) pass their own.
+  string reason = 2;
+}
+
+message MigrateClusterResponse {
+  repeated ShardMigration migrations = 1;
+}
+
+message GetShardMigrationRequest {
+  string id = 1;
+}
+
+message GetShardMigrationResponse {
+  ShardMigration migration = 1;
+}
+
+message ListShardMigrationsRequest {
+  string async_channel = 1;
+  PageRequest page = 2;
+}
+
+message ListShardMigrationsResponse {
+  repeated ShardMigration migrations = 1;
+  PageResponse page = 2;
+}
+
+service MigrationService {
+  // MigrateKafkaTopic is 003.13 OQ1's resolved operator entry point: an
+  // explicit, targeted move of one shard.
+  rpc MigrateKafkaTopic(MigrateKafkaTopicRequest) returns (MigrateKafkaTopicResponse) {
+    option (google.api.http) = {
+      post: "/v1/kafka-topics/{kafka_topic}/migrate"
+      body: "*"
+    };
+  }
+  // MigrateCluster starts moving every live shard off one cluster, each to an
+  // independently-selected target. The same entry point DeleteKafkaCluster's
+  // force=true and a drain taint call internally.
+  rpc MigrateCluster(MigrateClusterRequest) returns (MigrateClusterResponse) {
+    option (google.api.http) = {
+      post: "/v1/kafka-clusters/{kafka_cluster}/migrate"
+      body: "*"
+    };
+  }
+  rpc GetShardMigration(GetShardMigrationRequest) returns (GetShardMigrationResponse) {
+    option (google.api.http) = {get: "/v1/shard-migrations/{id}"};
+  }
+  rpc ListShardMigrations(ListShardMigrationsRequest) returns (ListShardMigrationsResponse) {
+    option (google.api.http) = {get: "/v1/shard-migrations"};
+  }
+}

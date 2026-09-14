@@ -44,6 +44,11 @@ type TopicRepository interface {
 	// errs.NotFound if absent.
 	Get(ctx context.Context, realmID uuid.UUID, name string) (*topic.KafkaTopic, error)
 
+	// GetByID returns the shard by surrogate id, including a soft-deleted one.
+	// errs.NotFound if absent. Used by the migration sweep (18), which tracks
+	// shards by id (shard_migration.source_topic_id / target_topic_id), not name.
+	GetByID(ctx context.Context, realmID, id uuid.UUID) (*topic.KafkaTopic, error)
+
 	// List returns one page per TopicQuery.
 	List(ctx context.Context, q TopicQuery) (TopicPage, error)
 

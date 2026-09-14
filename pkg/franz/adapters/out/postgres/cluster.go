@@ -26,8 +26,8 @@ func NewClusterRepo(db *DB) *ClusterRepo { return &ClusterRepo{db: db} }
 var _ out.ClusterRepository = (*ClusterRepo)(nil)
 
 const clusterColumns = `id, realm_id, name, frn, connection_strings, labels,
-	cluster_configuration, cluster_provider_agent, brokers, disk_size, state,
-	created_at, updated_at`
+	cluster_configuration, cluster_provider_agent, brokers, disk_size,
+	max_concurrent_migrations, state, created_at, updated_at`
 
 type rowScanner interface {
 	Scan(dest ...any) error
@@ -65,7 +65,8 @@ func scanCluster(sc rowScanner) (*cluster.Cluster, error) {
 		brokers                     *int32
 	)
 	err := sc.Scan(&c.ID, &c.RealmID, &c.Name, &frnPath, &connsRaw, &labelsRaw,
-		&cfgRaw, &c.ProviderAgent, &brokers, &c.DiskSize, &state, &c.CreatedAt, &c.UpdatedAt)
+		&cfgRaw, &c.ProviderAgent, &brokers, &c.DiskSize, &c.MaxConcurrentMigrations,
+		&state, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errs.NotFoundf("kafka cluster not found")
@@ -124,11 +125,12 @@ func (r *ClusterRepo) Create(ctx context.Context, c *cluster.Cluster) error {
 	row := r.db.Pool().QueryRow(ctx, `
 		INSERT INTO kafka_cluster
 			(id, realm_id, name, frn, connection_strings, labels,
-			 cluster_configuration, cluster_provider_agent, brokers, disk_size, state)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+			 cluster_configuration, cluster_provider_agent, brokers, disk_size,
+			 max_concurrent_migrations, state)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		RETURNING `+clusterColumns,
 		c.ID, c.RealmID, c.Name, c.FRN.Path(), conns, labels, cfg,
-		c.ProviderAgent, brokersArg(c.Brokers), c.DiskSize, string(c.State))
+		c.ProviderAgent, brokersArg(c.Brokers), c.DiskSize, c.MaxConcurrentMigrations, string(c.State))
 
 	stored, err := scanCluster(row)
 	if err != nil {
@@ -269,10 +271,12 @@ func (r *ClusterRepo) Mutate(
 		updated, err := scanCluster(tx.QueryRow(ctx, `
 			UPDATE kafka_cluster SET
 				connection_strings=$1, labels=$2, cluster_configuration=$3,
-				cluster_provider_agent=$4, brokers=$5, disk_size=$6, state=$7, updated_at=now()
-			WHERE id=$8
+				cluster_provider_agent=$4, brokers=$5, disk_size=$6,
+				max_concurrent_migrations=$7, state=$8, updated_at=now()
+			WHERE id=$9
 			RETURNING `+clusterColumns,
-			conns, labels, cfg, c.ProviderAgent, brokersArg(c.Brokers), c.DiskSize, string(c.State), c.ID))
+			conns, labels, cfg, c.ProviderAgent, brokersArg(c.Brokers), c.DiskSize,
+			c.MaxConcurrentMigrations, string(c.State), c.ID))
 		if err != nil {
 			return err
 		}

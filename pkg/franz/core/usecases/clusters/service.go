@@ -10,6 +10,7 @@ import (
 
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/cluster"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/migration"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/placement"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/provider"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
@@ -34,6 +35,9 @@ type Service struct {
 	// state change, since either can add or remove it from a channel's candidate
 	// set (003.7). Optional — nil in tests that do not exercise placement.
 	placer out.ShardPlacer
+	// migrator drives DeleteKafkaCluster(force=true) (003.13 OQ5). Optional —
+	// nil in tests that do not exercise the force-delete path.
+	migrator in.MigrationService
 }
 
 var _ in.KafkaClusterService = (*Service)(nil)
@@ -46,10 +50,11 @@ func NewService(
 	publisher out.AssignmentPublisher,
 	notifier out.PartitionNotifier,
 	placer out.ShardPlacer,
+	migrator in.MigrationService,
 ) *Service {
 	return &Service{
 		repo: repo, guard: guard, providerRd: providerRd,
-		publisher: publisher, notifier: notifier, placer: placer,
+		publisher: publisher, notifier: notifier, placer: placer, migrator: migrator,
 	}
 }
 
@@ -77,6 +82,9 @@ func (s *Service) Create(ctx context.Context, input in.CreateClusterInput) (*clu
 		return nil, err
 	}
 	if err := c.SetShape(input.Brokers, input.DiskSize); err != nil {
+		return nil, err
+	}
+	if err := c.SetMaxConcurrentMigrations(input.MaxConcurrentMigrations); err != nil {
 		return nil, err
 	}
 	if err := s.repo.Create(ctx, c); err != nil {
@@ -183,6 +191,11 @@ func (s *Service) Update(ctx context.Context, input in.UpdateClusterInput) (*clu
 				return err
 			}
 		}
+		if input.MaxConcurrentMigrations != nil {
+			if err := c.SetMaxConcurrentMigrations(*input.MaxConcurrentMigrations); err != nil {
+				return err
+			}
+		}
 		return nil
 	})
 	if err != nil {
@@ -196,15 +209,40 @@ func (s *Service) Update(ctx context.Context, input in.UpdateClusterInput) (*clu
 	// every label edit re-runs placement (003.7 "Cross-entity behavior").
 	if input.Labels != nil {
 		s.replace(ctx, r.ID)
+		// A cluster newly gaining franz.taint=drain starts moving every live
+		// shard off it (003.13 OQ1's fourth trigger, 18.4) — best-effort, same
+		// as every other post-commit side effect here; only on the transition
+		// into drain, not on every subsequent label edit while already tainted.
+		if s.migrator != nil && !isDrainTainted(labelsBefore) && isDrainTainted(updated.Labels) {
+			// Per-shard failures are already logged inside MigrateCluster itself
+			// (migration.Service has its own logger); this service has none, so
+			// a top-level error here — unexpected, since updated.Name just
+			// resolved successfully — is not further reported.
+			_, _ = s.migrator.MigrateCluster(ctx, updated.Name, migration.ReasonDrainTaint)
+		}
 	}
 	return updated, nil
 }
 
-// Delete soft-deletes the cluster. It refuses (FAILED_PRECONDITION) while the
-// cluster still hosts live Kafka Topics (003.3), then pushes a REMOVED
-// assignment to the owning agent.
-func (s *Service) Delete(ctx context.Context, name string) error {
+// isDrainTainted reports whether labels carry franz.taint=drain. A malformed
+// taint is treated as "not drained" — Update already rejected a malformed
+// taint before this point (ValidateClusterLabels / placement.ValidateClusterLabels),
+// so a parse failure here can only mean labelsBefore predates that validation.
+func isDrainTainted(labels map[string]string) bool {
+	rules, err := placement.ParseClusterRules(labels)
+	return err == nil && rules.Taint != nil && rules.Taint.Effect == placement.EffectDrain
+}
+
+// Delete soft-deletes the cluster. With force=false it refuses
+// (FAILED_PRECONDITION) while the cluster still hosts live Kafka Topics
+// (003.3). With force=true (003.13 OQ5) it instead starts a drain migration
+// for every live shard and leaves the cluster ACTIVE — deletion itself
+// completes on a later call, once CountLiveTopics reaches zero the normal way.
+// A cluster with no live topics deletes immediately either way and pushes a
+// REMOVED assignment to the owning agent.
+func (s *Service) Delete(ctx context.Context, name string, force bool) error {
 	r := realm.MustFromContext(ctx)
+	drainStarted := false
 	updated, err := s.repo.Mutate(ctx, r.ID, name, func(c *cluster.Cluster) error {
 		if c.State == cluster.StateDeleted {
 			return c.Delete() // yields FAILED_PRECONDITION
@@ -213,13 +251,27 @@ func (s *Service) Delete(ctx context.Context, name string) error {
 		if err != nil {
 			return err
 		}
-		if n > 0 {
-			return errs.Preconditionf("kafka cluster %q still hosts %d live topic(s)", name, n)
+		if n == 0 {
+			return c.Delete()
 		}
-		return c.Delete()
+		if !force {
+			return errs.Preconditionf(
+				"kafka cluster %q still hosts %d live topic(s) (pass force=true to auto-migrate them off)",
+				name, n)
+		}
+		drainStarted = true
+		return nil // leave c as ACTIVE; the mutate still persists (a no-op write)
 	})
 	if err != nil {
 		return err
+	}
+	if drainStarted {
+		if s.migrator != nil {
+			if _, err := s.migrator.MigrateCluster(ctx, name, migration.ReasonClusterDelete); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	s.publishTo("", updated)
 	s.replace(ctx, r.ID)
