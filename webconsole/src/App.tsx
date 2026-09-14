@@ -23,6 +23,10 @@ import { PolicyList } from "./pages/governance/PolicyList";
 import { PolicyRegister } from "./pages/governance/PolicyRegister";
 import { PolicyDetail } from "./pages/governance/PolicyDetail";
 import { PolicyEdit } from "./pages/governance/PolicyEdit";
+import { ClientList } from "./pages/clients/ClientList";
+import { ClientRegister } from "./pages/clients/ClientRegister";
+import { ClientDetail } from "./pages/clients/ClientDetail";
+import { ClientEdit } from "./pages/clients/ClientEdit";
 
 export function App() {
   const { session } = useAuth();
@@ -60,6 +64,10 @@ export function App() {
         <Route path="/governance/policies/register" element={<PolicyRegister />} />
         <Route path="/governance/policies/:name" element={<PolicyDetail />} />
         <Route path="/governance/policies/:name/edit" element={<PolicyEdit />} />
+        <Route path="/clients" element={<ClientList />} />
+        <Route path="/clients/register" element={<ClientRegister />} />
+        <Route path="/clients/:name" element={<ClientDetail />} />
+        <Route path="/clients/:name/edit" element={<ClientEdit />} />
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

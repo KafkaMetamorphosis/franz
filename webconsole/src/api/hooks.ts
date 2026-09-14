@@ -23,6 +23,9 @@ export type PolicyAction = Schemas["v1PolicyAction"];
 export type Action = Schemas["v1Action"];
 export type Matcher = Schemas["v1Matcher"];
 export type Limit = Schemas["v1Limit"];
+export type Client = Schemas["v1Client"];
+export type ClientChannelAccess = Schemas["v1ClientChannelAccess"];
+export type ObservedConsumerGroup = Schemas["v1ObservedConsumerGroup"];
 
 // The gateway parses `update_mask` with protojson semantics: comma-separated
 // lowerCamelCase paths (snake_case is rejected). Callers pass the body keys they
@@ -427,5 +430,98 @@ export function useDryRunPolicy() {
   return useMutation({
     mutationFn: async (body: Schemas["v1DryRunPolicyRequest"]) =>
       unwrap(await api.POST("/v1/governance/policies:dryRun", { body })),
+  });
+}
+
+// --- Clients (003.10) --------------------------------------------------------
+
+export function useClients(selector?: string) {
+  return useQuery({
+    queryKey: ["clients", selector ?? "all"],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/clients", { params: { query: selector ? { selector } : {} } })),
+  });
+}
+
+export function useClient(name: string) {
+  return useQuery({
+    queryKey: ["client", name],
+    queryFn: async () => unwrap(await api.GET("/v1/clients/{name}", { params: { path: { name } } })),
+  });
+}
+
+export function useClientChannelAccess(name: string) {
+  return useQuery({
+    queryKey: ["client-channel-access", name],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/clients/{name}/channel-access", {
+          params: { path: { name }, query: {} },
+        }),
+      ),
+    enabled: !!name,
+  });
+}
+
+export function useObservedConsumerGroups(name: string) {
+  return useQuery({
+    queryKey: ["observed-consumer-groups", name],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/clients/{name}/consumer-groups", {
+          params: { path: { name }, query: {} },
+        }),
+      ),
+    enabled: !!name,
+  });
+}
+
+// No (group, topic) filter on the wire — ListConsumerGroupObservations returns
+// every sighting for the client in the time range. The caller filters
+// client-side to the one (group, topic) pair a "show history" row expands.
+export function useConsumerGroupObservations(name: string, opts?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["consumer-group-observations", name],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/clients/{name}/consumer-group-observations", {
+          params: { path: { name }, query: {} },
+        }),
+      ),
+    enabled: !!name && (opts?.enabled ?? true),
+  });
+}
+
+export function useCreateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Schemas["v1CreateClientRequest"]) =>
+      unwrap(await api.POST("/v1/clients", { body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+// UpdateClientBody is the PATCH payload — `labels` only. `name` is immutable
+// (003.10, "the default consumer-group prefix").
+export type UpdateClientBody = Schemas["ClientServiceUpdateClientBody"];
+
+export function useUpdateClient(name: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdateClientBody) =>
+      unwrap(await api.PATCH("/v1/clients/{name}", { params: { path: { name } }, body })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["client", name] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}
+
+export function useDeleteClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) =>
+      unwrap(await api.DELETE("/v1/clients/{name}", { params: { path: { name } } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
   });
 }

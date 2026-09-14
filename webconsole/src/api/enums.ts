@@ -84,6 +84,12 @@ export function actionKindLabel(v?: string): string {
   return ACTION_KINDS.find((k) => k.value === v)?.label ?? "?";
 }
 
+export function permissionLabel(v?: string): string {
+  const short = (v ?? "").replace(/^PERMISSION_/, "");
+  if (!short || short === "UNSPECIFIED") return "—";
+  return short.charAt(0) + short.slice(1).toLowerCase();
+}
+
 // describeAction renders one Action as a single-line summary for a read-only
 // list (PolicyList's action count, PolicyDetail's audit trail) — the args'
 // meaning depends on kind (see v1Action's own doc comment).

@@ -1,6 +1,7 @@
 # 21 — Client UI
 
-Status: ⬜ not started
+Status: ✅ done
+Executed by: claude (claude-sonnet-5)
 Depends on: [06](./06-web-console-bootstrap.md) · [08](./08-resource-management-ui.md) · [16](./16-client.md) · [17](./17-access-policy-and-channel-access.md)
 Specs: `003-franz/003.10-clients`, `003-franz/003.5-access-policy`
 Proto: none — `ClientService` was generated ahead of deliverable 16; `schema.d.ts` already carries it
@@ -47,6 +48,15 @@ mask, the same pattern `ChannelEdit` (19) uses for `type`/`channel_partitions`.
 | Observed consumer groups (current view) | `ClientDetail` | `ListObservedConsumerGroups` |
 | Consumer-group observation history | `ClientDetail`, a "show history" expansion on one group row | `ListConsumerGroupObservations` |
 
+> **Corrected against the actual wire contract:** `ListConsumerGroupObservations`
+> has no `(group, topic)` filter — only `from`/`to` and paging. It returns
+> every sighting for the client in the time range, not one group's history.
+> The "show history" expansion therefore fetches the full list once (lazily,
+> on first expansion) and filters client-side to the one `(group, kafkaTopic)`
+> pair the row is for — the same "fetch a page, filter in JS" pattern 17's
+> access-policy views and 20's cluster-scoped panels already use wherever the
+> server has no matching query param.
+
 ### Panels deliberately absent from the detail page
 
 | Demo panel | Why it is not here |
@@ -57,13 +67,13 @@ mask, the same pattern `ChannelEdit` (19) uses for `type`/`channel_partitions`.
 
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
-| 21.1 | **Hooks** — `useClients` / `useClient` / `useCreateClient` / `useUpdateClient` / `useDeleteClient` / `useClientChannelAccess` / `useObservedConsumerGroups` / `useConsumerGroupObservations` in `src/api/hooks.ts`, mirroring the channel/agent hooks' query keys, `unwrap`, invalidation, `updateMask` | 16, 17, 08.4 | ⬜ | |
-| 21.2 | **`ClientList`** — name + FRN, label tags (highlighting `org.com/owner` when present); "Register Client" action; empty state | `001-ux` shape (no demo page exists — follow `ChannelList`) | ⬜ | |
-| 21.3 | **`ClientRegister`** — name (required, immutable note), labels (an `org.com/owner` note per 003.10, not enforced — OQ1 is open) | `003.10` | ⬜ | |
-| 21.4 | **`ClientDetail`** — identity (name, FRN, labels, created/updated), channel-access table (channel, effective permissions, `matched_by` — `ListClientChannelAccess`), observed-consumer-groups table (group, channel, topic, custom badge, last seen), a per-row "history" expansion calling `ListConsumerGroupObservations`; Edit / Delete with a `confirm()` gate warning that the name/FRN can never be reused | 16.5, 17.6 | ⬜ | |
-| 21.5 | **`ClientEdit`** — labels only, change-detection mask, name shown read-only, 409 reload-and-re-apply | `003.10`, 08.8 | ⬜ | |
-| 21.6 | **Routing + nav + Home** — four routes in `App.tsx`; sidebar `Clients` link replacing the disabled placeholder; Clients stat card on `Home` | 06, 19.7 | ⬜ | |
-| 21.7 | **Tests** — vitest for `ClientList` (columns, empty state), `ClientRegister` (create body, field violation), `ClientEdit` (labels-only mask, name absent from mask, Save gating); Playwright `e2e/clients.spec.ts` (sign in → register → list → detail → edit labels → delete → recreate-same-name is rejected) | — | ⬜ | |
+| 21.1 | **Hooks** — `useClients` / `useClient` / `useCreateClient` / `useUpdateClient` / `useDeleteClient` / `useClientChannelAccess` / `useObservedConsumerGroups` / `useConsumerGroupObservations` in `src/api/hooks.ts`, mirroring the channel/agent hooks' query keys, `unwrap`, invalidation, `updateMask` | 16, 17, 08.4 | ✅ | 2026-09-14 |
+| 21.2 | **`ClientList`** — name + FRN, label tags (highlighting `org.com/owner` when present); "Register Client" action; empty state | `001-ux` shape (no demo page exists — follow `ChannelList`) | ✅ | 2026-09-14 |
+| 21.3 | **`ClientRegister`** — name (required, immutable note), labels (an `org.com/owner` note per 003.10, not enforced — OQ1 is open) | `003.10` | ✅ | 2026-09-14 |
+| 21.4 | **`ClientDetail`** — identity (name, FRN, labels, created/updated), channel-access table (channel, effective permissions, `matched_by` — `ListClientChannelAccess`), observed-consumer-groups table (group, channel, topic, custom badge, last seen), a per-row "history" expansion calling `ListConsumerGroupObservations`; Edit / Delete with a `confirm()` gate warning that the name/FRN can never be reused | 16.5, 17.6 | ✅ | 2026-09-14 |
+| 21.5 | **`ClientEdit`** — labels only, change-detection mask, name shown read-only, 409 reload-and-re-apply | `003.10`, 08.8 | ✅ | 2026-09-14 |
+| 21.6 | **Routing + nav + Home** — four routes in `App.tsx`; sidebar `Clients` link replacing the disabled placeholder; Clients stat card + a Clients service card on `Home` | 06, 19.7 | ✅ | 2026-09-14 |
+| 21.7 | **Tests** — vitest for `ClientList` (columns, empty state), `ClientRegister` (create body, field violation), `ClientEdit` (labels-only mask, name absent from mask, Save gating); Playwright `e2e/clients.spec.ts` (sign in → register → list → detail → edit labels → delete → recreate-same-name is rejected) | — | ✅ | 2026-09-14 |
 
 ## Done when
 
@@ -100,4 +110,15 @@ mask, the same pattern `ChannelEdit` (19) uses for `type`/`channel_partitions`.
   `observed_consumer_group` rows, since a sighting is meant to be evidence a
   real agent produced, not a fixture.
 - The list page does not paginate — same open item 19's Notes already tracks
+  across all four existing list pages.
+
+## What landed
+
+| Piece | Path |
+|---|---|
+| Hooks | `src/api/hooks.ts` — `useClients`/`useClient`/`useClientChannelAccess`/`useObservedConsumerGroups`/`useConsumerGroupObservations`/`useCreateClient`/`useUpdateClient`/`useDeleteClient` |
+| Pages | `src/pages/clients/{ClientList,ClientRegister,ClientDetail,ClientEdit}.tsx` |
+| Routing / nav / Home | `App.tsx` (4 new routes), `components/Shell.tsx` (real `Clients` link replacing the disabled placeholder), `pages/Home.tsx` (Clients stat card + service card) |
+| Tests | `ClientList.test.tsx`, `ClientRegister.test.tsx`, `ClientEdit.test.tsx` (6 cases); `e2e/clients.spec.ts` (register → list → detail → edit labels → delete → recreate-same-name rejected, asserting the exact "cannot be reused" wording from `postgres/client.go`'s `nameReserved` check) |
+| Verification | `npm run typecheck`/`lint`/`test`/`build` — all green; live-checked `ListClients`/`ListClientChannelAccess`/`ListObservedConsumerGroups`/`ListConsumerGroupObservations` against a real gateway boot using the local seed's `billing`/`payments-consumer` clients and `billing-events` channel |
   across all four existing list pages.

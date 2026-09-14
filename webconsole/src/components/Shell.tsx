@@ -41,9 +41,9 @@ export function Shell({ children }: { children: ReactNode }) {
             <NavLink className="nav-link" to="/async-channels">
               Channels
             </NavLink>
-            <span className="nav-link" aria-disabled="true" style={{ color: "#9aa4ad" }}>
-              Clients — coming with the feature
-            </span>
+            <NavLink className="nav-link" to="/clients">
+              Clients
+            </NavLink>
           </details>
           <details className="nav-group" open>
             <summary>Governance</summary>
