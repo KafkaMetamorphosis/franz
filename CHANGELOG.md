@@ -41,6 +41,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Access-policy engine & channel-access views (`003.5`)** — the data-plane
+  authorization evaluator: `Evaluator.Evaluate(clientFRN, labels)` resolves a
+  channel's `AccessPolicy` for READ/WRITE independently (a DENY always wins
+  regardless of statement order; a `client_frn` glob matches the client's
+  prefix-less stored FRN, never a rendered/prefixed one). Ships the two
+  resolved views: `AsyncChannelService.ListChannelClients` (forward — every
+  Client this channel grants something to, replacing the `UNIMPLEMENTED`
+  stub) and `ClientService.ListClientChannelAccess` (reverse — every channel
+  granting this client something), both returning only rows with ≥1 effective
+  permission. `local/seed/06-access-policy-demo.sql` seeds a demo channel with
+  asymmetric access for the two clients deliverable 16 seeds.
+
 - **Client (`003.10`)** — the fleet-wide SDK identity. `ClientService` CRUD
   (gRPC+REST); a `Client` carries no Type/Role/Status field, matching the spec
   exactly, so `labels` is its only mutable state. `ListObservedConsumerGroups`

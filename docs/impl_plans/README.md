@@ -69,7 +69,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [14](./14-governance.md) | Governance (Indicator registry + non-placement actions) | 02 · 03 · 09 · 10 | ✅ |
 | [15](./15-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ✅ |
 | [16](./16-client.md) | Client | 02 · 15 | ✅ |
-| [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ⬜ |
+| [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ✅ |
 | [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ⛔ |
 | [19](./19-async-channel-ui.md) | Async Channel UI (console screens for 10) | 06 · 08 · 10 · 11 | ✅ |
 | [20](./20-governance-ui.md) | Governance UI (console screens for 14 · 15) | 06 · 08 · 14 · 15 | ⬜ |
@@ -113,6 +113,23 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-13 · **17** Access-policy engine & channel-access views ·
+  `core/domain/accesspolicy/evaluate.go` — `Evaluator` (compiles a policy's
+  label selectors once, then evaluates many clients cheaply), `Evaluate`
+  resolving `003.5`'s algorithm (DENY always wins regardless of document
+  order; `client_frn` glob matches the prefix-less stored FRN, never a
+  rendered one; both views return only rows with ≥1 effective permission).
+  `AsyncChannelService.ListChannelClients` (forward) and
+  `ClientService.ListClientChannelAccess` (reverse) both ship, each fetching
+  one page of the underlying resource and filtering in Go — no bound, mirrors
+  `ClusterRepo.List`'s existing selector pattern. Four design points (matched_by
+  semantics, client_frn prefix form, row inclusion, statement-cap deferral)
+  were resolved via `AskUserQuestion` rather than assumed, per explicit user
+  instruction — see the tracker for the Q&A.
+  `local/seed/06-access-policy-demo.sql` gives the two seeded clients
+  asymmetric access to a demo channel; `docs/impl_plans/21-client-ui.md`'s
+  "Channel access" panel un-deferred now that the RPC exists. Executed by
+  claude (codex out of quota).
 - 2026-09-13 · **16** Client · `core/domain/client` (no Type/Role/Status field —
   003.10 is explicit), full `ClientService` CRUD (gRPC+REST), and the two
   observed-consumer-group reads (`ListObservedConsumerGroups`/

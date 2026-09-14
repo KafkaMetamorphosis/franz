@@ -1,22 +1,23 @@
 # 21 — Client UI
 
 Status: ⬜ not started
-Depends on: [06](./06-web-console-bootstrap.md) · [08](./08-resource-management-ui.md) · [16](./16-client.md)
-Specs: `003-franz/003.10-clients`
+Depends on: [06](./06-web-console-bootstrap.md) · [08](./08-resource-management-ui.md) · [16](./16-client.md) · [17](./17-access-policy-and-channel-access.md)
+Specs: `003-franz/003.10-clients`, `003-franz/003.5-access-policy`
 Proto: none — `ClientService` was generated ahead of deliverable 16; `schema.d.ts` already carries it
 
 ## Goal
 
 Deliverable 16 shipped the Client registry, its CRUD RPCs, and the two
-observed-consumer-group read views — but **no console screens**. 21 adds them,
-following the list / register / detail / edit page shape 06, 08, and 19
-established.
+observed-consumer-group read views; deliverable 17 shipped
+`ListClientChannelAccess`, the reverse access-policy view. None of it has
+**console screens** yet — 21 adds them, following the list / register / detail
+/ edit page shape 06, 08, and 19 established.
 
-Scope is deliberately **Client CRUD + observed-consumer-group views only**.
-`ListClientChannelAccess` (the "channels this client may use" reverse view) is
-**out of scope and deferred to [17](./17-access-policy-and-channel-access.md)**,
-mirroring how 19 deferred `AsyncChannel`'s access-policy panel to the same
-deliverable — it needs the access-policy engine, which 17 builds.
+> **Updated 2026-09-13** — when this deliverable was first scoped, 17 hadn't
+> shipped yet, so `ListClientChannelAccess` was listed as deliberately absent.
+> It's a real, working RPC now (verified against `local/seed/06-access-policy-demo.sql`'s
+> demo channel); the "Channel access" panel below moved from "deliberately
+> absent" into the real panel list and task 21.4.
 
 ## Design
 
@@ -42,6 +43,7 @@ mask, the same pattern `ChannelEdit` (19) uses for `type`/`channel_partitions`.
 
 | Panel | Where | Source |
 |---|---|---|
+| Channel access ("channels this client may use") | `ClientDetail` | `ListClientChannelAccess` (17) — channel name, effective permissions, `matched_by` |
 | Observed consumer groups (current view) | `ClientDetail` | `ListObservedConsumerGroups` |
 | Consumer-group observation history | `ClientDetail`, a "show history" expansion on one group row | `ListConsumerGroupObservations` |
 
@@ -49,17 +51,16 @@ mask, the same pattern `ChannelEdit` (19) uses for `type`/`channel_partitions`.
 
 | Demo panel | Why it is not here |
 |---|---|
-| Channel access ("channels this client may use") | deliverable 17 — `ListClientChannelAccess` needs the access-policy engine |
 | Credentials / connection testing | `003.10` "Deferred to a later ADR" — not built anywhere yet |
 
 ## Tasks
 
 | # | Task | Ref | Status | Landed |
 |---|---|---|---|---|
-| 21.1 | **Hooks** — `useClients` / `useClient` / `useCreateClient` / `useUpdateClient` / `useDeleteClient` / `useObservedConsumerGroups` / `useConsumerGroupObservations` in `src/api/hooks.ts`, mirroring the channel/agent hooks' query keys, `unwrap`, invalidation, `updateMask` | 16, 08.4 | ⬜ | |
+| 21.1 | **Hooks** — `useClients` / `useClient` / `useCreateClient` / `useUpdateClient` / `useDeleteClient` / `useClientChannelAccess` / `useObservedConsumerGroups` / `useConsumerGroupObservations` in `src/api/hooks.ts`, mirroring the channel/agent hooks' query keys, `unwrap`, invalidation, `updateMask` | 16, 17, 08.4 | ⬜ | |
 | 21.2 | **`ClientList`** — name + FRN, label tags (highlighting `org.com/owner` when present); "Register Client" action; empty state | `001-ux` shape (no demo page exists — follow `ChannelList`) | ⬜ | |
 | 21.3 | **`ClientRegister`** — name (required, immutable note), labels (an `org.com/owner` note per 003.10, not enforced — OQ1 is open) | `003.10` | ⬜ | |
-| 21.4 | **`ClientDetail`** — identity (name, FRN, labels, created/updated), observed-consumer-groups table (group, channel, topic, custom badge, last seen), a per-row "history" expansion calling `ListConsumerGroupObservations`; Edit / Delete with a `confirm()` gate warning that the name/FRN can never be reused | 16.5 | ⬜ | |
+| 21.4 | **`ClientDetail`** — identity (name, FRN, labels, created/updated), channel-access table (channel, effective permissions, `matched_by` — `ListClientChannelAccess`), observed-consumer-groups table (group, channel, topic, custom badge, last seen), a per-row "history" expansion calling `ListConsumerGroupObservations`; Edit / Delete with a `confirm()` gate warning that the name/FRN can never be reused | 16.5, 17.6 | ⬜ | |
 | 21.5 | **`ClientEdit`** — labels only, change-detection mask, name shown read-only, 409 reload-and-re-apply | `003.10`, 08.8 | ⬜ | |
 | 21.6 | **Routing + nav + Home** — four routes in `App.tsx`; sidebar `Clients` link replacing the disabled placeholder; Clients stat card on `Home` | 06, 19.7 | ⬜ | |
 | 21.7 | **Tests** — vitest for `ClientList` (columns, empty state), `ClientRegister` (create body, field violation), `ClientEdit` (labels-only mask, name absent from mask, Save gating); Playwright `e2e/clients.spec.ts` (sign in → register → list → detail → edit labels → delete → recreate-same-name is rejected) | — | ⬜ | |
@@ -89,7 +90,11 @@ mask, the same pattern `ChannelEdit` (19) uses for `type`/`channel_partitions`.
 - **Local dev prerequisite**: `local/seed/05-clients.sql` (added alongside
   deliverable 16) registers two example clients (`billing`,
   `payments-consumer`), so `ClientList` has real rows before this deliverable
-  writes a single line of UI code.
+  writes a single line of UI code. `local/seed/06-access-policy-demo.sql`
+  (added alongside deliverable 17) registers one Async Channel
+  (`billing-events`) with a real access policy granting both seeded clients
+  different permissions, so the channel-access panel also has real,
+  asymmetric data to render from the start.
 - The observed-consumer-group panel will be empty for the seeded clients until
   a real Telemetry Agent reports against them — no seed populates
   `observed_consumer_group` rows, since a sighting is meant to be evidence a

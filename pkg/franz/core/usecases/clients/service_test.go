@@ -122,7 +122,7 @@ func (f *fakeGroupRepo) PruneOlderThan(context.Context, time.Time) (int64, error
 // --- tests -----------------------------------------------------------------
 
 func TestCreateThenGet(t *testing.T) {
-	svc := clients.NewService(newFakeClientRepo(), &fakeGroupRepo{})
+	svc := clients.NewService(newFakeClientRepo(), &fakeGroupRepo{}, nil)
 	created, err := svc.Create(ctxWithRealm(), in.CreateClientInput{
 		Name: "billing", Labels: map[string]string{"org.com/owner": "payments-team"},
 	})
@@ -137,7 +137,7 @@ func TestCreateThenGet(t *testing.T) {
 
 func TestCreateRejectsDuplicateName(t *testing.T) {
 	repo := newFakeClientRepo()
-	svc := clients.NewService(repo, &fakeGroupRepo{})
+	svc := clients.NewService(repo, &fakeGroupRepo{}, nil)
 	if _, err := svc.Create(ctxWithRealm(), in.CreateClientInput{Name: "billing"}); err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +150,7 @@ func TestCreateRejectsDuplicateName(t *testing.T) {
 // free the name / FRN" at the service level, not just the repo's.
 func TestCreateRejectsRecreatingADeletedName(t *testing.T) {
 	repo := newFakeClientRepo()
-	svc := clients.NewService(repo, &fakeGroupRepo{})
+	svc := clients.NewService(repo, &fakeGroupRepo{}, nil)
 	if _, err := svc.Create(ctxWithRealm(), in.CreateClientInput{Name: "billing"}); err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestCreateRejectsRecreatingADeletedName(t *testing.T) {
 
 func TestUpdateReplacesLabelsWholesale(t *testing.T) {
 	repo := newFakeClientRepo()
-	svc := clients.NewService(repo, &fakeGroupRepo{})
+	svc := clients.NewService(repo, &fakeGroupRepo{}, nil)
 	if _, err := svc.Create(ctxWithRealm(), in.CreateClientInput{
 		Name: "billing", Labels: map[string]string{"team": "infra"},
 	}); err != nil {
@@ -181,7 +181,7 @@ func TestUpdateReplacesLabelsWholesale(t *testing.T) {
 }
 
 func TestUpdateRequiresAMaskedField(t *testing.T) {
-	svc := clients.NewService(newFakeClientRepo(), &fakeGroupRepo{})
+	svc := clients.NewService(newFakeClientRepo(), &fakeGroupRepo{}, nil)
 	if _, err := svc.Update(ctxWithRealm(), in.UpdateClientInput{Name: "billing"}); errs.KindOf(err) != errs.InvalidArgument {
 		t.Fatalf("kind = %v", errs.KindOf(err))
 	}
@@ -189,7 +189,7 @@ func TestUpdateRequiresAMaskedField(t *testing.T) {
 
 func TestListFiltersBySelector(t *testing.T) {
 	repo := newFakeClientRepo()
-	svc := clients.NewService(repo, &fakeGroupRepo{})
+	svc := clients.NewService(repo, &fakeGroupRepo{}, nil)
 	svc.Create(ctxWithRealm(), in.CreateClientInput{Name: "billing", Labels: map[string]string{"team": "infra"}})
 	svc.Create(ctxWithRealm(), in.CreateClientInput{Name: "payments", Labels: map[string]string{"team": "payments"}})
 
@@ -203,14 +203,14 @@ func TestListFiltersBySelector(t *testing.T) {
 }
 
 func TestListRejectsInvalidSelector(t *testing.T) {
-	svc := clients.NewService(newFakeClientRepo(), &fakeGroupRepo{})
+	svc := clients.NewService(newFakeClientRepo(), &fakeGroupRepo{}, nil)
 	if _, err := svc.List(ctxWithRealm(), in.ListClientsInput{Selector: "==="}); errs.KindOf(err) != errs.InvalidArgument {
 		t.Fatalf("kind = %v", errs.KindOf(err))
 	}
 }
 
 func TestListObservedConsumerGroupsRequiresAnExistingClient(t *testing.T) {
-	svc := clients.NewService(newFakeClientRepo(), &fakeGroupRepo{})
+	svc := clients.NewService(newFakeClientRepo(), &fakeGroupRepo{}, nil)
 	if _, err := svc.ListObservedConsumerGroups(ctxWithRealm(),
 		in.ListObservedConsumerGroupsInput{Name: "ghost"}); errs.KindOf(err) != errs.NotFound {
 		t.Fatalf("kind = %v", errs.KindOf(err))
@@ -220,7 +220,7 @@ func TestListObservedConsumerGroupsRequiresAnExistingClient(t *testing.T) {
 func TestListObservedConsumerGroupsScopesByClientFRN(t *testing.T) {
 	repo := newFakeClientRepo()
 	groups := &fakeGroupRepo{}
-	svc := clients.NewService(repo, groups)
+	svc := clients.NewService(repo, groups, nil)
 	svc.Create(ctxWithRealm(), in.CreateClientInput{Name: "billing"})
 
 	if _, err := svc.ListObservedConsumerGroups(ctxWithRealm(),
@@ -235,7 +235,7 @@ func TestListObservedConsumerGroupsScopesByClientFRN(t *testing.T) {
 func TestListConsumerGroupObservationsScopesByClientFRN(t *testing.T) {
 	repo := newFakeClientRepo()
 	groups := &fakeGroupRepo{}
-	svc := clients.NewService(repo, groups)
+	svc := clients.NewService(repo, groups, nil)
 	svc.Create(ctxWithRealm(), in.CreateClientInput{Name: "billing"})
 
 	if _, err := svc.ListConsumerGroupObservations(ctxWithRealm(),

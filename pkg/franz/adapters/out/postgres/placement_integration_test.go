@@ -54,7 +54,7 @@ func newPlacementFixture(t *testing.T) *placementFixture {
 		realm:     r,
 		ctx:       realm.NewContext(context.Background(), r),
 		placer:    placer,
-		channels:  channels.NewService(channelRepo, nil, placer),
+		channels:  channels.NewService(channelRepo, nil, placer, nil),
 		clusters:  clusters.NewService(clusterRepo, topicRepo, eventRepo, streamhub.New(), nil, placer),
 		topics:    topics.NewService(topicRepo, clusterRepo, nil),
 		topicRepo: topicRepo,

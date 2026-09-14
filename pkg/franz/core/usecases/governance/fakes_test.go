@@ -565,6 +565,12 @@ func (f fakeChannelSvc) Resume(_ context.Context, name string) (*channel.AsyncCh
 	return f.repo.rows[name], nil
 }
 
+func (f fakeChannelSvc) ListChannelClients(
+	context.Context, in.ListChannelClientsInput,
+) (in.ChannelClientAccessPage, error) {
+	return in.ChannelClientAccessPage{}, nil
+}
+
 type fakeClusterSvc struct {
 	repo  *fakeClusterRepo
 	calls *[]serviceCall

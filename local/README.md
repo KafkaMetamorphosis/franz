@@ -74,6 +74,16 @@ Registers two example Clients (003.10) — `billing` and `payments-consumer` —
 so `ListClients` and the observed-consumer-group views have real rows to show
 without a hand-authored `CreateClient` call first.
 
+### `seed/06-access-policy-demo.sql`
+
+Registers one Async Channel (`billing-events`) with a real access policy
+(003.5) so the two access-policy views (`ListChannelClients` /
+`ListClientChannelAccess`, deliverable 17) have something to show: a
+label-selector `ALLOW` grants both seeded clients READ, and a `client_frn`
+`ALLOW` additionally grants `billing` WRITE — deliberately asymmetric so the
+views are worth looking at. Inserted directly as a row (bypasses placement;
+no shard is materialised).
+
 ## Reset
 
 ```

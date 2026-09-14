@@ -11,6 +11,7 @@ import (
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/accesspolicy"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/client"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/consumergroup"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
@@ -21,12 +22,13 @@ import (
 )
 
 type fakeClientSvc struct {
-	created  in.CreateClientInput
-	updated  in.UpdateClientInput
-	ret      *client.Client
-	err      error
-	listResp in.ClientPage
-	groups   in.ObservedGroupPage
+	created       in.CreateClientInput
+	updated       in.UpdateClientInput
+	ret           *client.Client
+	err           error
+	listResp      in.ClientPage
+	groups        in.ObservedGroupPage
+	channelAccess in.ClientChannelAccessPage
 }
 
 func (f *fakeClientSvc) Create(_ context.Context, i in.CreateClientInput) (*client.Client, error) {
@@ -51,6 +53,11 @@ func (f *fakeClientSvc) ListConsumerGroupObservations(
 	context.Context, in.ListConsumerGroupObservationsInput,
 ) (in.ObservedGroupPage, error) {
 	return f.groups, f.err
+}
+func (f *fakeClientSvc) ListClientChannelAccess(
+	context.Context, in.ListClientChannelAccessInput,
+) (in.ClientChannelAccessPage, error) {
+	return f.channelAccess, f.err
 }
 
 func sampleClient(t *testing.T) *client.Client {
@@ -192,6 +199,42 @@ func TestListConsumerGroupObservationsUnsetTimestampsStayZero(t *testing.T) {
 	}
 	if !captured.From.Equal(from) {
 		t.Fatalf("From = %v, want %v", captured.From, from)
+	}
+}
+
+func TestListClientChannelAccessForwardsPageAndMapping(t *testing.T) {
+	fake := &fakeClientSvc{channelAccess: in.ClientChannelAccessPage{
+		Access: []in.ClientChannelAccess{{
+			AsyncChannel: "orders",
+			Effective:    []accesspolicy.Permission{accesspolicy.Read, accesspolicy.Write},
+			MatchedBy:    "statement 0 (ALLOW client_frn=acme:client:billing)",
+		}},
+		NextPageToken: "next-page",
+	}}
+	h := newClientHandler(fake, "frn")
+
+	resp, err := h.ListClientChannelAccess(context.Background(),
+		franzv1.ListClientChannelAccessRequest_builder{Name: proto.String("billing")}.Build())
+	if err != nil {
+		t.Fatalf("ListClientChannelAccess: %v", err)
+	}
+	if len(resp.GetAccess()) != 1 || resp.GetAccess()[0].GetAsyncChannel() != "orders" {
+		t.Fatalf("access = %+v", resp.GetAccess())
+	}
+	if len(resp.GetAccess()[0].GetEffective()) != 2 {
+		t.Fatalf("effective = %+v", resp.GetAccess()[0].GetEffective())
+	}
+	if resp.GetPage().GetNextPageToken() != "next-page" {
+		t.Fatalf("page token = %q", resp.GetPage().GetNextPageToken())
+	}
+}
+
+func TestListClientChannelAccessErrorMapping(t *testing.T) {
+	h := newClientHandler(&fakeClientSvc{err: errs.NotFoundf("client %q not found", "x")}, "frn")
+	_, err := h.ListClientChannelAccess(context.Background(),
+		franzv1.ListClientChannelAccessRequest_builder{Name: proto.String("x")}.Build())
+	if status.Code(err) != codes.NotFound {
+		t.Fatalf("code = %v", status.Code(err))
 	}
 }
 
