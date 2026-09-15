@@ -61,9 +61,13 @@ type Cluster struct {
 	ProviderAgent     string            // unvalidated free string
 	Brokers           int32             // cluster shape; 0 = unset
 	DiskSize          string            // cluster shape; "" = unset
-	State             State
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
+	// MaxConcurrentMigrations bounds simultaneous shard migrations (003.13
+	// OQ6) with this cluster as source or target. 0 = unset; the migration
+	// usecase applies DefaultMaxConcurrentMigrations.
+	MaxConcurrentMigrations int32
+	State                   State
+	CreatedAt               time.Time
+	UpdatedAt               time.Time
 
 	// ProviderStatus is a read-only projection — the latest cluster_provider_event
 	// (004 ADR §4). Populated by the read path, never persisted on this row, nil
@@ -117,6 +121,31 @@ func (c *Cluster) SetShape(brokers int32, diskSize string) error {
 	c.Brokers = brokers
 	c.DiskSize = diskSize
 	return nil
+}
+
+// DefaultMaxConcurrentMigrations is applied when MaxConcurrentMigrations is
+// unset (003.13 OQ6) — conservative, so a drain taint or a broad governance
+// match cannot stampede a cluster by default.
+const DefaultMaxConcurrentMigrations = 1
+
+// SetMaxConcurrentMigrations sets the per-cluster migration concurrency limit
+// (003.13 OQ6). 0 clears it back to "unset" (DefaultMaxConcurrentMigrations
+// applies).
+func (c *Cluster) SetMaxConcurrentMigrations(n int32) error {
+	if n < 0 {
+		return errs.InvalidField("max_concurrent_migrations", "must be >= 0")
+	}
+	c.MaxConcurrentMigrations = n
+	return nil
+}
+
+// MigrationConcurrencyLimit returns the effective limit — the configured
+// value, or DefaultMaxConcurrentMigrations when unset.
+func (c *Cluster) MigrationConcurrencyLimit() int32 {
+	if c.MaxConcurrentMigrations > 0 {
+		return c.MaxConcurrentMigrations
+	}
+	return DefaultMaxConcurrentMigrations
 }
 
 // Pause moves ACTIVE → PAUSED. It is idempotent on PAUSED and rejected on

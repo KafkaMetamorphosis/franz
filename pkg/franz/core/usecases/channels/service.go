@@ -29,16 +29,21 @@ type Service struct {
 	// placer materialises the channel's async-channel shards (003.7). Optional —
 	// nil in tests that do not exercise placement.
 	placer out.ShardPlacer
+	// clients backs ListChannelClients (003.5, 17.5) — the forward access view
+	// needs every Client in the realm to evaluate the policy against. Optional —
+	// nil in tests that do not exercise it.
+	clients out.ClientRepository
 }
 
 var _ in.AsyncChannelService = (*Service)(nil)
 
-// NewService wires the service to its repository, the partition notifier and the
-// shard placer.
+// NewService wires the service to its repository, the partition notifier, the
+// shard placer, and the Client repository the access-policy views read.
 func NewService(
 	repo out.AsyncChannelRepository, notifier out.PartitionNotifier, placer out.ShardPlacer,
+	clients out.ClientRepository,
 ) *Service {
-	return &Service{repo: repo, notifier: notifier, placer: placer}
+	return &Service{repo: repo, notifier: notifier, placer: placer, clients: clients}
 }
 
 // place runs a placement pass for one channel, after the caller's transaction
@@ -113,8 +118,11 @@ func (s *Service) List(ctx context.Context, input in.ListChannelsInput) (in.Chan
 	}, nil
 }
 
-// Update applies the masked fields (labels only) under a row lock. A change to
-// the reserved `franz.*` placement labels re-runs placement afterwards (003.7).
+// Update applies the masked fields under a row lock. A change to the reserved
+// `franz.*` placement labels, or a `channel_partitions` increase (18.7's
+// re-shard — 003.13 OQ4 resolved as add-only, never redistributing existing
+// keys), re-runs placement afterwards (003.7) to materialise whatever the
+// change now makes possible.
 func (s *Service) Update(ctx context.Context, input in.UpdateChannelInput) (*channel.AsyncChannel, error) {
 	r := realm.MustFromContext(ctx)
 	if input.Labels != nil {
@@ -126,14 +134,24 @@ func (s *Service) Update(ctx context.Context, input in.UpdateChannelInput) (*cha
 	updated, err := s.repo.Mutate(ctx, r.ID, input.Name, func(c *channel.AsyncChannel) error {
 		labelsBefore = c.Labels
 		if input.Labels != nil {
-			return c.SetLabels(*input.Labels)
+			if err := c.SetLabels(*input.Labels); err != nil {
+				return err
+			}
 		}
-		return c.EnsureMutable()
+		if input.ChannelPartitions != nil {
+			if err := c.SetChannelPartitions(*input.ChannelPartitions); err != nil {
+				return err
+			}
+		}
+		if input.Labels == nil && input.ChannelPartitions == nil {
+			return c.EnsureMutable()
+		}
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
-	if placement.RulesChanged(labelsBefore, updated.Labels) {
+	if placement.RulesChanged(labelsBefore, updated.Labels) || input.ChannelPartitions != nil {
 		s.place(ctx, r.ID, updated.Name)
 	}
 	return updated, nil
@@ -222,4 +240,55 @@ func (s *Service) Resume(ctx context.Context, name string) (*channel.AsyncChanne
 	}
 	s.notifyShards(ctx, r.ID, resumed)
 	return c, nil
+}
+
+// ListChannelClients evaluates this channel's access policy against one page
+// of Clients (17.1–17.3) and returns only the ones granted anything — 003.5
+// frames the view as "every client whose access policy matches", not an audit
+// of every client regardless of outcome.
+//
+// The Client page is fetched once, unfiltered, and evaluated in Go — the same
+// pattern every other List uses for its 003.1 selector (17's own "Selector-match
+// cost" note: no special bound). A sparse-match page can come back with fewer
+// rows than requested, or none; the caller pages forward with NextPageToken
+// the same way it would past a selector that matched little.
+func (s *Service) ListChannelClients(
+	ctx context.Context, input in.ListChannelClientsInput,
+) (in.ChannelClientAccessPage, error) {
+	r := realm.MustFromContext(ctx)
+	c, err := s.repo.Get(ctx, r.ID, input.Name)
+	if err != nil {
+		return in.ChannelClientAccessPage{}, err
+	}
+
+	queryKey := pagetoken.QueryKey("channel-clients", input.Name)
+	after, err := pagetoken.Decode(input.PageToken, queryKey)
+	if err != nil {
+		return in.ChannelClientAccessPage{}, err
+	}
+	page, err := s.clients.List(ctx, out.ClientQuery{
+		RealmID:   r.ID,
+		Limit:     pagetoken.ClampSize(input.PageSize),
+		AfterName: after,
+	})
+	if err != nil {
+		return in.ChannelClientAccessPage{}, err
+	}
+
+	evaluator := accesspolicy.NewEvaluator(c.AccessPolicy)
+	access := make([]in.ChannelClientAccess, 0, len(page.Clients))
+	for _, cl := range page.Clients {
+		eval := evaluator.Evaluate(cl.FRN.Path(), cl.Labels)
+		if !eval.Granted() {
+			continue
+		}
+		access = append(access, in.ChannelClientAccess{
+			ClientFRN: cl.FRN, ClientLabels: cl.Labels,
+			Effective: eval.Effective, MatchedBy: eval.MatchedBy,
+		})
+	}
+	return in.ChannelClientAccessPage{
+		Access:        access,
+		NextPageToken: pagetoken.Encode(page.LastName, queryKey),
+	}, nil
 }

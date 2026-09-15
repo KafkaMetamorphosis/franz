@@ -66,13 +66,14 @@ func (h *kafkaClusterHandler) CreateKafkaCluster(
 	ctx context.Context, req *franzv1.CreateKafkaClusterRequest,
 ) (*franzv1.CreateKafkaClusterResponse, error) {
 	c, err := h.svc.Create(ctx, in.CreateClusterInput{
-		Name:              req.GetName(),
-		ConnectionStrings: connsFromProto(req.GetConnectionStrings()),
-		Labels:            req.GetLabels(),
-		Configuration:     req.GetClusterConfiguration(),
-		ProviderAgent:     req.GetClusterProviderAgent(),
-		Brokers:           req.GetBrokers(),
-		DiskSize:          req.GetDiskSize(),
+		Name:                    req.GetName(),
+		ConnectionStrings:       connsFromProto(req.GetConnectionStrings()),
+		Labels:                  req.GetLabels(),
+		Configuration:           req.GetClusterConfiguration(),
+		ProviderAgent:           req.GetClusterProviderAgent(),
+		Brokers:                 req.GetBrokers(),
+		DiskSize:                req.GetDiskSize(),
+		MaxConcurrentMigrations: req.GetMaxConcurrentMigrations(),
 	})
 	if err != nil {
 		return nil, ToError(err)
@@ -142,6 +143,9 @@ func (h *kafkaClusterHandler) UpdateKafkaCluster(
 		case "disk_size":
 			v := req.GetDiskSize()
 			input.DiskSize = &v
+		case "max_concurrent_migrations":
+			v := req.GetMaxConcurrentMigrations()
+			input.MaxConcurrentMigrations = &v
 		default:
 			return nil, ToError(errs.InvalidField("update_mask", "field "+p+" is not updatable"))
 		}
@@ -156,7 +160,7 @@ func (h *kafkaClusterHandler) UpdateKafkaCluster(
 func (h *kafkaClusterHandler) DeleteKafkaCluster(
 	ctx context.Context, req *franzv1.DeleteKafkaClusterRequest,
 ) (*franzv1.DeleteKafkaClusterResponse, error) {
-	if err := h.svc.Delete(ctx, req.GetName()); err != nil {
+	if err := h.svc.Delete(ctx, req.GetName(), req.GetForce()); err != nil {
 		return nil, ToError(err)
 	}
 	return franzv1.DeleteKafkaClusterResponse_builder{}.Build(), nil
@@ -193,18 +197,19 @@ func (h *kafkaClusterHandler) toProto(c *cluster.Cluster) *franzv1.KafkaCluster 
 		}.Build()
 	}
 	return franzv1.KafkaCluster_builder{
-		Name:                 proto.String(c.Name),
-		Frn:                  proto.String(h.codec.Render(c.FRN)),
-		ConnectionStrings:    conns,
-		Labels:               c.Labels,
-		ClusterConfiguration: c.Configuration,
-		ClusterProviderAgent: proto.String(c.ProviderAgent),
-		Brokers:              proto.Int32(c.Brokers),
-		DiskSize:             proto.String(c.DiskSize),
-		State:                stateToProto(c.State),
-		ProviderStatus:       providerStatusToProto(c.ProviderStatus),
-		CreatedAt:            timestamppb.New(c.CreatedAt),
-		UpdatedAt:            timestamppb.New(c.UpdatedAt),
+		Name:                    proto.String(c.Name),
+		Frn:                     proto.String(h.codec.Render(c.FRN)),
+		ConnectionStrings:       conns,
+		Labels:                  c.Labels,
+		ClusterConfiguration:    c.Configuration,
+		ClusterProviderAgent:    proto.String(c.ProviderAgent),
+		Brokers:                 proto.Int32(c.Brokers),
+		DiskSize:                proto.String(c.DiskSize),
+		MaxConcurrentMigrations: proto.Int32(c.MaxConcurrentMigrations),
+		State:                   stateToProto(c.State),
+		ProviderStatus:          providerStatusToProto(c.ProviderStatus),
+		CreatedAt:               timestamppb.New(c.CreatedAt),
+		UpdatedAt:               timestamppb.New(c.UpdatedAt),
 	}.Build()
 }
 

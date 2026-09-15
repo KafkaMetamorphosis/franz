@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/accesspolicy"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/client"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/consumergroup"
 )
@@ -61,6 +62,31 @@ type ObservedGroupPage struct {
 	NextPageToken string
 }
 
+// ListClientChannelAccessInput parameterises the reverse access view (003.5,
+// 003.10, 17.6): every Async Channel this client's identity is granted
+// something on.
+type ListClientChannelAccessInput struct {
+	Name      string
+	PageSize  int32
+	PageToken string
+}
+
+// ClientChannelAccess is one resolved row of the reverse view — an Async
+// Channel and what its access policy grants this client. Only rows with at
+// least one effective permission are ever returned (see ChannelClientAccess's
+// doc — the same "matches" framing applies in both directions).
+type ClientChannelAccess struct {
+	AsyncChannel string
+	Effective    []accesspolicy.Permission
+	MatchedBy    string
+}
+
+// ClientChannelAccessPage is a page of ListClientChannelAccess results.
+type ClientChannelAccessPage struct {
+	Access        []ClientChannelAccess
+	NextPageToken string
+}
+
 // ClientService is the driving port for the Client registry (003.10). The
 // realm is taken from context, never from the input.
 type ClientService interface {
@@ -80,4 +106,10 @@ type ClientService interface {
 	// first, optionally bounded by [From, To). errs.NotFound if the client does
 	// not exist.
 	ListConsumerGroupObservations(ctx context.Context, in ListConsumerGroupObservationsInput) (ObservedGroupPage, error)
+
+	// ListClientChannelAccess evaluates every Async Channel's access policy
+	// against this client (17.1–17.3, the reverse of ListChannelClients) and
+	// returns the ones granting it anything. errs.NotFound if the client does
+	// not exist.
+	ListClientChannelAccess(ctx context.Context, in ListClientChannelAccessInput) (ClientChannelAccessPage, error)
 }

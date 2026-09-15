@@ -156,6 +156,12 @@ func (r *TopicRepo) Get(ctx context.Context, realmID uuid.UUID, name string) (*t
 		topicSelectJoined+` WHERE t.realm_id=$1 AND t.name=$2`, realmID, name), true)
 }
 
+// GetByID returns the shard by surrogate id, soft-deleted rows included.
+func (r *TopicRepo) GetByID(ctx context.Context, realmID, id uuid.UUID) (*topic.KafkaTopic, error) {
+	return scanTopic(r.db.Pool().QueryRow(ctx,
+		topicSelectJoined+` WHERE t.realm_id=$1 AND t.id=$2`, realmID, id), true)
+}
+
 // List returns one page ordered by name. DELETED rows are excluded. Filters are
 // pushed to SQL, so pagination is exact.
 func (r *TopicRepo) List(ctx context.Context, q out.TopicQuery) (out.TopicPage, error) {

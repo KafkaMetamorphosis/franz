@@ -17,9 +17,7 @@ import (
 )
 
 // clientHandler adapts ClientService onto the generated gRPC server interface
-// (003.10). ListClientChannelAccess is not implemented here — it needs the
-// access-policy engine, which lands in deliverable 17 — and returns
-// Unimplemented.
+// (003.10).
 type clientHandler struct {
 	franzv1.UnimplementedClientServiceServer
 	svc   in.ClientService
@@ -161,6 +159,36 @@ func (h *clientHandler) ListConsumerGroupObservations(
 	}
 	return franzv1.ListConsumerGroupObservationsResponse_builder{
 		Observations: observationsToProto(page.Groups),
+		Page: franzv1.PageResponse_builder{
+			NextPageToken: proto.String(page.NextPageToken),
+			TotalSize:     proto.Int32(0), // best-effort; not computed (003.1)
+		}.Build(),
+	}.Build(), nil
+}
+
+// ListClientChannelAccess is the reverse access view (003.5, 003.10,
+// deliverable 17): every Async Channel this client is granted something on.
+func (h *clientHandler) ListClientChannelAccess(
+	ctx context.Context, req *franzv1.ListClientChannelAccessRequest,
+) (*franzv1.ListClientChannelAccessResponse, error) {
+	page, err := h.svc.ListClientChannelAccess(ctx, in.ListClientChannelAccessInput{
+		Name:      req.GetName(),
+		PageSize:  req.GetPage().GetPageSize(),
+		PageToken: req.GetPage().GetPageToken(),
+	})
+	if err != nil {
+		return nil, ToError(err)
+	}
+	access := make([]*franzv1.ClientChannelAccess, len(page.Access))
+	for i, a := range page.Access {
+		access[i] = franzv1.ClientChannelAccess_builder{
+			AsyncChannel: proto.String(a.AsyncChannel),
+			Effective:    permissionsToProto(a.Effective),
+			MatchedBy:    proto.String(a.MatchedBy),
+		}.Build()
+	}
+	return franzv1.ListClientChannelAccessResponse_builder{
+		Access: access,
 		Page: franzv1.PageResponse_builder{
 			NextPageToken: proto.String(page.NextPageToken),
 			TotalSize:     proto.Int32(0), // best-effort; not computed (003.1)

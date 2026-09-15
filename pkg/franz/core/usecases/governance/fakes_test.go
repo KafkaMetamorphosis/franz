@@ -456,6 +456,15 @@ func (f *fakeTopicRepo) Get(_ context.Context, _ uuid.UUID, name string) (*topic
 	return t, nil
 }
 
+func (f *fakeTopicRepo) GetByID(_ context.Context, _ uuid.UUID, id uuid.UUID) (*topic.KafkaTopic, error) {
+	for _, t := range f.rows {
+		if t.ID == id {
+			return t, nil
+		}
+	}
+	return nil, errs.NotFoundf("kafka topic not found")
+}
+
 func (f *fakeTopicRepo) List(context.Context, out.TopicQuery) (out.TopicPage, error) {
 	return out.TopicPage{}, nil
 }
@@ -534,14 +543,21 @@ func (f fakeChannelSvc) Update(
 	_ context.Context, input in.UpdateChannelInput,
 ) (*channel.AsyncChannel, error) {
 	call := serviceCall{Entity: "channel", Op: "update", Name: input.Name}
-	if input.Labels != nil {
+	c := f.repo.rows[input.Name]
+	switch {
+	case input.Labels != nil:
 		call.Labels = *input.Labels
-		if c, ok := f.repo.rows[input.Name]; ok {
+		if c != nil {
 			c.Labels = *input.Labels
+		}
+	case input.ChannelPartitions != nil:
+		call.Extra = "channel_partitions"
+		if c != nil {
+			c.ChannelPartitions = *input.ChannelPartitions
 		}
 	}
 	*f.calls = append(*f.calls, call)
-	return f.repo.rows[input.Name], nil
+	return c, nil
 }
 
 func (f fakeChannelSvc) SetAccessPolicy(
@@ -563,6 +579,12 @@ func (f fakeChannelSvc) Pause(_ context.Context, name string) (*channel.AsyncCha
 func (f fakeChannelSvc) Resume(_ context.Context, name string) (*channel.AsyncChannel, error) {
 	*f.calls = append(*f.calls, serviceCall{Entity: "channel", Op: "resume", Name: name})
 	return f.repo.rows[name], nil
+}
+
+func (f fakeChannelSvc) ListChannelClients(
+	context.Context, in.ListChannelClientsInput,
+) (in.ChannelClientAccessPage, error) {
+	return in.ChannelClientAccessPage{}, nil
 }
 
 type fakeClusterSvc struct {
@@ -615,7 +637,7 @@ func (f fakeClusterSvc) Update(
 	return c, nil
 }
 
-func (f fakeClusterSvc) Delete(_ context.Context, name string) error {
+func (f fakeClusterSvc) Delete(_ context.Context, name string, _ bool) error {
 	*f.calls = append(*f.calls, serviceCall{Entity: "cluster", Op: "delete", Name: name})
 	return nil
 }

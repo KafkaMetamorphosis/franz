@@ -69,11 +69,12 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [14](./14-governance.md) | Governance (Indicator registry + non-placement actions) | 02 · 03 · 09 · 10 | ✅ |
 | [15](./15-telemetry-ingest.md) | Telemetry ingest | 02 · 14 | ✅ |
 | [16](./16-client.md) | Client | 02 · 15 | ✅ |
-| [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ⬜ |
-| [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ⛔ |
+| [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ✅ |
+| [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ✅ |
 | [19](./19-async-channel-ui.md) | Async Channel UI (console screens for 10) | 06 · 08 · 10 · 11 | ✅ |
 | [20](./20-governance-ui.md) | Governance UI (console screens for 14 · 15) | 06 · 08 · 14 · 15 | ⬜ |
 | [21](./21-client-ui.md) | Client UI (console screens for 16) | 06 · 08 · 16 | ⬜ |
+| [22](./22-migration-ui.md) | Migration UI (console screens for 18) | 06 · 08 · 18 · 19 | ⬜ |
 
 ## Decisions already locked (`DECISIONS.md` ADR-API-005)
 
@@ -94,10 +95,10 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 | Blocked | On |
 |---|---|
-| **18** migration flow, and the real moves it unblocks (placed-shard relocation, cluster-delete-with-live-topics, re-shard execution, governance placement/taint actions) | `003.13` OQ1–2 — data-copy mechanism + RPC surface |
 | Real API authorization | `003.2` model undecided (stub for now) |
 | Control-plane event log | `003.11` OQ4 — design not started |
 | SDK / client library (shard routing) | routing-key ADR not written |
+| Misplaced-shard auto-relocate; a `channel_partitions` **decrease** (re-shard down) | `18`'s migration flow exists but nothing yet drives it automatically for either case — see [18](./18-migration-and-data-movement.md)'s Notes |
 
 ## Testing strategy
 
@@ -113,6 +114,61 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-14 · **18** Migration & data movement · the last blocker in the
+  plan, and the one deliverable whose original task list turned out to
+  describe the wrong mechanism. It started from "a shard migration flips
+  `kafka_topic.kafka_cluster_id` through a staged state machine"; several
+  `AskUserQuestion` rounds resolved 003.13's OQs (explicit operator RPC,
+  drain-based only, fixed 1h deadline, `force=true` cluster-delete,
+  per-cluster configurable concurrency limit) before the user corrected the
+  premise directly: an Async Channel already spreads load over N Kafka
+  Topics by `traffic_share`, and a topic's consumer is already
+  ENABLED/DISABLED (deliverable 09) — migration is orchestration of those
+  existing primitives, not a new one. The shipped design: (1) create an
+  ordinary new shard on the target cluster through the existing placement
+  path; (2) cut over via the existing `SetConsumption(source, DISABLED)`,
+  which already re-normalises `traffic_share`; (3) once two new Gregor Samsa
+  indicators (`kafka.topic.drained`, `kafka.topic.consumer_connected` — built
+  from existing `kafkaadmin.Admin` methods, no new agent RPC) confirm the
+  source is idle, retire it through the **normal topic-delete path**, which
+  the agent already reacts to. `shard_migration` is bookkeeping + a sweep
+  driver, not a parallel state machine. Also shipped: `KafkaCluster.
+  MaxConcurrentMigrations`, `DeleteKafkaClusterRequest.force`, a drain-taint
+  auto-trigger on `clusters.Service.Update`, increase-only re-shard
+  (`AsyncChannel.SetChannelPartitions`), and — per a follow-up
+  `AskUserQuestion` on how far to take 18.4/18.8 — governance-action
+  un-deferral (`franz.affinity/*` / `franz.antiaffinity/*` / `franz.taint`
+  labels and a `channel_partitions` increase now reach the flow through a
+  policy the same way an operator or the drain-taint trigger does).
+  **Deliberately deferred**: misplaced-shard auto-relocate, and a
+  `channel_partitions` *decrease* (either path needs the same
+  drain-then-retire sequence run per removed shard, on nothing's
+  initiative yet). Found and fixed a real pre-existing bug along the way:
+  `persistChannel`'s UPDATE never wrote `channel_partitions` (harmless while
+  the field was immutable; live once 18.7 made it maskable). codex never ran
+  (quota, resets 2026-09-28) — claude implemented it directly. `go
+  build/vet/test` (41 packages, Postgres integration active) green under
+  `-p 1`; a `go test ./...` without `-p 1` intermittently fails several
+  `grpcgateway` tests from cross-package concurrent access to the same live
+  Postgres instance — confirmed pre-existing (not a regression) by isolated
+  reruns; `-p 1` is the reliable way to verify this suite. `buf lint` clean.
+- 2026-09-13 · **17** Access-policy engine & channel-access views ·
+  `core/domain/accesspolicy/evaluate.go` — `Evaluator` (compiles a policy's
+  label selectors once, then evaluates many clients cheaply), `Evaluate`
+  resolving `003.5`'s algorithm (DENY always wins regardless of document
+  order; `client_frn` glob matches the prefix-less stored FRN, never a
+  rendered one; both views return only rows with ≥1 effective permission).
+  `AsyncChannelService.ListChannelClients` (forward) and
+  `ClientService.ListClientChannelAccess` (reverse) both ship, each fetching
+  one page of the underlying resource and filtering in Go — no bound, mirrors
+  `ClusterRepo.List`'s existing selector pattern. Four design points (matched_by
+  semantics, client_frn prefix form, row inclusion, statement-cap deferral)
+  were resolved via `AskUserQuestion` rather than assumed, per explicit user
+  instruction — see the tracker for the Q&A.
+  `local/seed/06-access-policy-demo.sql` gives the two seeded clients
+  asymmetric access to a demo channel; `docs/impl_plans/21-client-ui.md`'s
+  "Channel access" panel un-deferred now that the RPC exists. Executed by
+  claude (codex out of quota).
 - 2026-09-13 · **16** Client · `core/domain/client` (no Type/Role/Status field —
   003.10 is explicit), full `ClientService` CRUD (gRPC+REST), and the two
   observed-consumer-group reads (`ListObservedConsumerGroups`/

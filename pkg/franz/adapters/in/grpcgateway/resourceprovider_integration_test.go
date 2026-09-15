@@ -89,9 +89,9 @@ func newResourceProviderFixture(t *testing.T) *resourceProviderFixture {
 
 	notifier := resourceprovider.NewNotifier(agentRepo, clusterRepo, topicRepo, hub, log)
 	placer := placement.NewService(channelRepo, clusterRepo, topicRepo, realmRepo, notifier, log)
-	clusterSvc := clusters.NewService(clusterRepo, stub.NoTopicGuard{}, eventRepo, hub, notifier, placer)
+	clusterSvc := clusters.NewService(clusterRepo, stub.NoTopicGuard{}, eventRepo, hub, notifier, placer, nil)
 	agentSvc := agents.NewService(agentRepo, notifier)
-	channelSvc := channels.NewService(channelRepo, notifier, placer)
+	channelSvc := channels.NewService(channelRepo, notifier, placer, nil)
 	topicSvc := topics.NewService(topicRepo, clusterRepo, notifier)
 	providerSvc := provideruc.NewService(clusterRepo, eventRepo)
 	resourceSvc := resourceprovider.NewService(clusterRepo, topicRepo)

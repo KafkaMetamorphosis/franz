@@ -38,8 +38,53 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `INVALID_CONFIG`, leaving every placed async-channel shard stuck in `ERROR`.
   All three Franz-vocabulary keys are now excluded from the merge, on both the
   cluster and the per-shard layer.
+- **`UpdateAsyncChannel` silently dropped `channel_partitions`.** The field
+  was always immutable before deliverable 18's increase-only re-shard, so
+  `persistChannel`'s UPDATE statement never wrote it — a correct omission at
+  the time that became a live bug the moment the field became maskable.
+  Found by 18's own re-shard integration test.
 
 ### Added
+
+- **Migration & data movement (`003.13`)** — the staged flow that moves a
+  shard's serving position from one cluster to another, and the last blocker
+  in the plan. It reuses three primitives that already existed rather than
+  inventing a parallel one: (1) create an ordinary new shard on the target
+  cluster through the existing placement path; (2) cut over with the existing
+  `SetConsumption(source, DISABLED)`, which already re-normalises
+  `traffic_share` across the remaining ENABLED shards; (3) once the source has
+  no consumer and no data left (two new Gregor Samsa indicators,
+  `kafka.topic.drained` / `kafka.topic.consumer_connected`, built from
+  existing `kafkaadmin.Admin` calls — no new agent-protocol RPC), retire it
+  through the **normal topic-delete path**, which the agent already reacts to.
+  `shard_migration` is bookkeeping and a resumable sweep driver, not a second
+  state machine over `kafka_topic`. Ships a new `MigrationService`
+  (`MigrateKafkaTopic` / `MigrateCluster` operator RPCs, `GetShardMigration` /
+  `ListShardMigrations`), a `drain` taint auto-trigger on
+  `UpdateKafkaCluster`, `DeleteKafkaClusterRequest.force` (required when a
+  cluster still has live shards; auto-starts a drain rather than deleting
+  immediately), a per-cluster `KafkaCluster.MaxConcurrentMigrations` limit
+  (default 1), and an increase-only re-shard
+  (`UpdateAsyncChannelRequest.channel_partitions`). Governance's write
+  whitelist (`003.8`) is un-deferred to match: a policy can now write
+  `franz.affinity/*` / `franz.antiaffinity/*` / `franz.taint` labels and
+  increase `channel_partitions`, reaching the same real path an operator or
+  the drain-taint trigger does. Deliberately out of scope: a
+  `channel_partitions` *decrease* and misplaced-shard auto-relocate — both
+  need the drain-then-retire sequence to run on something's initiative that
+  does not exist yet.
+
+- **Access-policy engine & channel-access views (`003.5`)** — the data-plane
+  authorization evaluator: `Evaluator.Evaluate(clientFRN, labels)` resolves a
+  channel's `AccessPolicy` for READ/WRITE independently (a DENY always wins
+  regardless of statement order; a `client_frn` glob matches the client's
+  prefix-less stored FRN, never a rendered/prefixed one). Ships the two
+  resolved views: `AsyncChannelService.ListChannelClients` (forward — every
+  Client this channel grants something to, replacing the `UNIMPLEMENTED`
+  stub) and `ClientService.ListClientChannelAccess` (reverse — every channel
+  granting this client something), both returning only rows with ≥1 effective
+  permission. `local/seed/06-access-policy-demo.sql` seeds a demo channel with
+  asymmetric access for the two clients deliverable 16 seeds.
 
 - **Client (`003.10`)** — the fleet-wide SDK identity. `ClientService` CRUD
   (gRPC+REST); a `Client` carries no Type/Role/Status field, matching the spec

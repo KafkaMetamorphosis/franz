@@ -85,6 +85,9 @@ func (f *fakeTopics) Create(context.Context, *topic.KafkaTopic) error { panic("u
 func (f *fakeTopics) Get(context.Context, uuid.UUID, string) (*topic.KafkaTopic, error) {
 	panic("unused")
 }
+func (f *fakeTopics) GetByID(context.Context, uuid.UUID, uuid.UUID) (*topic.KafkaTopic, error) {
+	panic("unused")
+}
 func (f *fakeTopics) List(context.Context, out.TopicQuery) (out.TopicPage, error) { panic("unused") }
 func (f *fakeTopics) MutateChannelShards(context.Context, uuid.UUID, uuid.UUID, func([]*topic.KafkaTopic) error) ([]*topic.KafkaTopic, error) {
 	panic("unused")

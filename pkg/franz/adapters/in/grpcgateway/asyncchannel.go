@@ -3,8 +3,6 @@ package grpcgateway
 import (
 	"context"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -95,9 +93,12 @@ func (h *asyncChannelHandler) UpdateAsyncChannel(
 		case "labels":
 			v := req.GetLabels()
 			input.Labels = &v
+		case "channel_partitions":
+			v := req.GetChannelPartitions()
+			input.ChannelPartitions = &v
 		default:
 			return nil, ToError(errs.InvalidField("update_mask",
-				"field "+p+" is not updatable (channel_partitions is a re-shard, access_policy uses SetAccessPolicy)"))
+				"field "+p+" is not updatable (access_policy uses SetAccessPolicy)"))
 		}
 	}
 	c, err := h.svc.Update(ctx, input)
@@ -146,13 +147,35 @@ func (h *asyncChannelHandler) SetAccessPolicy(
 	return franzv1.SetAccessPolicyResponse_builder{AsyncChannel: h.toProto(c)}.Build(), nil
 }
 
-// ListChannelClients is the forward access view — implemented in deliverable 15
-// (Access-policy engine & channel-access views), which needs Client to exist.
+// ListChannelClients is the forward access view (003.5, deliverable 17):
+// every Client this channel's access policy grants something to.
 func (h *asyncChannelHandler) ListChannelClients(
-	context.Context, *franzv1.ListChannelClientsRequest,
+	ctx context.Context, req *franzv1.ListChannelClientsRequest,
 ) (*franzv1.ListChannelClientsResponse, error) {
-	return nil, status.Error(codes.Unimplemented,
-		"ListChannelClients ships with deliverable 15 (needs Client)")
+	page, err := h.svc.ListChannelClients(ctx, in.ListChannelClientsInput{
+		Name:      req.GetName(),
+		PageSize:  req.GetPage().GetPageSize(),
+		PageToken: req.GetPage().GetPageToken(),
+	})
+	if err != nil {
+		return nil, ToError(err)
+	}
+	clients := make([]*franzv1.ChannelClientAccess, len(page.Access))
+	for i, a := range page.Access {
+		clients[i] = franzv1.ChannelClientAccess_builder{
+			ClientFrn:    proto.String(h.codec.Render(a.ClientFRN)),
+			ClientLabels: a.ClientLabels,
+			Effective:    permissionsToProto(a.Effective),
+			MatchedBy:    proto.String(a.MatchedBy),
+		}.Build()
+	}
+	return franzv1.ListChannelClientsResponse_builder{
+		Clients: clients,
+		Page: franzv1.PageResponse_builder{
+			NextPageToken: proto.String(page.NextPageToken),
+			TotalSize:     proto.Int32(0), // best-effort; not computed (003.1)
+		}.Build(),
+	}.Build(), nil
 }
 
 // --- mapping helpers -----------------------------------------------------
@@ -282,4 +305,15 @@ func permissionToProto(p accesspolicy.Permission) franzv1.Permission {
 	default:
 		return franzv1.Permission_PERMISSION_UNSPECIFIED
 	}
+}
+
+// permissionsToProto maps an evaluated permission set (ChannelClientAccess /
+// ClientChannelAccess's `effective`) — shared by both access-policy views
+// (17.5, 17.6).
+func permissionsToProto(perms []accesspolicy.Permission) []franzv1.Permission {
+	out := make([]franzv1.Permission, len(perms))
+	for i, p := range perms {
+		out[i] = permissionToProto(p)
+	}
+	return out
 }

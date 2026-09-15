@@ -6,6 +6,7 @@ package clients
 import (
 	"context"
 
+	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/accesspolicy"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/client"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/errs"
 	"github.com/KafkaMetamorphosis/franz/pkg/franz/core/domain/realm"
@@ -19,13 +20,21 @@ import (
 type Service struct {
 	repo   out.ClientRepository
 	groups out.ObservedConsumerGroupRepository
+	// channels backs ListClientChannelAccess (003.5, 003.10, 17.6) — the reverse
+	// access view needs every Async Channel in the realm to evaluate against
+	// this client. Optional — nil in tests that do not exercise it.
+	channels out.AsyncChannelRepository
 }
 
 var _ in.ClientService = (*Service)(nil)
 
-// NewService wires the service to its ports.
-func NewService(repo out.ClientRepository, groups out.ObservedConsumerGroupRepository) *Service {
-	return &Service{repo: repo, groups: groups}
+// NewService wires the service to its ports, including the Async Channel
+// repository the reverse access-policy view reads.
+func NewService(
+	repo out.ClientRepository, groups out.ObservedConsumerGroupRepository,
+	channels out.AsyncChannelRepository,
+) *Service {
+	return &Service{repo: repo, groups: groups, channels: channels}
 }
 
 // Create registers a new Client. Name uniqueness — including against a
@@ -157,5 +166,53 @@ func (s *Service) ListConsumerGroupObservations(
 	return in.ObservedGroupPage{
 		Groups:        page.Observations,
 		NextPageToken: pagetoken.Encode(page.LastCursor, queryKey),
+	}, nil
+}
+
+// ListClientChannelAccess evaluates one page of Async Channels' access
+// policies against this client (17.1–17.3, the reverse of
+// AsyncChannelService.ListChannelClients) and returns only the ones granting
+// it anything.
+//
+// Unlike the forward view, each channel carries its own policy, so a fresh
+// accesspolicy.Evaluator is compiled per channel rather than once per call —
+// 17's own "Selector-match cost" note accepts this (no special bound needed).
+func (s *Service) ListClientChannelAccess(
+	ctx context.Context, input in.ListClientChannelAccessInput,
+) (in.ClientChannelAccessPage, error) {
+	r := realm.MustFromContext(ctx)
+	c, err := s.repo.Get(ctx, r.ID, input.Name)
+	if err != nil {
+		return in.ClientChannelAccessPage{}, err
+	}
+
+	queryKey := pagetoken.QueryKey("client-channel-access", input.Name)
+	after, err := pagetoken.Decode(input.PageToken, queryKey)
+	if err != nil {
+		return in.ClientChannelAccessPage{}, err
+	}
+	page, err := s.channels.List(ctx, out.ChannelQuery{
+		RealmID:   r.ID,
+		Limit:     pagetoken.ClampSize(input.PageSize),
+		AfterName: after,
+	})
+	if err != nil {
+		return in.ClientChannelAccessPage{}, err
+	}
+
+	clientFRN := c.FRN.Path()
+	access := make([]in.ClientChannelAccess, 0, len(page.Channels))
+	for _, ch := range page.Channels {
+		eval := accesspolicy.NewEvaluator(ch.AccessPolicy).Evaluate(clientFRN, c.Labels)
+		if !eval.Granted() {
+			continue
+		}
+		access = append(access, in.ClientChannelAccess{
+			AsyncChannel: ch.Name, Effective: eval.Effective, MatchedBy: eval.MatchedBy,
+		})
+	}
+	return in.ClientChannelAccessPage{
+		Access:        access,
+		NextPageToken: pagetoken.Encode(page.LastName, queryKey),
 	}, nil
 }

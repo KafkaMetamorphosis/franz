@@ -1481,14 +1481,15 @@ func (b0 ListAsyncChannelsResponse_builder) Build() *ListAsyncChannelsResponse {
 }
 
 type UpdateAsyncChannelRequest struct {
-	state                  protoimpl.MessageState `protogen:"opaque.v1"`
-	xxx_hidden_Name        *string                `protobuf:"bytes,1,opt,name=name"`
-	xxx_hidden_Labels      map[string]string      `protobuf:"bytes,2,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	xxx_hidden_UpdateMask  *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask"`
-	XXX_raceDetectHookData protoimpl.RaceDetectHookData
-	XXX_presence           [1]uint32
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                        protoimpl.MessageState `protogen:"opaque.v1"`
+	xxx_hidden_Name              *string                `protobuf:"bytes,1,opt,name=name"`
+	xxx_hidden_Labels            map[string]string      `protobuf:"bytes,2,rep,name=labels" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	xxx_hidden_UpdateMask        *fieldmaskpb.FieldMask `protobuf:"bytes,3,opt,name=update_mask,json=updateMask"`
+	xxx_hidden_ChannelPartitions int32                  `protobuf:"varint,4,opt,name=channel_partitions,json=channelPartitions"`
+	XXX_raceDetectHookData       protoimpl.RaceDetectHookData
+	XXX_presence                 [1]uint32
+	unknownFields                protoimpl.UnknownFields
+	sizeCache                    protoimpl.SizeCache
 }
 
 func (x *UpdateAsyncChannelRequest) Reset() {
@@ -1540,9 +1541,16 @@ func (x *UpdateAsyncChannelRequest) GetUpdateMask() *fieldmaskpb.FieldMask {
 	return nil
 }
 
+func (x *UpdateAsyncChannelRequest) GetChannelPartitions() int32 {
+	if x != nil {
+		return x.xxx_hidden_ChannelPartitions
+	}
+	return 0
+}
+
 func (x *UpdateAsyncChannelRequest) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 3)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 4)
 }
 
 func (x *UpdateAsyncChannelRequest) SetLabels(v map[string]string) {
@@ -1551,6 +1559,11 @@ func (x *UpdateAsyncChannelRequest) SetLabels(v map[string]string) {
 
 func (x *UpdateAsyncChannelRequest) SetUpdateMask(v *fieldmaskpb.FieldMask) {
 	x.xxx_hidden_UpdateMask = v
+}
+
+func (x *UpdateAsyncChannelRequest) SetChannelPartitions(v int32) {
+	x.xxx_hidden_ChannelPartitions = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 3, 4)
 }
 
 func (x *UpdateAsyncChannelRequest) HasName() bool {
@@ -1567,6 +1580,13 @@ func (x *UpdateAsyncChannelRequest) HasUpdateMask() bool {
 	return x.xxx_hidden_UpdateMask != nil
 }
 
+func (x *UpdateAsyncChannelRequest) HasChannelPartitions() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 3)
+}
+
 func (x *UpdateAsyncChannelRequest) ClearName() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
 	x.xxx_hidden_Name = nil
@@ -1576,15 +1596,23 @@ func (x *UpdateAsyncChannelRequest) ClearUpdateMask() {
 	x.xxx_hidden_UpdateMask = nil
 }
 
+func (x *UpdateAsyncChannelRequest) ClearChannelPartitions() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 3)
+	x.xxx_hidden_ChannelPartitions = 0
+}
+
 type UpdateAsyncChannelRequest_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Name   *string
 	Labels map[string]string
-	// Fields to update; unset fields are left unchanged. `type` is immutable, the
-	// access policy is changed via SetAccessPolicy, and `channel_partitions` is
-	// changed via the staged re-shard flow (003.11) — none may appear in the mask.
-	UpdateMask *fieldmaskpb.FieldMask
+	// Fields to update; unset fields are left unchanged. `type` is immutable and
+	// the access policy is changed via SetAccessPolicy — neither may appear in
+	// the mask. `channel_partitions` may appear and only increases (003.13's
+	// re-shard, OQ4 resolved as add-only — a decrease would require draining a
+	// shard, which is MigrateKafkaTopic's job, not this one's).
+	UpdateMask        *fieldmaskpb.FieldMask
+	ChannelPartitions *int32
 }
 
 func (b0 UpdateAsyncChannelRequest_builder) Build() *UpdateAsyncChannelRequest {
@@ -1592,11 +1620,15 @@ func (b0 UpdateAsyncChannelRequest_builder) Build() *UpdateAsyncChannelRequest {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 3)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 4)
 		x.xxx_hidden_Name = b.Name
 	}
 	x.xxx_hidden_Labels = b.Labels
 	x.xxx_hidden_UpdateMask = b.UpdateMask
+	if b.ChannelPartitions != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 3, 4)
+		x.xxx_hidden_ChannelPartitions = *b.ChannelPartitions
+	}
 	return m0
 }
 
@@ -2501,12 +2533,13 @@ const file_franz_v1_async_channel_proto_rawDesc = "" +
 	"\bselector\x18\x02 \x01(\tR\bselector\"\x86\x01\n" +
 	"\x19ListAsyncChannelsResponse\x12=\n" +
 	"\x0easync_channels\x18\x01 \x03(\v2\x16.franz.v1.AsyncChannelR\rasyncChannels\x12*\n" +
-	"\x04page\x18\x02 \x01(\v2\x16.franz.v1.PageResponseR\x04page\"\xf0\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x16.franz.v1.PageResponseR\x04page\"\x9f\x02\n" +
 	"\x19UpdateAsyncChannelRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12G\n" +
 	"\x06labels\x18\x02 \x03(\v2/.franz.v1.UpdateAsyncChannelRequest.LabelsEntryR\x06labels\x12;\n" +
 	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
-	"updateMask\x1a9\n" +
+	"updateMask\x12-\n" +
+	"\x12channel_partitions\x18\x04 \x01(\x05R\x11channelPartitions\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"Y\n" +

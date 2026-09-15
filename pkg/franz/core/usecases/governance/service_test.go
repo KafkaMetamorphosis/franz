@@ -116,10 +116,13 @@ func TestCreatePolicyRejectsOutOfWhitelistAction(t *testing.T) {
 	}
 }
 
-// TestCreatePolicyRejectsPlacementActions covers the deviation this deliverable
-// takes: the placement rows 003.8 whitelists need the migration flow (003.13),
-// so they are refused at write rather than accepted and silently ignored.
-func TestCreatePolicyRejectsPlacementActions(t *testing.T) {
+// TestCreatePolicyAcceptsPlacementActions covers the deliverable-18 flip: the
+// placement rows 003.8 whitelists now mean something real (the migration flow
+// re-places / drains / re-shards through channels.Service.Update and
+// clusters.Service.Update), so CreatePolicy accepts them instead of refusing
+// at write. What actually happens when one fires is the applier's concern
+// (actions_test.go), not the whitelist's.
+func TestCreatePolicyAcceptsPlacementActions(t *testing.T) {
 	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
 	f := newServiceFixture([]*indicator.Indicator{ind}, nil, nil)
 
@@ -131,7 +134,7 @@ func TestCreatePolicyRejectsPlacementActions(t *testing.T) {
 			Args: []string{"franz.affinity/region", "eu-west"}}},
 		{"antiaffinity-label", gov.Action{Kind: gov.ActionRemoveLabel,
 			Args: []string{"franz.antiaffinity/rack"}}},
-		{"channel-partitions-reshard", gov.Action{Kind: gov.ActionIncreaseFieldBy,
+		{"channel-partitions-increase-reshard", gov.Action{Kind: gov.ActionIncreaseFieldBy,
 			Args: []string{"channel_partitions", "1"}}},
 	}
 
@@ -142,10 +145,29 @@ func TestCreatePolicyRejectsPlacementActions(t *testing.T) {
 			_, err := f.svc.CreatePolicy(ctxWithRealm(), in.CreatePolicyInput{
 				Name: "p-" + tc.name, Definition: def, Enabled: true,
 			})
-			if errs.KindOf(err) != errs.FailedPrecondition {
-				t.Fatalf("kind = %v (err %v), want FailedPrecondition", errs.KindOf(err), err)
+			if err != nil {
+				t.Fatalf("want accepted, got %v", err)
 			}
 		})
+	}
+}
+
+// TestCreatePolicyRejectsChannelPartitionsDecrease is the one placement row
+// still deferred: shrinking needs the removed shards drained and retired on
+// the re-shard's behalf, which the migration flow does not yet drive.
+func TestCreatePolicyRejectsChannelPartitionsDecrease(t *testing.T) {
+	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	f := newServiceFixture([]*indicator.Indicator{ind}, nil, nil)
+
+	def := channelDefinition("lag", "")
+	def.Actions = []gov.Action{{Kind: gov.ActionDecreaseFieldBy,
+		Args: []string{"channel_partitions", "1"}}}
+
+	_, err := f.svc.CreatePolicy(ctxWithRealm(), in.CreatePolicyInput{
+		Name: "p-decrease", Definition: def, Enabled: true,
+	})
+	if errs.KindOf(err) != errs.FailedPrecondition {
+		t.Fatalf("kind = %v (err %v), want FailedPrecondition", errs.KindOf(err), err)
 	}
 }
 

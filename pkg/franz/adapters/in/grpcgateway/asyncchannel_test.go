@@ -20,11 +20,12 @@ import (
 )
 
 type fakeChannelSvc struct {
-	created in.CreateChannelInput
-	updated in.UpdateChannelInput
-	policy  accesspolicy.Policy
-	ret     *channel.AsyncChannel
-	err     error
+	created        in.CreateChannelInput
+	updated        in.UpdateChannelInput
+	policy         accesspolicy.Policy
+	ret            *channel.AsyncChannel
+	err            error
+	channelClients in.ChannelClientAccessPage
 }
 
 func (f *fakeChannelSvc) Create(_ context.Context, i in.CreateChannelInput) (*channel.AsyncChannel, error) {
@@ -51,6 +52,11 @@ func (f *fakeChannelSvc) Resume(context.Context, string) (*channel.AsyncChannel,
 func (f *fakeChannelSvc) SetAccessPolicy(_ context.Context, _ string, p accesspolicy.Policy) (*channel.AsyncChannel, error) {
 	f.policy = p
 	return f.ret, f.err
+}
+func (f *fakeChannelSvc) ListChannelClients(
+	context.Context, in.ListChannelClientsInput,
+) (in.ChannelClientAccessPage, error) {
+	return f.channelClients, f.err
 }
 
 func sampleChannel(t *testing.T) *channel.AsyncChannel {
@@ -97,14 +103,40 @@ func TestCreateAsyncChannelForwardsAndRenders(t *testing.T) {
 	}
 }
 
-func TestUpdateAsyncChannelRejectsNonLabelMask(t *testing.T) {
-	h := newChannelHandler(&fakeChannelSvc{ret: sampleChannel(t)})
+// TestUpdateAsyncChannelRejectsImmutableFields pins that `type` and
+// `access_policy` — genuinely immutable through this RPC (the latter uses
+// SetAccessPolicy) — stay rejected. `channel_partitions` is deliberately NOT
+// in this list any more: 18.7 made it a maskable, increase-only re-shard —
+// see TestUpdateAsyncChannelForwardsChannelPartitions.
+func TestUpdateAsyncChannelRejectsImmutableFields(t *testing.T) {
+	for _, field := range []string{"type", "access_policy"} {
+		h := newChannelHandler(&fakeChannelSvc{ret: sampleChannel(t)})
+		_, err := h.UpdateAsyncChannel(context.Background(), franzv1.UpdateAsyncChannelRequest_builder{
+			Name:       proto.String("orders"),
+			UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{field}},
+		}.Build())
+		if status.Code(err) != codes.InvalidArgument {
+			t.Errorf("%s in mask → %v, want InvalidArgument", field, status.Code(err))
+		}
+	}
+}
+
+// TestUpdateAsyncChannelForwardsChannelPartitions is 18.7: an increase is
+// forwarded to the service as-is; validation (increase-only) is the domain's
+// job, not the handler's.
+func TestUpdateAsyncChannelForwardsChannelPartitions(t *testing.T) {
+	fake := &fakeChannelSvc{ret: sampleChannel(t)}
+	h := newChannelHandler(fake)
 	_, err := h.UpdateAsyncChannel(context.Background(), franzv1.UpdateAsyncChannelRequest_builder{
-		Name:       proto.String("orders"),
-		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"channel_partitions"}},
+		Name:              proto.String("orders"),
+		ChannelPartitions: proto.Int32(4),
+		UpdateMask:        &fieldmaskpb.FieldMask{Paths: []string{"channel_partitions"}},
 	}.Build())
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatalf("channel_partitions in mask → %v", status.Code(err))
+	if err != nil {
+		t.Fatalf("UpdateAsyncChannel: %v", err)
+	}
+	if fake.updated.ChannelPartitions == nil || *fake.updated.ChannelPartitions != 4 {
+		t.Fatalf("ChannelPartitions not forwarded: %+v", fake.updated)
 	}
 }
 
@@ -146,12 +178,44 @@ func TestSetAccessPolicyForwards(t *testing.T) {
 	}
 }
 
-func TestListChannelClientsUnimplemented(t *testing.T) {
-	h := newChannelHandler(&fakeChannelSvc{})
-	_, err := h.ListChannelClients(context.Background(), franzv1.ListChannelClientsRequest_builder{
+func TestListChannelClientsRendersFRNAndForwardsPage(t *testing.T) {
+	billingFRN, err := frn.New("acme", frn.TypeClient, "billing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := &fakeChannelSvc{channelClients: in.ChannelClientAccessPage{
+		Access: []in.ChannelClientAccess{{
+			ClientFRN: billingFRN, ClientLabels: map[string]string{"team": "payments"},
+			Effective: []accesspolicy.Permission{accesspolicy.Read}, MatchedBy: "statement 0 (ALLOW client_frn=acme:client:billing)",
+		}},
+		NextPageToken: "next-page",
+	}}
+	h := newChannelHandler(fake)
+
+	resp, err := h.ListChannelClients(context.Background(), franzv1.ListChannelClientsRequest_builder{
 		Name: proto.String("orders"),
 	}.Build())
-	if status.Code(err) != codes.Unimplemented {
+	if err != nil {
+		t.Fatalf("ListChannelClients: %v", err)
+	}
+	if len(resp.GetClients()) != 1 || resp.GetClients()[0].GetClientFrn() != "frn:acme:client:billing" {
+		t.Fatalf("clients = %+v", resp.GetClients())
+	}
+	if len(resp.GetClients()[0].GetEffective()) != 1 ||
+		resp.GetClients()[0].GetEffective()[0] != franzv1.Permission_PERMISSION_READ {
+		t.Fatalf("effective = %+v", resp.GetClients()[0].GetEffective())
+	}
+	if resp.GetPage().GetNextPageToken() != "next-page" {
+		t.Fatalf("page token = %q", resp.GetPage().GetNextPageToken())
+	}
+}
+
+func TestListChannelClientsErrorMapping(t *testing.T) {
+	h := newChannelHandler(&fakeChannelSvc{err: errs.NotFoundf("async channel %q not found", "x")})
+	_, err := h.ListChannelClients(context.Background(), franzv1.ListChannelClientsRequest_builder{
+		Name: proto.String("x"),
+	}.Build())
+	if status.Code(err) != codes.NotFound {
 		t.Fatalf("code = %v", status.Code(err))
 	}
 }

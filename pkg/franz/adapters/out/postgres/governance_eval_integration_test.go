@@ -52,9 +52,9 @@ func newGovernanceFixture(t *testing.T) governanceFixture {
 	// nil placer / notifier / publisher: this fixture exercises governance's own
 	// writes, not placement or the agent wire. The provider-status reader is real
 	// because clusters.Service.Get always consults it.
-	channelSvc := channels.NewService(channelRepo, nil, nil)
+	channelSvc := channels.NewService(channelRepo, nil, nil, nil)
 	clusterSvc := clusters.NewService(clusterRepo, topicRepo,
-		postgres.NewProviderEventRepo(db), nil, nil, nil)
+		postgres.NewProviderEventRepo(db), nil, nil, nil, nil)
 	topicSvc := topics.NewService(topicRepo, clusterRepo, nil)
 
 	return governanceFixture{

@@ -83,6 +83,12 @@ func TestValidateAgainstWhitelist(t *testing.T) {
 			action(governance.ActionRemoveLabel, "tier"), true, 0},
 		{"channel replication_factor is a topic field", indicator.EntityAsyncChannel,
 			action(governance.ActionUpdateField, "replication_factor", "3"), false, errs.InvalidArgument},
+		{"channel_partitions INCREASE is a re-shard (18.7/18.8)", indicator.EntityAsyncChannel,
+			action(governance.ActionIncreaseFieldBy, "channel_partitions", "1"), true, 0},
+		{"affinity label re-places (18.4)", indicator.EntityAsyncChannel,
+			action(governance.ActionAddLabel, "franz.affinity/region", "eu"), true, 0},
+		{"antiaffinity label re-places (18.4)", indicator.EntityAsyncChannel,
+			action(governance.ActionRemoveLabel, "franz.antiaffinity/rack"), true, 0},
 
 		// --- KAFKA_CLUSTER ----------------------------------------------
 		{"cluster state SET_STATUS", indicator.EntityKafkaCluster,
@@ -97,6 +103,8 @@ func TestValidateAgainstWhitelist(t *testing.T) {
 			action(governance.ActionIncreaseFieldBy, "disk_size", "10Gi"), false, errs.InvalidArgument},
 		{"cluster config arithmetic is not whitelisted", indicator.EntityKafkaCluster,
 			action(governance.ActionIncreaseFieldBy, "cluster_configuration.partitions", "1"), false, errs.InvalidArgument},
+		{"franz.taint drains a cluster (18.4)", indicator.EntityKafkaCluster,
+			action(governance.ActionAddLabel, "franz.taint", "drain"), true, 0},
 	}
 
 	for _, tc := range tests {
@@ -117,22 +125,19 @@ func TestValidateAgainstWhitelist(t *testing.T) {
 }
 
 // TestValidateAgainstDeferredActions covers the whitelist rows 003.8 allows but
-// this deliverable cannot honour: they are rejected at write with
+// no deliverable has yet made real: they are rejected at write with
 // FAILED_PRECONDITION rather than accepted and silently ignored later.
+// Deliverable 18's migration flow un-deferred everything else the write
+// whitelist had parked here (affinity/antiaffinity/taint labels, a
+// channel_partitions increase) — see TestValidateAgainstWhitelist.
 func TestValidateAgainstDeferredActions(t *testing.T) {
 	tests := []struct {
 		name   string
 		entity indicator.Entity
 		action governance.Action
 	}{
-		{"channel_partitions is a staged re-shard", indicator.EntityAsyncChannel,
-			action(governance.ActionIncreaseFieldBy, "channel_partitions", "1")},
-		{"affinity label triggers re-placement", indicator.EntityAsyncChannel,
-			action(governance.ActionAddLabel, "franz.affinity/region", "eu")},
-		{"antiaffinity label triggers re-placement", indicator.EntityAsyncChannel,
-			action(governance.ActionRemoveLabel, "franz.antiaffinity/rack")},
-		{"franz.taint drains a cluster", indicator.EntityKafkaCluster,
-			action(governance.ActionAddLabel, "franz.taint", "drain")},
+		{"channel_partitions DECREASE needs drain-then-retire (18.7)", indicator.EntityAsyncChannel,
+			action(governance.ActionDecreaseFieldBy, "channel_partitions", "1")},
 		{"a Kafka Topic has no label map", indicator.EntityKafkaTopic,
 			action(governance.ActionAddLabel, "tier", "gold")},
 	}
