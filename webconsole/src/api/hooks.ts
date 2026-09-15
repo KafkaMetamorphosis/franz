@@ -26,6 +26,7 @@ export type Limit = Schemas["v1Limit"];
 export type Client = Schemas["v1Client"];
 export type ClientChannelAccess = Schemas["v1ClientChannelAccess"];
 export type ObservedConsumerGroup = Schemas["v1ObservedConsumerGroup"];
+export type ShardMigration = Schemas["v1ShardMigration"];
 
 // The gateway parses `update_mask` with protojson semantics: comma-separated
 // lowerCamelCase paths (snake_case is rejected). Callers pass the body keys they
@@ -193,9 +194,18 @@ export function useClusterLifecycle(name: string) {
         unwrap(await api.POST("/v1/kafka/clusters/{name}:resume", { params: { path: { name } } })),
       onSuccess: invalidate,
     }),
+    // force defaults to false: a plain Delete on a cluster with live shards
+    // is rejected (FAILED_PRECONDITION, "...pass force=true"); the caller
+    // re-invokes with { force: true } to auto-start a drain instead (003.13
+    // OQ5) — the cluster is not deleted immediately in that case, only once
+    // every shard has migrated off.
     remove: useMutation({
-      mutationFn: async () =>
-        unwrap(await api.DELETE("/v1/kafka/clusters/{name}", { params: { path: { name } } })),
+      mutationFn: async (vars?: { force?: boolean }) =>
+        unwrap(
+          await api.DELETE("/v1/kafka/clusters/{name}", {
+            params: { path: { name }, query: vars?.force ? { force: true } : {} },
+          }),
+        ),
       onSuccess: invalidate,
     }),
   };
@@ -523,5 +533,58 @@ export function useDeleteClient() {
     mutationFn: async (name: string) =>
       unwrap(await api.DELETE("/v1/clients/{name}", { params: { path: { name } } })),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+// --- Migration (003.13) ------------------------------------------------------
+
+// asyncChannel is required in practice, not just in name: ListShardMigrations
+// resolves it to a channel row and rejects an empty/unknown one with
+// NotFound — there is no "list every migration" or "filter by cluster" query
+// shape on this RPC (found live, not assumed; ClusterDetail has its own note
+// on why it has no Migrations panel as a result).
+export function useShardMigrations(asyncChannel: string, opts?: { pollMs?: number }) {
+  return useQuery({
+    queryKey: ["shard-migrations", asyncChannel],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/shard-migrations", { params: { query: { asyncChannel } } })),
+    enabled: !!asyncChannel,
+    refetchInterval: opts?.pollMs,
+  });
+}
+
+export function useShardMigration(id: string) {
+  return useQuery({
+    queryKey: ["shard-migration", id],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/shard-migrations/{id}", { params: { path: { id } } })),
+    enabled: !!id,
+  });
+}
+
+// kafkaTopic is a mutate-time variable, not a hook argument: a shards table
+// (ChannelDetail) triggers this per-row from one shared mutation instance,
+// where a name-bound hook (mirroring useUpdateChannel(name)'s pattern) would
+// mean calling a hook inside a loop.
+export function useMigrateKafkaTopic() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      kafkaTopic,
+      ...body
+    }: { kafkaTopic: string } & Schemas["MigrationServiceMigrateKafkaTopicBody"]) =>
+      unwrap(await api.POST("/v1/kafka-topics/{kafkaTopic}/migrate", { params: { path: { kafkaTopic } }, body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["shard-migrations"] }),
+  });
+}
+
+export function useMigrateCluster(kafkaCluster: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Schemas["MigrationServiceMigrateClusterBody"]) =>
+      unwrap(
+        await api.POST("/v1/kafka-clusters/{kafkaCluster}/migrate", { params: { path: { kafkaCluster } }, body }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["shard-migrations"] }),
   });
 }

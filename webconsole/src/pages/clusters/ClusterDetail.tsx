@@ -8,11 +8,8 @@ import {
   Panel,
   StatusPill,
 } from "../../components/ui";
-import {
-  useCluster,
-  useClusterLifecycle,
-  useClusterProviderEvents,
-} from "../../api/hooks";
+import { useCluster, useClusterLifecycle, useClusterProviderEvents, useMigrateCluster } from "../../api/hooks";
+import { ApiError } from "../../api/client";
 import { providerPhaseLabel } from "../../api/enums";
 
 // The detail page polls GetKafkaCluster + the event history every 4s (06.6) so
@@ -25,11 +22,17 @@ export function ClusterDetail() {
   const { data, isLoading, error } = useCluster(name, { pollMs: POLL_MS });
   const eventsQuery = useClusterProviderEvents(name, { pollMs: POLL_MS });
   const { pause, resume, remove } = useClusterLifecycle(name);
+  const migrateCluster = useMigrateCluster(name);
 
   const cluster = data?.kafkaCluster;
   const status = cluster?.providerStatus;
   const events = eventsQuery.data?.events ?? [];
   const deleted = cluster?.state === "KAFKA_CLUSTER_STATE_DELETED";
+
+  // DeleteKafkaCluster without force=true rejects with FAILED_PRECONDITION
+  // (HTTP 400) while the cluster has live shards, naming force=true in its
+  // own message (003.13 OQ5) — the second confirm below offers exactly that.
+  const deleteRejectedForLiveShards = remove.error instanceof ApiError && remove.error.status === 400;
 
   return (
     <>
@@ -59,6 +62,17 @@ export function ClusterDetail() {
                 </button>
               )}
               <button
+                className="button"
+                onClick={() => {
+                  if (confirm(`Drain cluster ${name}? Every live shard starts migrating to another cluster.`)) {
+                    migrateCluster.mutate({ reason: "operator" });
+                  }
+                }}
+                disabled={migrateCluster.isPending}
+              >
+                Drain
+              </button>
+              <button
                 className="button danger"
                 onClick={() => {
                   if (confirm(`Delete cluster ${name}?`)) {
@@ -72,7 +86,31 @@ export function ClusterDetail() {
           ) : null
         }
       />
-      <ErrorBanner error={error ?? pause.error ?? resume.error ?? remove.error} />
+      <ErrorBanner error={error ?? pause.error ?? resume.error ?? migrateCluster.error} />
+      {deleteRejectedForLiveShards ? (
+        <div className="app-error" role="alert">
+          <strong>{remove.error instanceof ApiError ? remove.error.message : ""}</strong>
+          <div style={{ marginTop: 8 }}>
+            <button
+              type="button"
+              className="button danger"
+              onClick={() => {
+                if (
+                  confirm(
+                    `Force-delete ${name}? This starts a drain for every live shard; the cluster is deleted once every shard has migrated off, not immediately.`,
+                  )
+                ) {
+                  remove.mutate({ force: true });
+                }
+              }}
+            >
+              Force delete (drain first)
+            </button>
+          </div>
+        </div>
+      ) : (
+        <ErrorBanner error={remove.error} />
+      )}
 
       {isLoading ? (
         <Loading what="cluster" />
@@ -187,6 +225,14 @@ export function ClusterDetail() {
                 ))}
               </ul>
             )}
+          </Panel>
+
+          <Panel title="Migrations" note="Where to look for this cluster's shard migrations.">
+            <p className="empty-note">
+              <code>ListShardMigrations</code> is scoped by Async Channel, not by cluster — there is no
+              query that lists "every migration touching this cluster" without fetching every channel in
+              the realm. See a migrating shard's status on its channel's detail page instead.
+            </p>
           </Panel>
         </>
       )}

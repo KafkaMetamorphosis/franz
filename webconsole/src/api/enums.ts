@@ -90,6 +90,19 @@ export function permissionLabel(v?: string): string {
   return short.charAt(0) + short.slice(1).toLowerCase();
 }
 
+// --- Migration (003.13) ------------------------------------------------------
+
+export function migrationPhaseLabel(v?: string): string {
+  const short = (v ?? "").replace(/^MIGRATION_PHASE_/, "");
+  if (!short || short === "UNSPECIFIED") return "Unknown";
+  return short.charAt(0) + short.slice(1).toLowerCase();
+}
+
+// TERMINAL_MIGRATION_PHASES is used to stop polling a migrations panel once
+// every visible row has settled — DONE fades into history, FAILED needs an
+// operator, but neither one changes on its own any more.
+export const TERMINAL_MIGRATION_PHASES = new Set(["MIGRATION_PHASE_DONE", "MIGRATION_PHASE_FAILED"]);
+
 // describeAction renders one Action as a single-line summary for a read-only
 // list (PolicyList's action count, PolicyDetail's audit trail) — the args'
 // meaning depends on kind (see v1Action's own doc comment).

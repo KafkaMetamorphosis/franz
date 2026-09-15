@@ -46,6 +46,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Migration UI** — console actions and status for deliverable 18's
+  migration and data movement (`003.13`), which shipped API-only.
+  `ChannelDetail`'s shards table gains a per-shard `MigrationPhaseBadge`
+  (the four in-flight phases share one "converging" look, `DONE` is quiet
+  history, `FAILED` carries its `failure_reason` as the tooltip) and a
+  per-row "Migrate to…" action whose target picker excludes the shard's own
+  cluster. `ClusterDetail` gains a page-level **Drain** action
+  (`MigrateCluster`, `reason=operator`) and surfaces `force=true` inline once
+  a plain Delete has been rejected for having live shards (`003.13` OQ5) —
+  behind its own confirm explaining that this starts a drain rather than
+  deleting immediately. Pure console work — no backend, proto, or
+  `schema.d.ts` change.
+
+  **No cluster-scoped migrations list.** `ListShardMigrations` is scoped by
+  Async Channel only — there is no cluster filter and no "list everything"
+  shape (an unfiltered call is `NotFound`). Populating a per-cluster panel
+  would mean one call per channel in the realm, an N+1 nothing else in the
+  console does, for a view `ChannelDetail` already covers correctly.
+  `ClusterDetail` carries a short pointer there instead.
+
 - **Client UI** — console screens for the Client registry (`003.10`), which
   shipped API-only in deliverable 16: `/clients` with list / register /
   detail / edit, following the 06/08/19/20 page shape. `ClientDetail` renders
