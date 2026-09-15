@@ -46,6 +46,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Client UI** — console screens for the Client registry (`003.10`), which
+  shipped API-only in deliverable 16: `/clients` with list / register /
+  detail / edit, following the 06/08/19/20 page shape. `ClientDetail` renders
+  deliverable 17's `ListClientChannelAccess` (every channel granting this
+  client something) alongside deliverable 15/16's
+  `ListObservedConsumerGroups`, with a per-row "show history" expansion over
+  `ListConsumerGroupObservations` — that RPC has no `(group, topic)` filter,
+  only `from`/`to` and paging, so the expansion fetches the history once and
+  filters client-side, the same "fetch a page, filter in JS" pattern 17's
+  access-policy views and 20's panels already use. `ClientEdit` masks
+  `labels` only: a Client's name is immutable (`003.10` — it is also the
+  default consumer-group prefix). Pure console work — no backend, proto, or
+  schema change.
+
 - **Governance UI** — console screens for the Indicator registry and Policy
   engine (`003.8`/`003.14`), which shipped API-only in deliverables 14/15:
   `/governance/indicators` and `/governance/policies`, each with list /
@@ -110,8 +124,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `state = 'DELETED'`, delivered a different way here. `ListClientChannelAccess`
   stays `Unimplemented` until deliverable 17's access-policy engine.
   `local/seed/05-clients.sql` seeds two example clients for the local loop;
-  **deliverable 21 — Client UI** is scoped (not built) since this ships no
-  console screens.
+  the console screens over this registry land separately, in deliverable 21
+  (**Client UI**, above).
 
 - **Telemetry ingest (`003.14`)** — the two inbound agent streams become real.
   - `PublishIndicatorSamples` / `StreamIndicatorSamples` now enforce
