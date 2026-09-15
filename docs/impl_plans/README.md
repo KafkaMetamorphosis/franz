@@ -74,7 +74,7 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [19](./19-async-channel-ui.md) | Async Channel UI (console screens for 10) | 06 · 08 · 10 · 11 | ✅ |
 | [20](./20-governance-ui.md) | Governance UI (console screens for 14 · 15) | 06 · 08 · 14 · 15 | ✅ |
 | [21](./21-client-ui.md) | Client UI (console screens for 16) | 06 · 08 · 16 | ✅ |
-| [22](./22-migration-ui.md) | Migration UI (console screens for 18) | 06 · 08 · 18 · 19 | ⬜ |
+| [22](./22-migration-ui.md) | Migration UI (console screens for 18) | 06 · 08 · 18 · 19 | ✅ |
 
 ## Decisions already locked (`DECISIONS.md` ADR-API-005)
 
