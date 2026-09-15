@@ -16,6 +16,17 @@ export type AgentType = Schemas["v1AgentType"];
 export type AsyncChannel = Schemas["v1AsyncChannel"];
 export type ChannelType = Schemas["v1ChannelType"];
 export type ChannelState = Schemas["v1ChannelState"];
+export type Indicator = Schemas["v1Indicator"];
+export type IndicatorSampleView = Schemas["v1IndicatorSampleView"];
+export type Policy = Schemas["v1Policy"];
+export type PolicyAction = Schemas["v1PolicyAction"];
+export type Action = Schemas["v1Action"];
+export type Matcher = Schemas["v1Matcher"];
+export type Limit = Schemas["v1Limit"];
+export type Client = Schemas["v1Client"];
+export type ClientChannelAccess = Schemas["v1ClientChannelAccess"];
+export type ObservedConsumerGroup = Schemas["v1ObservedConsumerGroup"];
+export type ShardMigration = Schemas["v1ShardMigration"];
 
 // The gateway parses `update_mask` with protojson semantics: comma-separated
 // lowerCamelCase paths (snake_case is rejected). Callers pass the body keys they
@@ -183,9 +194,18 @@ export function useClusterLifecycle(name: string) {
         unwrap(await api.POST("/v1/kafka/clusters/{name}:resume", { params: { path: { name } } })),
       onSuccess: invalidate,
     }),
+    // force defaults to false: a plain Delete on a cluster with live shards
+    // is rejected (FAILED_PRECONDITION, "...pass force=true"); the caller
+    // re-invokes with { force: true } to auto-start a drain instead (003.13
+    // OQ5) — the cluster is not deleted immediately in that case, only once
+    // every shard has migrated off.
     remove: useMutation({
-      mutationFn: async () =>
-        unwrap(await api.DELETE("/v1/kafka/clusters/{name}", { params: { path: { name } } })),
+      mutationFn: async (vars?: { force?: boolean }) =>
+        unwrap(
+          await api.DELETE("/v1/kafka/clusters/{name}", {
+            params: { path: { name }, query: vars?.force ? { force: true } : {} },
+          }),
+        ),
       onSuccess: invalidate,
     }),
   };
@@ -278,4 +298,293 @@ export function useChannelLifecycle(name: string) {
       onSuccess: invalidate,
     }),
   };
+}
+
+// --- Governance: Indicators --------------------------------------------------
+
+export function useIndicators() {
+  return useQuery({
+    queryKey: ["indicators"],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/governance/indicators", { params: { query: {} } })),
+  });
+}
+
+export function useIndicator(name: string) {
+  return useQuery({
+    queryKey: ["indicator", name],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/governance/indicators/{name}", { params: { path: { name } } })),
+  });
+}
+
+// No resourceFrn filter: the detail page's "recent samples" table shows the
+// indicator's most recent activity across every resource it applies to.
+export function useIndicatorSamples(indicator: string) {
+  return useQuery({
+    queryKey: ["indicator-samples", indicator],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/governance/indicators/{indicator}/samples", {
+          params: { path: { indicator }, query: {} },
+        }),
+      ),
+    enabled: !!indicator,
+  });
+}
+
+export function useCreateIndicator() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Schemas["v1CreateIndicatorRequest"]) =>
+      unwrap(await api.POST("/v1/governance/indicators", { body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["indicators"] }),
+  });
+}
+
+// UpdateIndicatorBody is the PATCH payload — unit / staleness_threshold /
+// source_agents only. `applies_to` is immutable (003.14).
+export type UpdateIndicatorBody = Schemas["GovernanceServiceUpdateIndicatorBody"];
+
+export function useUpdateIndicator(name: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdateIndicatorBody) =>
+      unwrap(await api.PATCH("/v1/governance/indicators/{name}", { params: { path: { name } }, body })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["indicator", name] });
+      qc.invalidateQueries({ queryKey: ["indicators"] });
+    },
+  });
+}
+
+export function useDeleteIndicator() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) =>
+      unwrap(await api.DELETE("/v1/governance/indicators/{name}", { params: { path: { name } } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["indicators"] }),
+  });
+}
+
+// --- Governance: Policies ----------------------------------------------------
+
+export function usePolicies() {
+  return useQuery({
+    queryKey: ["policies"],
+    queryFn: async () => unwrap(await api.GET("/v1/governance/policies", { params: { query: {} } })),
+  });
+}
+
+export function usePolicy(name: string) {
+  return useQuery({
+    queryKey: ["policy", name],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/governance/policies/{name}", { params: { path: { name } } })),
+  });
+}
+
+export function usePolicyActions(name: string) {
+  return useQuery({
+    queryKey: ["policy-actions", name],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/governance/policies/{name}/actions", {
+          params: { path: { name }, query: {} },
+        }),
+      ),
+    enabled: !!name,
+  });
+}
+
+export function useCreatePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Schemas["v1CreatePolicyRequest"]) =>
+      unwrap(await api.POST("/v1/governance/policies", { body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["policies"] }),
+  });
+}
+
+// UpdatePolicyBody is the PATCH payload — matcher / limit / actions / weight /
+// enabled. `indicator` is immutable: changing it would silently reinterpret an
+// existing Limit's value against a different unit.
+export type UpdatePolicyBody = Schemas["GovernanceServiceUpdatePolicyBody"];
+
+export function useUpdatePolicy(name: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdatePolicyBody) =>
+      unwrap(await api.PATCH("/v1/governance/policies/{name}", { params: { path: { name } }, body })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["policy", name] });
+      qc.invalidateQueries({ queryKey: ["policies"] });
+    },
+  });
+}
+
+export function useDeletePolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) =>
+      unwrap(await api.DELETE("/v1/governance/policies/{name}", { params: { path: { name } } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["policies"] }),
+  });
+}
+
+// DryRunPolicy evaluates a definition (matcher/limit/actions/indicator) against
+// the latest real sample per matched resource — no resourceFrn/hypothetical
+// value input on the wire, and no mutation. Not tied to a query key: it is a
+// mutation-shaped read, invoked on demand from a button.
+export function useDryRunPolicy() {
+  return useMutation({
+    mutationFn: async (body: Schemas["v1DryRunPolicyRequest"]) =>
+      unwrap(await api.POST("/v1/governance/policies:dryRun", { body })),
+  });
+}
+
+// --- Clients (003.10) --------------------------------------------------------
+
+export function useClients(selector?: string) {
+  return useQuery({
+    queryKey: ["clients", selector ?? "all"],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/clients", { params: { query: selector ? { selector } : {} } })),
+  });
+}
+
+export function useClient(name: string) {
+  return useQuery({
+    queryKey: ["client", name],
+    queryFn: async () => unwrap(await api.GET("/v1/clients/{name}", { params: { path: { name } } })),
+  });
+}
+
+export function useClientChannelAccess(name: string) {
+  return useQuery({
+    queryKey: ["client-channel-access", name],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/clients/{name}/channel-access", {
+          params: { path: { name }, query: {} },
+        }),
+      ),
+    enabled: !!name,
+  });
+}
+
+export function useObservedConsumerGroups(name: string) {
+  return useQuery({
+    queryKey: ["observed-consumer-groups", name],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/clients/{name}/consumer-groups", {
+          params: { path: { name }, query: {} },
+        }),
+      ),
+    enabled: !!name,
+  });
+}
+
+// No (group, topic) filter on the wire — ListConsumerGroupObservations returns
+// every sighting for the client in the time range. The caller filters
+// client-side to the one (group, topic) pair a "show history" row expands.
+export function useConsumerGroupObservations(name: string, opts?: { enabled?: boolean }) {
+  return useQuery({
+    queryKey: ["consumer-group-observations", name],
+    queryFn: async () =>
+      unwrap(
+        await api.GET("/v1/clients/{name}/consumer-group-observations", {
+          params: { path: { name }, query: {} },
+        }),
+      ),
+    enabled: !!name && (opts?.enabled ?? true),
+  });
+}
+
+export function useCreateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Schemas["v1CreateClientRequest"]) =>
+      unwrap(await api.POST("/v1/clients", { body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+// UpdateClientBody is the PATCH payload — `labels` only. `name` is immutable
+// (003.10, "the default consumer-group prefix").
+export type UpdateClientBody = Schemas["ClientServiceUpdateClientBody"];
+
+export function useUpdateClient(name: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: UpdateClientBody) =>
+      unwrap(await api.PATCH("/v1/clients/{name}", { params: { path: { name } }, body })),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["client", name] });
+      qc.invalidateQueries({ queryKey: ["clients"] });
+    },
+  });
+}
+
+export function useDeleteClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) =>
+      unwrap(await api.DELETE("/v1/clients/{name}", { params: { path: { name } } })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["clients"] }),
+  });
+}
+
+// --- Migration (003.13) ------------------------------------------------------
+
+// asyncChannel is required in practice, not just in name: ListShardMigrations
+// resolves it to a channel row and rejects an empty/unknown one with
+// NotFound — there is no "list every migration" or "filter by cluster" query
+// shape on this RPC (found live, not assumed; ClusterDetail has its own note
+// on why it has no Migrations panel as a result).
+export function useShardMigrations(asyncChannel: string, opts?: { pollMs?: number }) {
+  return useQuery({
+    queryKey: ["shard-migrations", asyncChannel],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/shard-migrations", { params: { query: { asyncChannel } } })),
+    enabled: !!asyncChannel,
+    refetchInterval: opts?.pollMs,
+  });
+}
+
+export function useShardMigration(id: string) {
+  return useQuery({
+    queryKey: ["shard-migration", id],
+    queryFn: async () =>
+      unwrap(await api.GET("/v1/shard-migrations/{id}", { params: { path: { id } } })),
+    enabled: !!id,
+  });
+}
+
+// kafkaTopic is a mutate-time variable, not a hook argument: a shards table
+// (ChannelDetail) triggers this per-row from one shared mutation instance,
+// where a name-bound hook (mirroring useUpdateChannel(name)'s pattern) would
+// mean calling a hook inside a loop.
+export function useMigrateKafkaTopic() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      kafkaTopic,
+      ...body
+    }: { kafkaTopic: string } & Schemas["MigrationServiceMigrateKafkaTopicBody"]) =>
+      unwrap(await api.POST("/v1/kafka-topics/{kafkaTopic}/migrate", { params: { path: { kafkaTopic } }, body })),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["shard-migrations"] }),
+  });
+}
+
+export function useMigrateCluster(kafkaCluster: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Schemas["MigrationServiceMigrateClusterBody"]) =>
+      unwrap(
+        await api.POST("/v1/kafka-clusters/{kafkaCluster}/migrate", { params: { path: { kafkaCluster } }, body }),
+      ),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["shard-migrations"] }),
+  });
 }

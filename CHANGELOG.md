@@ -46,6 +46,53 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- **Migration UI** — console actions and status for deliverable 18's
+  migration and data movement (`003.13`), which shipped API-only.
+  `ChannelDetail`'s shards table gains a per-shard `MigrationPhaseBadge`
+  (the four in-flight phases share one "converging" look, `DONE` is quiet
+  history, `FAILED` carries its `failure_reason` as the tooltip) and a
+  per-row "Migrate to…" action whose target picker excludes the shard's own
+  cluster. `ClusterDetail` gains a page-level **Drain** action
+  (`MigrateCluster`, `reason=operator`) and surfaces `force=true` inline once
+  a plain Delete has been rejected for having live shards (`003.13` OQ5) —
+  behind its own confirm explaining that this starts a drain rather than
+  deleting immediately. Pure console work — no backend, proto, or
+  `schema.d.ts` change.
+
+  **No cluster-scoped migrations list.** `ListShardMigrations` is scoped by
+  Async Channel only — there is no cluster filter and no "list everything"
+  shape (an unfiltered call is `NotFound`). Populating a per-cluster panel
+  would mean one call per channel in the realm, an N+1 nothing else in the
+  console does, for a view `ChannelDetail` already covers correctly.
+  `ClusterDetail` carries a short pointer there instead.
+
+- **Client UI** — console screens for the Client registry (`003.10`), which
+  shipped API-only in deliverable 16: `/clients` with list / register /
+  detail / edit, following the 06/08/19/20 page shape. `ClientDetail` renders
+  deliverable 17's `ListClientChannelAccess` (every channel granting this
+  client something) alongside deliverable 15/16's
+  `ListObservedConsumerGroups`, with a per-row "show history" expansion over
+  `ListConsumerGroupObservations` — that RPC has no `(group, topic)` filter,
+  only `from`/`to` and paging, so the expansion fetches the history once and
+  filters client-side, the same "fetch a page, filter in JS" pattern 17's
+  access-policy views and 20's panels already use. `ClientEdit` masks
+  `labels` only: a Client's name is immutable (`003.10` — it is also the
+  default consumer-group prefix). Pure console work — no backend, proto, or
+  schema change.
+
+- **Governance UI** — console screens for the Indicator registry and Policy
+  engine (`003.8`/`003.14`), which shipped API-only in deliverables 14/15:
+  `/governance/indicators` and `/governance/policies`, each with list /
+  register / detail / edit pages. A shared `ActionEditor` component renders a
+  Policy's repeatable actions with a kind-dependent arg shape (including a
+  real `<select>` of `ACTIVE`/`PAUSED`/`DELETED` for `SET_STATUS` — not free
+  text, since the wire value is the plain state name), an optional
+  `max=`/`min=` cap on the two arithmetic kinds, and inline whitelist-
+  violation rendering on the offending action row. `PolicyDetail` adds a
+  Dry-run panel (evaluates the policy's own saved definition against the
+  latest real sample per matched resource — no mutation) and the
+  `PolicyAction` audit trail. Pure console work — no backend or proto change.
+
 - **Migration & data movement (`003.13`)** — the staged flow that moves a
   shard's serving position from one cluster to another, and the last blocker
   in the plan. It reuses three primitives that already existed rather than
@@ -97,8 +144,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `state = 'DELETED'`, delivered a different way here. `ListClientChannelAccess`
   stays `Unimplemented` until deliverable 17's access-policy engine.
   `local/seed/05-clients.sql` seeds two example clients for the local loop;
-  **deliverable 21 — Client UI** is scoped (not built) since this ships no
-  console screens.
+  the console screens over this registry land separately, in deliverable 21
+  (**Client UI**, above).
 
 - **Telemetry ingest (`003.14`)** — the two inbound agent streams become real.
   - `PublishIndicatorSamples` / `StreamIndicatorSamples` now enforce

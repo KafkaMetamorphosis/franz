@@ -72,9 +72,9 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 | [17](./17-access-policy-and-channel-access.md) | Access-policy engine & channel-access views | 02 · 10 · 16 | ✅ |
 | [18](./18-migration-and-data-movement.md) | Migration & data movement | 09 · 10 · 13 | ✅ |
 | [19](./19-async-channel-ui.md) | Async Channel UI (console screens for 10) | 06 · 08 · 10 · 11 | ✅ |
-| [20](./20-governance-ui.md) | Governance UI (console screens for 14 · 15) | 06 · 08 · 14 · 15 | ⬜ |
-| [21](./21-client-ui.md) | Client UI (console screens for 16) | 06 · 08 · 16 | ⬜ |
-| [22](./22-migration-ui.md) | Migration UI (console screens for 18) | 06 · 08 · 18 · 19 | ⬜ |
+| [20](./20-governance-ui.md) | Governance UI (console screens for 14 · 15) | 06 · 08 · 14 · 15 | ✅ |
+| [21](./21-client-ui.md) | Client UI (console screens for 16) | 06 · 08 · 16 | ✅ |
+| [22](./22-migration-ui.md) | Migration UI (console screens for 18) | 06 · 08 · 18 · 19 | ✅ |
 
 ## Decisions already locked (`DECISIONS.md` ADR-API-005)
 
@@ -114,6 +114,27 @@ Franz module, Docker Engine API SDK, stateless (Docker labels are the store);
 
 _(newest first — date · deliverable/task · note · commit)_
 
+- 2026-09-14 · **20** Governance UI · console screens for 14/15's Indicator
+  registry and Policy engine — `/governance/indicators` and
+  `/governance/policies`, list/register/detail/edit for both, following the
+  06/08/19 page shape. `PolicyRegister`/`PolicyEdit` share a new
+  `ActionEditor` component (kind-dependent arg shape, an optional
+  `max=`/`min=` cap on the two arithmetic kinds, whitelist-violation errors
+  rendered inline on the offending action row via `actions[N]...` field-path
+  parsing) and `PolicyDetail` gets a Dry-run panel and the `PolicyAction`
+  audit trail. Two design-doc inaccuracies were corrected against the real
+  wire contract while building rather than assumed: `Indicator` has no
+  `current_value`/FRN field (only `health`/`last_sample_at`), and
+  `DryRunPolicy` has no resource/hypothetical-value input — it evaluates a
+  full definition against the latest real sample per matched resource. A live
+  smoke test against the real gateway caught a genuine bug before it shipped:
+  `SET_STATUS`'s argument is the plain state name (`"PAUSED"`), not the
+  proto-prefixed form (`"CHANNEL_STATE_PAUSED"`) — `ActionEditor` renders a
+  real `<select>` for it instead of free text, so the mistake isn't reachable
+  from the form. No backend change — pure console work against 14's already-
+  shipped `GovernanceService`. 6 new vitest files (18 cases) +
+  `e2e/governance.spec.ts`; `typecheck`/`lint`/`test`/`build` green. Executed
+  by claude (claude-sonnet-5).
 - 2026-09-14 · **18** Migration & data movement · the last blocker in the
   plan, and the one deliverable whose original task list turned out to
   describe the wrong mechanism. It started from "a shard migration flips
