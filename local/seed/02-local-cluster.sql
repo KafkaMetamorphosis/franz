@@ -6,6 +6,11 @@
 --   provider     : local-kafka-agent          (seed 01)
 --   placement    : franz.placement/env=local  → matches gregor-samsa's
 --                  franz.placement-selector/env=local (seed 03)
+--   affinity     : env=local                  → a *free-form* label, which is
+--                  what a channel's franz.affinity/selector matches against
+--                  (003.7; the franz.placement/* prefix is agent→cluster
+--                  scoping only — 005 OQ2 keeps the two deliberately separate).
+--                  Seed 07's channel selects on it.
 --   bootstrap    : localhost:9092             (what the local-docker recipe advertises)
 --   config       : the same Franz-friendly keys local-kafka-agent advertises
 --                  as its franz.default-kafka-config/* defaults (seed 01)
@@ -26,7 +31,8 @@ SELECT
     '[{"bootstrap_urls": ["localhost:9092"], "type": "PLAINTEXT"}]'::jsonb,
     '{
        "franz.role": "local-loop",
-       "franz.placement/env": "local"
+       "franz.placement/env": "local",
+       "env": "local"
      }'::jsonb,
     '{
        "partitions": "3",

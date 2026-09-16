@@ -82,7 +82,33 @@ Registers one Async Channel (`billing-events`) with a real access policy
 label-selector `ALLOW` grants both seeded clients READ, and a `client_frn`
 `ALLOW` additionally grants `billing` WRITE — deliberately asymmetric so the
 views are worth looking at. Inserted directly as a row (bypasses placement;
-no shard is materialised).
+no shard is materialised) — deliberately left with **no** `franz.affinity/selector`
+so it stays the worked example of a registered-but-unplaced channel. Seed 07 is
+the placed one.
+
+### `seed/07-placed-channel-demo.sql`
+
+Registers the **`shipments`** Async Channel (2 shards) with
+`franz.affinity/selector=env=local`, matching `local-1`'s free-form `env=local`
+label (seed 02) — so this is the one channel that actually gets **placed**.
+
+Placement is opt-in (003.7 step 1): before this seed every seeded channel
+lacked an affinity selector, so a fresh local database materialised no
+`kafka_topic` rows at all, and with no placed shard Gregor Samsa had no topic to
+describe — leaving every `kafka.topic.*` indicator permanently unsampled.
+
+The selector targets the free-form `env` label rather than
+`franz.placement/env`. Both would match (affinity is evaluated against the
+cluster's whole label map), but channel→cluster affinity is specified against
+free-form labels while `franz.placement/*` is the agent→cluster scoping prefix —
+005 OQ2 keeps them separate.
+
+The direct row insert bypasses the create-time placement trigger, but not
+placement itself: Franz's retry sweep (`placement.sweep_interval`, default 30s)
+materialises the shards, then Gregor Samsa creates `shipments-0` / `shipments-1`
+on the broker on its next reconcile. So after `make deps && make run && make
+agent && make gregorsamsa`, expect real topics and live topic indicators within
+about a minute.
 
 ## Reset
 
