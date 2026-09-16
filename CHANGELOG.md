@@ -43,6 +43,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `persistChannel`'s UPDATE statement never wrote it — a correct omission at
   the time that became a live bug the moment the field became maskable.
   Found by 18's own re-shard integration test.
+- **An Indicator's sample history came back empty unless the caller sent an
+  explicit time window.** `ListIndicatorSamples`' handler built its window with
+  `req.GetFrom().AsTime()` / `req.GetTo().AsTime()`, and `AsTime()` on a **nil**
+  `Timestamp` returns the Unix epoch — which is *not* `time.Time.IsZero()`. The
+  query layer reads `IsZero()` as "no bound", so an unbounded request (the
+  console's Indicator detail page sends neither `from` nor `to`) became
+  `sample_at <= 1970-01-01` and excluded every row: "No samples reported yet"
+  against a live Gregor Samsa sweep and tens of thousands of rows in
+  `indicator_sample`. Both bounds now go through a nil guard, the same one
+  `ListConsumerGroupObservations` already used. Ingest was never affected, and
+  an Indicator's `current_value` / `last_sample_at` read off the `indicator`
+  row — which is why the write side looked healthy while the history looked
+  empty.
 
 ### Added
 

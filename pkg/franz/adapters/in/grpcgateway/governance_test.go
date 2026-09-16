@@ -468,6 +468,44 @@ func TestListIndicatorSamplesForwardsFilters(t *testing.T) {
 	}
 }
 
+// TestListIndicatorSamplesUnboundedWindowStaysUnbounded pins the fix for the
+// console's "No samples reported yet" bug: the Indicator detail page asks for
+// samples with no `from`/`to`, and AsTime() on those nil Timestamps used to
+// hand the query layer the Unix epoch. The epoch is not time.Time.IsZero(), so
+// out.SampleQuery treated it as a real bound and appended
+// `sample_at <= 1970-01-01` — excluding every row in a populated series.
+// Unset must reach the service as the zero time, its "no bound" value.
+func TestListIndicatorSamplesUnboundedWindowStaysUnbounded(t *testing.T) {
+	sampleAt := time.Unix(1700000000, 0).UTC()
+	sample, err := indicator.NewSample(realm.DefaultID, "lag",
+		"default:async-channel:orders", indicator.EntityAsyncChannel, "150", "agent-a",
+		sampleAt, sampleAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	svc := &fakeGovernanceSvc{samples: []*indicator.Sample{sample}}
+	h := newGovernanceHandler(svc, time.Now())
+
+	// No From / To — exactly what webconsole's useIndicatorSamples sends.
+	resp, err := h.ListIndicatorSamples(context.Background(),
+		franzv1.ListIndicatorSamplesRequest_builder{
+			Indicator: proto.String("lag"),
+		}.Build())
+	if err != nil {
+		t.Fatalf("ListIndicatorSamples: %v", err)
+	}
+	if !svc.listedSamples.From.IsZero() {
+		t.Errorf("From = %v, want the zero time (no lower bound)", svc.listedSamples.From)
+	}
+	if !svc.listedSamples.To.IsZero() {
+		t.Errorf("To = %v, want the zero time (no upper bound)", svc.listedSamples.To)
+	}
+	if len(resp.GetSamples()) != 1 {
+		t.Fatalf("samples = %d, want 1 — an unbounded window must not filter rows out",
+			len(resp.GetSamples()))
+	}
+}
+
 // TestGovernanceErrorsMapToStatusCodes checks the domain-error vocabulary
 // reaches the client as the codes 003.1 mandates.
 func TestGovernanceErrorsMapToStatusCodes(t *testing.T) {
