@@ -43,6 +43,42 @@ type Assignment struct {
 	ReplicationFactor int32
 }
 
+// ScopedCluster is one Kafka Cluster in this agent's label scope — the clusters
+// its `franz.placement-selector/*` labels currently match (005 ADR §1.2). Franz
+// sends the full set as the first message of every (re)connected stream.
+//
+// This is what lets the agent act on a cluster before anything is placed on it:
+// the FRN to key a sample to and the brokers to connect to both arrive here, not
+// only on a PartitionAssignment. The telemetry sweep's cluster-level indicators
+// (005 §2.1) depend on it — without scope they could only be computed for a
+// cluster that already had a placed shard, which is not a property of the
+// cluster at all.
+type ScopedCluster struct {
+	Name             string
+	FRN              string
+	BootstrapServers []string
+}
+
+// ScopeFromProto maps the stream's scope message onto the local view. A cluster
+// with no name is dropped: it cannot be keyed in the admin cache.
+func ScopeFromProto(sc *franzv1.StreamScope) []ScopedCluster {
+	if sc == nil {
+		return nil
+	}
+	out := make([]ScopedCluster, 0, len(sc.GetClusters()))
+	for _, c := range sc.GetClusters() {
+		if c.GetName() == "" {
+			continue
+		}
+		sc := ScopedCluster{Name: c.GetName(), FRN: c.GetKafkaClusterFrn()}
+		for _, cs := range c.GetConnectionStrings() {
+			sc.BootstrapServers = append(sc.BootstrapServers, cs.GetBootstrapUrls()...)
+		}
+		out = append(out, sc)
+	}
+	return out
+}
+
 // IsScopeLoss reports whether this REMOVED is a scope hand-off rather than a
 // delete.
 func (a Assignment) IsScopeLoss() bool {

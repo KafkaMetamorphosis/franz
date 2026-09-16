@@ -76,13 +76,23 @@ type Publisher interface {
 	Publish(ctx context.Context, samples []Sample) error
 }
 
-// World is the current in-scope work: the partitions the agent manages and the
-// AdminClient for each cluster. The reconciler is the source of both.
+// World is the current in-scope work: the clusters the agent is responsible for,
+// the partitions it manages on them, and the AdminClient for each. The
+// reconciler is the source of all three.
+//
+// Clusters is deliberately independent of Partitions: a cluster's shape is a
+// property of the cluster, not of whatever happens to be placed on it, so the
+// cluster-level indicators (005 §2.1) must be reportable for an in-scope cluster
+// with no shards at all.
 type World interface {
 	// Partitions returns the assignments the agent is currently managing.
 	Partitions() []assign.Assignment
-	// Admins returns the cached AdminClient per cluster name.
-	Admins() map[string]kafkaadmin.Admin
+	// Clusters returns the FRN of every cluster in the agent's label scope,
+	// keyed by cluster name.
+	Clusters() map[string]string
+	// Admins returns the cached AdminClient per cluster name, connecting any
+	// in-scope cluster that is not connected yet.
+	Admins(ctx context.Context) map[string]kafkaadmin.Admin
 }
 
 // Sweeper runs the periodic full sweep and the post-reconcile spot sample.
@@ -122,7 +132,7 @@ func (s *Sweeper) Run(ctx context.Context) error {
 // the whole sweep.
 func (s *Sweeper) Sweep(ctx context.Context) error {
 	at := s.now().UTC()
-	admins := s.world.Admins()
+	admins := s.world.Admins(ctx)
 
 	var (
 		mu      sync.Mutex
@@ -134,10 +144,18 @@ func (s *Sweeper) Sweep(ctx context.Context) error {
 		samples = append(samples, batch...)
 	}
 
-	// The cluster FRN comes off the assignments themselves — every cluster the
-	// agent holds an AdminClient for got it from at least one assignment.
+	// The cluster FRN comes from the stream's scope message — the clusters this
+	// agent's labels match — so a cluster is observable because it is in scope,
+	// not because something was placed on it. An assignment's FRN still overlays
+	// it: the assignment is the fresher fact (scope is only sent at stream open),
+	// and it keeps the sweep working for a world built from assignments alone.
 	byCluster := map[string][]assign.Assignment{}
 	clusterFRNs := map[string]string{}
+	for name, frn := range s.world.Clusters() {
+		if frn != "" {
+			clusterFRNs[name] = frn
+		}
+	}
 	for _, a := range s.world.Partitions() {
 		byCluster[a.ClusterName] = append(byCluster[a.ClusterName], a)
 		if a.ClusterFRN != "" {
