@@ -30,11 +30,20 @@ type Opener func(ctx context.Context) (AssignmentStream, error)
 // SyncFunc converges to the given desired world, keyed by partition FRN.
 type SyncFunc func(ctx context.Context, world map[string]assign.Assignment) error
 
+// ScopeFunc receives the clusters Franz says this agent is responsible for, as
+// the first message of every (re)connected stream. It is the only place a
+// cluster's FRN and brokers arrive independently of a placed partition, so the
+// telemetry sweep's cluster-level indicators depend on it being delivered rather
+// than logged and dropped.
+type ScopeFunc func(ctx context.Context, clusters []assign.ScopedCluster)
+
 // Watcher drives the stream lifecycle.
 type Watcher struct {
 	Open Opener
 	Sync SyncFunc
-	Log  *slog.Logger
+	// Scope is optional; when nil the scope message is logged only.
+	Scope ScopeFunc
+	Log   *slog.Logger
 	// BackoffMin / BackoffMax bound the reconnect backoff (005 ADR §1.6:
 	// 5s → 120s).
 	BackoffMin time.Duration
@@ -84,6 +93,7 @@ func (w *Watcher) connect(ctx context.Context) error {
 	world := map[string]assign.Assignment{}
 
 	msgs := make(chan *franzv1.PartitionAssignment, 64)
+	scopes := make(chan []assign.ScopedCluster, 1)
 	recvErr := make(chan error, 1)
 	go func() {
 		for {
@@ -94,6 +104,11 @@ func (w *Watcher) connect(ctx context.Context) error {
 			}
 			if sc := resp.GetScope(); sc != nil {
 				w.logScope(sc)
+				select {
+				case scopes <- assign.ScopeFromProto(sc):
+				case <-streamCtx.Done():
+					return
+				}
 				continue
 			}
 			if a := resp.GetAssignment(); a != nil {
@@ -119,6 +134,15 @@ func (w *Watcher) connect(ctx context.Context) error {
 				return errors.New("server closed the stream")
 			}
 			return err
+		case clusters := <-scopes:
+			// Handled on this loop rather than in the receive goroutine so it
+			// cannot run concurrently with itself or with Sync. Scope is the
+			// stream's first message, so this lands before the first reconcile —
+			// the sweep already knows its clusters by the time any topic work
+			// starts.
+			if w.Scope != nil {
+				w.Scope(ctx, clusters)
+			}
 		case msg := <-msgs:
 			a := assign.FromProto(msg)
 			if a.PartitionFRN == "" {
