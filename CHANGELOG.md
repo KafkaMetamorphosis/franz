@@ -7,6 +7,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- **Cluster-level indicators were never reported for a cluster with nothing
+  placed on it.** Every `kafka.cluster.*` indicator (005 §2.1 — `broker_count`,
+  `total_partition_replicas`, `replicas_per_broker`, …) read `STALE` on an
+  in-scope, reachable cluster until one of its async-channel shards had been
+  placed, even though `DescribeCluster` computes them from broker metadata alone
+  and needs no assignment. Two things in Gregor Samsa were keyed off topic
+  placement rather than cluster scope: the AdminClient (opened only inside the
+  per-assignment reconcile loop) and the cluster FRN (read only off a
+  `PartitionAssignment`). With neither, the telemetry sweep had no connection to
+  use and no resource to key a sample to, so it published nothing.
+  Franz already sent everything needed — `StreamScope.Cluster` carries the
+  cluster's name, FRN and bootstrap servers on every stream open — but the agent
+  logged that message and discarded it. It now acts on it: the admin cache is
+  keyed by cluster and populated from either source (an assignment's brokers
+  still win, being the fresher fact), the sweep seeds cluster FRNs from scope,
+  and a cluster is connected because it is in scope rather than because something
+  landed on it. An unreachable in-scope cluster warns once and is retried on the
+  next sweep instead of failing it or blocking its peers, and a cluster that
+  leaves scope has its connection closed so it stops being reported. An empty
+  cluster now correctly reports `0` rather than not sampling at all.
+  No proto or Franz-side change — `StreamScope` is simply load-bearing now
+  instead of informational (005 §1.3 amended). Note this makes 005 OQ1
+  (overlapping agent scopes) reachable: two agents matching one cluster now both
+  publish its cluster-level samples. Harmless today — they compute identical
+  facts from the same metadata — and OQ1 stays open.
 - **A reconcile reported `ERROR` for a topic it had just created**
   ("topic still absent after created and waiting for it to appear in cluster
   metadata"), while the topic plainly existed. A metadata request routed through

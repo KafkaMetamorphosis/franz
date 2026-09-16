@@ -95,7 +95,11 @@ func (a *Agent) Run(ctx context.Context) error {
 			return a.resources.WatchPartitionAssignments(ctx,
 				franzv1.WatchPartitionAssignmentsRequest_builder{}.Build())
 		},
-		Sync:       a.reconciler.Sync,
+		Sync: a.reconciler.Sync,
+		// Scope arrives first on every (re)connected stream and is what lets the
+		// sweep report cluster-level indicators for an in-scope cluster before
+		// anything is placed on it.
+		Scope:      a.reconciler.SetScope,
 		Log:        a.log,
 		BackoffMin: a.cfg.ReconnectBackoffMin,
 		BackoffMax: a.cfg.ReconnectBackoffMax,

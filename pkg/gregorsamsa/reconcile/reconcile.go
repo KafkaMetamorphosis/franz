@@ -67,9 +67,13 @@ type Reconciler struct {
 	observer Observer
 
 	mu      sync.Mutex
-	applied map[string]applied      // partitionFRN -> last attempt
-	admins  map[string]*cachedAdmin // clusterName -> AdminClient
-	locks   map[string]*sync.Mutex  // clusterName -> serialises calls on one broker
+	applied map[string]applied              // partitionFRN -> last attempt
+	admins  map[string]*cachedAdmin         // clusterName -> AdminClient
+	locks   map[string]*sync.Mutex          // clusterName -> serialises calls on one broker
+	scope   map[string]assign.ScopedCluster // clusterName -> label scope (005 ADR §1.2)
+	// unreachable records the in-scope clusters whose AdminClient could not be
+	// opened, so the failure is logged once per outage instead of once per sweep.
+	unreachable map[string]bool
 }
 
 type cachedAdmin struct {
@@ -80,13 +84,15 @@ type cachedAdmin struct {
 // New builds a reconciler. observer may be nil.
 func New(factory kafkaadmin.Factory, reporter Reporter, log *slog.Logger, observer Observer) *Reconciler {
 	return &Reconciler{
-		factory:  factory,
-		reporter: reporter,
-		log:      log,
-		observer: observer,
-		applied:  map[string]applied{},
-		admins:   map[string]*cachedAdmin{},
-		locks:    map[string]*sync.Mutex{},
+		factory:     factory,
+		reporter:    reporter,
+		log:         log,
+		observer:    observer,
+		applied:     map[string]applied{},
+		admins:      map[string]*cachedAdmin{},
+		locks:       map[string]*sync.Mutex{},
+		scope:       map[string]assign.ScopedCluster{},
+		unreachable: map[string]bool{},
 	}
 }
 
@@ -116,9 +122,71 @@ func (r *Reconciler) Partitions() []assign.Assignment {
 	return out
 }
 
-// Admins returns the cached AdminClient of every cluster the reconciler has
-// touched, keyed by cluster name — the connections the telemetry sweep reuses.
-func (r *Reconciler) Admins() map[string]kafkaadmin.Admin {
+// SetScope records the clusters Franz says this agent is responsible for and
+// opens an AdminClient for each, so a cluster is connected because it is in
+// scope — not because a partition happened to be placed on it. Called with the
+// full set on every (re)connected stream (005 ADR §1.2).
+//
+// A cluster that cannot be reached is warned about once and skipped; it is
+// retried on the next Admins call, so a transient broker outage recovers without
+// waiting for a stream reconnect. One unreachable cluster never blocks the
+// others.
+//
+// Clusters that have left scope are dropped, and their AdminClient closed unless
+// a partition the agent still manages sits on them — otherwise the telemetry
+// sweep would keep reporting a cluster this agent is no longer responsible for.
+func (r *Reconciler) SetScope(ctx context.Context, clusters []assign.ScopedCluster) {
+	next := make(map[string]assign.ScopedCluster, len(clusters))
+	for _, c := range clusters {
+		next[c.Name] = c
+	}
+
+	r.mu.Lock()
+	inUse := map[string]bool{}
+	for _, a := range r.applied {
+		inUse[a.assignment.ClusterName] = true
+	}
+	var dropped []string
+	for name, cached := range r.admins {
+		if _, stillScoped := next[name]; stillScoped || inUse[name] {
+			continue
+		}
+		cached.admin.Close()
+		delete(r.admins, name)
+		delete(r.unreachable, name)
+		dropped = append(dropped, name)
+	}
+	r.scope = next
+	r.mu.Unlock()
+
+	if len(dropped) > 0 {
+		r.log.Info("clusters left scope; closed their admin clients", "clusters", dropped)
+	}
+	r.ensureScopeAdmins(ctx)
+}
+
+// Clusters returns the FRN of every cluster in this agent's label scope, keyed by
+// cluster name. The telemetry sweep needs it to key a cluster-level sample to a
+// resource; before scope was consumed the FRN could only be read off a partition
+// assignment, which made cluster indicators silently unavailable for a cluster
+// with nothing placed on it.
+func (r *Reconciler) Clusters() map[string]string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	out := make(map[string]string, len(r.scope))
+	for name, c := range r.scope {
+		out[name] = c.FRN
+	}
+	return out
+}
+
+// Admins returns the cached AdminClient of every cluster the reconciler holds a
+// connection to, keyed by cluster name — the connections the telemetry sweep
+// reuses. In-scope clusters that are not connected yet are (re)tried first, so a
+// cluster unreachable when its scope arrived starts reporting once it recovers.
+func (r *Reconciler) Admins(ctx context.Context) map[string]kafkaadmin.Admin {
+	r.ensureScopeAdmins(ctx)
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	out := make(map[string]kafkaadmin.Admin, len(r.admins))
@@ -126,6 +194,44 @@ func (r *Reconciler) Admins() map[string]kafkaadmin.Admin {
 		out[name] = c.admin
 	}
 	return out
+}
+
+// ensureScopeAdmins opens an AdminClient for every in-scope cluster that lacks
+// one. Failures are logged (once per cluster per outage), never returned: the
+// caller's job is telemetry or reconcile over the clusters that *are* reachable.
+func (r *Reconciler) ensureScopeAdmins(ctx context.Context) {
+	r.mu.Lock()
+	pending := make([]assign.ScopedCluster, 0, len(r.scope))
+	for name, c := range r.scope {
+		if _, ok := r.admins[name]; !ok {
+			pending = append(pending, c)
+		}
+	}
+	r.mu.Unlock()
+
+	for _, c := range pending {
+		if ctx.Err() != nil {
+			return
+		}
+		if _, err := r.ensureAdmin(ctx, c.Name, c.BootstrapServers); err != nil {
+			r.mu.Lock()
+			alreadyWarned := r.unreachable[c.Name]
+			r.unreachable[c.Name] = true
+			r.mu.Unlock()
+			if !alreadyWarned {
+				r.log.Warn("in-scope Kafka cluster unreachable; its cluster indicators will not be reported until it recovers",
+					"cluster", c.Name, "bootstrap", c.BootstrapServers, "err", err)
+			}
+			continue
+		}
+		r.mu.Lock()
+		recovered := r.unreachable[c.Name]
+		delete(r.unreachable, c.Name)
+		r.mu.Unlock()
+		if recovered {
+			r.log.Info("in-scope Kafka cluster reachable again", "cluster", c.Name)
+		}
+	}
 }
 
 // Sync converges to the given world: every in-scope partition, keyed by
@@ -420,33 +526,50 @@ func (r *Reconciler) forgetAbsent(world map[string]assign.Assignment) {
 
 // adminFor returns the cached AdminClient for the assignment's cluster, opening
 // one on first use and reopening it if the cluster's bootstrap servers changed.
+//
+// An assignment's brokers win over the scope message's for the same cluster: the
+// assignment is the fresher fact (scope is only sent at stream open), and a
+// reconcile must not write to a stale endpoint.
 func (r *Reconciler) adminFor(ctx context.Context, a assign.Assignment) (kafkaadmin.Admin, error) {
-	r.mu.Lock()
-	cached, ok := r.admins[a.ClusterName]
-	r.mu.Unlock()
-	if ok && sameServers(cached.bootstrap, a.BootstrapServers) {
-		return cached.admin, nil
-	}
 	if len(a.BootstrapServers) == 0 {
 		return nil, fmt.Errorf("assignment carries no bootstrap servers")
 	}
+	return r.ensureAdmin(ctx, a.ClusterName, a.BootstrapServers)
+}
+
+// ensureAdmin returns the cached AdminClient for a cluster, opening one on first
+// use and reopening it if the bootstrap servers changed. Shared by the
+// per-assignment path and the scope path, so both populate one cache keyed by
+// cluster name.
+func (r *Reconciler) ensureAdmin(
+	ctx context.Context, clusterName string, bootstrap []string,
+) (kafkaadmin.Admin, error) {
+	r.mu.Lock()
+	cached, ok := r.admins[clusterName]
+	r.mu.Unlock()
+	if ok && sameServers(cached.bootstrap, bootstrap) {
+		return cached.admin, nil
+	}
+	if len(bootstrap) == 0 {
+		return nil, fmt.Errorf("cluster %q has no bootstrap servers", clusterName)
+	}
 
 	r.log.Info("opening Kafka admin client",
-		"cluster", a.ClusterName, "bootstrap", a.BootstrapServers)
-	admin, err := r.factory(ctx, a.BootstrapServers)
+		"cluster", clusterName, "bootstrap", bootstrap)
+	admin, err := r.factory(ctx, bootstrap)
 	if err != nil {
 		r.log.Warn("cannot reach Kafka cluster",
-			"cluster", a.ClusterName, "bootstrap", a.BootstrapServers, "err", err)
+			"cluster", clusterName, "bootstrap", bootstrap, "err", err)
 		return nil, err
 	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if prev, ok := r.admins[a.ClusterName]; ok {
+	if prev, ok := r.admins[clusterName]; ok {
 		prev.admin.Close()
 	}
-	r.admins[a.ClusterName] = &cachedAdmin{admin: admin, bootstrap: a.BootstrapServers}
+	r.admins[clusterName] = &cachedAdmin{admin: admin, bootstrap: bootstrap}
 	r.log.Info("connected to Kafka cluster",
-		"cluster", a.ClusterName, "bootstrap", a.BootstrapServers)
+		"cluster", clusterName, "bootstrap", bootstrap)
 	return admin, nil
 }
 

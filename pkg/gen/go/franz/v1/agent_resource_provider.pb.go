@@ -301,9 +301,14 @@ type WatchPartitionAssignmentsResponse_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Assignment *PartitionAssignment
-	// Set only on the first message of a (re)connected stream. Informational — it
-	// lets the agent log which clusters it is responsible for even when none of
-	// them has a placed async-channel shard yet.
+	// Set only on the first message of a (re)connected stream.
+	//
+	// Load-bearing, not informational: the agent opens an AdminClient per cluster
+	// from it and keys cluster-level indicator samples to the FRN it carries. It is
+	// the only place a cluster's brokers and FRN arrive independently of a placed
+	// shard, so dropping it would make every kafka.cluster.* indicator (005 §2.1)
+	// unreportable for an in-scope cluster with nothing placed on it — a cluster's
+	// shape is a property of the cluster, not of what happens to sit on it.
 	Scope *StreamScope
 }
 

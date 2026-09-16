@@ -519,7 +519,7 @@ func TestClustersAreReconciledIndependently(t *testing.T) {
 	if _, wrong := east.Topics["billing-events-1"]; wrong {
 		t.Error("a partition landed on the wrong cluster")
 	}
-	if got := len(r.Admins()); got != 2 {
+	if got := len(r.Admins(context.Background())); got != 2 {
 		t.Errorf("cached admins = %d, want one per cluster", got)
 	}
 }
@@ -573,5 +573,168 @@ func TestConfigDrift(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// --- label scope (005 ADR §1.2) ------------------------------------------
+//
+// These pin the fix for cluster-level indicators being invisible until a shard
+// was placed. A cluster's shape is a property of the cluster, so an in-scope
+// cluster must be connected and FRN-resolvable with nothing placed on it.
+
+func scopedCluster(name string) assign.ScopedCluster {
+	return assign.ScopedCluster{
+		Name:             name,
+		FRN:              "frn:default:kafka-cluster:" + name,
+		BootstrapServers: []string{name + ":9092"},
+	}
+}
+
+func TestSetScopeConnectsAClusterWithNothingPlacedOnIt(t *testing.T) {
+	r, _, _ := harness(t)
+
+	r.SetScope(context.Background(), []assign.ScopedCluster{scopedCluster("east-1")})
+
+	admins := r.Admins(context.Background())
+	if _, ok := admins["east-1"]; !ok {
+		t.Fatalf("no admin for an in-scope cluster; admins = %v", admins)
+	}
+	if got := r.Clusters()["east-1"]; got != "frn:default:kafka-cluster:east-1" {
+		t.Errorf("Clusters()[east-1] = %q, want the scope FRN", got)
+	}
+}
+
+func TestSetScopeWithNoClustersLeavesNothingConnected(t *testing.T) {
+	r, _, _ := harness(t)
+
+	r.SetScope(context.Background(), nil)
+
+	if got := len(r.Admins(context.Background())); got != 0 {
+		t.Errorf("admins = %d, want 0 when the agent's selectors match nothing", got)
+	}
+	if got := len(r.Clusters()); got != 0 {
+		t.Errorf("Clusters() = %d, want 0", got)
+	}
+}
+
+// TestSetScopeSurvivesAnUnreachableCluster is the "warn once, don't fail"
+// guarantee: one dead broker must not stop the agent connecting the others, and
+// it must be retried rather than written off until the next stream reconnect.
+func TestSetScopeSurvivesAnUnreachableCluster(t *testing.T) {
+	broker := kafkaadmin.NewMem()
+	var mu sync.Mutex
+	dialsPerCluster := map[string]int{}
+	downIsUp := false
+
+	factory := func(_ context.Context, bootstrap []string) (kafkaadmin.Admin, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		dialsPerCluster[bootstrap[0]]++
+		if bootstrap[0] == "down-1:9092" && !downIsUp {
+			return nil, errors.New("connection refused")
+		}
+		return broker, nil
+	}
+	r := reconcile.New(factory, &recorder{}, quiet(), nil)
+	t.Cleanup(r.Close)
+
+	r.SetScope(context.Background(),
+		[]assign.ScopedCluster{scopedCluster("east-1"), scopedCluster("down-1")})
+
+	// The reachable cluster is connected regardless of the dead one.
+	admins := r.Admins(context.Background())
+	if _, ok := admins["east-1"]; !ok {
+		t.Error("a healthy cluster was not connected because another was down")
+	}
+	if _, ok := admins["down-1"]; ok {
+		t.Error("an unreachable cluster must not appear as connected")
+	}
+
+	// Retried on each Admins call — and the healthy one is not redialled.
+	r.Admins(context.Background())
+	mu.Lock()
+	downDials, eastDials := dialsPerCluster["down-1:9092"], dialsPerCluster["east-1:9092"]
+	downIsUp = true
+	mu.Unlock()
+	if downDials < 2 {
+		t.Errorf("down-1 dials = %d, want a retry rather than one attempt", downDials)
+	}
+	if eastDials != 1 {
+		t.Errorf("east-1 dials = %d, want 1 — a cached admin must not be redialled", eastDials)
+	}
+
+	// Recovers without waiting for a stream reconnect.
+	if _, ok := r.Admins(context.Background())["down-1"]; !ok {
+		t.Error("a recovered cluster was not picked up")
+	}
+}
+
+func TestSetScopeClosesAClusterThatLeftScope(t *testing.T) {
+	r, _, _ := harness(t)
+	r.SetScope(context.Background(),
+		[]assign.ScopedCluster{scopedCluster("east-1"), scopedCluster("west-1")})
+	if got := len(r.Admins(context.Background())); got != 2 {
+		t.Fatalf("admins = %d, want 2", got)
+	}
+
+	// west-1 drops out of scope: it must stop being swept, or the agent keeps
+	// reporting a cluster it is no longer responsible for.
+	r.SetScope(context.Background(), []assign.ScopedCluster{scopedCluster("east-1")})
+
+	admins := r.Admins(context.Background())
+	if _, ok := admins["west-1"]; ok {
+		t.Error("a cluster that left scope is still connected")
+	}
+	if _, ok := admins["east-1"]; !ok {
+		t.Error("the still-scoped cluster was dropped")
+	}
+	if _, ok := r.Clusters()["west-1"]; ok {
+		t.Error("a cluster that left scope is still FRN-resolvable")
+	}
+}
+
+// TestSetScopeKeepsAClusterStillHostingAPartition guards the drop logic: scope
+// is only sent at stream open, so a cluster absent from it while the agent still
+// manages a partition there must keep its connection.
+func TestSetScopeKeepsAClusterStillHostingAPartition(t *testing.T) {
+	r, _, _ := harness(t)
+	if err := r.Sync(context.Background(), world(setAssignment(
+		"frn:default:kafka-topic:billing-events-0", "billing-events-0", 1, 3, 1, nil))); err != nil {
+		t.Fatal(err)
+	}
+
+	r.SetScope(context.Background(), nil)
+
+	if _, ok := r.Admins(context.Background())["east-1"]; !ok {
+		t.Error("closed the admin of a cluster the agent still has a partition on")
+	}
+}
+
+// TestAssignmentBootstrapWinsOverScope pins the precedence: scope is a
+// stream-open snapshot, an assignment is the fresher fact, so a reconcile must
+// not write through a stale endpoint.
+func TestAssignmentBootstrapWinsOverScope(t *testing.T) {
+	stale, fresh := kafkaadmin.NewMem(), kafkaadmin.NewMem()
+	factory := kafkaadmin.MemFactory(map[string]*kafkaadmin.Mem{
+		"east-1-old:9092": stale,
+		"east-1:9092":     fresh,
+	})
+	r := reconcile.New(factory, &recorder{}, quiet(), nil)
+	t.Cleanup(r.Close)
+
+	r.SetScope(context.Background(), []assign.ScopedCluster{{
+		Name: "east-1", FRN: "frn:default:kafka-cluster:east-1",
+		BootstrapServers: []string{"east-1-old:9092"},
+	}})
+	if err := r.Sync(context.Background(), world(setAssignment(
+		"frn:default:kafka-topic:billing-events-0", "billing-events-0", 1, 3, 1, nil))); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := fresh.Topics["billing-events-0"]; !ok {
+		t.Error("the topic was not created through the assignment's brokers")
+	}
+	if _, wrong := stale.Topics["billing-events-0"]; wrong {
+		t.Error("the topic was created through the stale scope endpoint")
 	}
 }
