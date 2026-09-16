@@ -289,11 +289,23 @@ func (h *governanceHandler) DeleteIndicator(
 func (h *governanceHandler) ListIndicatorSamples(
 	ctx context.Context, req *franzv1.ListIndicatorSamplesRequest,
 ) (*franzv1.ListIndicatorSamplesResponse, error) {
+	// An unset Timestamp must stay the zero time.Time, which is what the query
+	// layer reads as "no bound" (out.SampleQuery checks From/To.IsZero()).
+	// AsTime() on a nil Timestamp yields the Unix epoch instead — not IsZero —
+	// so an unbounded request would silently become `sample_at <= 1970-01-01`
+	// and return nothing. Same guard as ListConsumerGroupObservations.
+	var from, to time.Time
+	if ts := req.GetFrom(); ts != nil {
+		from = ts.AsTime()
+	}
+	if ts := req.GetTo(); ts != nil {
+		to = ts.AsTime()
+	}
 	page, err := h.svc.ListIndicatorSamples(ctx, in.ListIndicatorSamplesInput{
 		Indicator:   req.GetIndicator(),
 		ResourceFRN: req.GetResourceFrn(),
-		From:        req.GetFrom().AsTime(),
-		To:          req.GetTo().AsTime(),
+		From:        from,
+		To:          to,
 		PageSize:    req.GetPage().GetPageSize(),
 		PageToken:   req.GetPage().GetPageToken(),
 	})
