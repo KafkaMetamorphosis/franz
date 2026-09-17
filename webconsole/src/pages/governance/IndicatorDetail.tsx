@@ -1,14 +1,25 @@
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Breadcrumbs, Empty, ErrorBanner, Loading, PageHeading, Panel, StatusPill } from "../../components/ui";
 import { useDeleteIndicator, useIndicator, useIndicatorSamples } from "../../api/hooks";
-import { entityLabel } from "../../api/enums";
+import { entityLabel, familyLabel } from "../../api/enums";
 import { ApiError } from "../../api/client";
+import { IndicatorVisualisation, RangeSelector } from "../../components/indicatorViz";
+import { fromISOFor, pageSizeFor, type RangeKey } from "../../indicatorSamples";
 
 export function IndicatorDetail() {
   const { name = "" } = useParams();
   const navigate = useNavigate();
+  const [range, setRange] = useState<RangeKey>("1h");
   const { data, isLoading, error } = useIndicator(name);
-  const { data: samplesData } = useIndicatorSamples(name);
+
+  // `from` is pinned per range rather than recomputed every render, so the query
+  // key is stable and the chart does not refetch on unrelated re-renders.
+  const from = useMemo(() => fromISOFor(range), [range]);
+  const { data: samplesData, isLoading: samplesLoading } = useIndicatorSamples(name, {
+    from,
+    pageSize: pageSizeFor(range),
+  });
   const deleteIndicator = useDeleteIndicator();
 
   const indicator = data?.indicator;
@@ -76,6 +87,9 @@ export function IndicatorDetail() {
               <dt>Unit</dt>
               <dd>
                 <code>{indicator.unit}</code>
+                {indicator.family ? (
+                  <span className="panel-note"> — compared as {familyLabel(indicator.family)}</span>
+                ) : null}
               </dd>
               <dt>Applies to</dt>
               <dd>{entityLabel(indicator.appliesTo)}</dd>
@@ -100,6 +114,24 @@ export function IndicatorDetail() {
                 )}
               </dd>
             </dl>
+          </Panel>
+
+          <Panel
+            title="History"
+            note="One series per resource this indicator applies to, over the selected window."
+            actions={<RangeSelector value={range} onChange={setRange} />}
+          >
+            {samplesLoading ? (
+              <Loading what="samples" />
+            ) : samples.length === 0 ? (
+              <Empty>No samples in this window.</Empty>
+            ) : (
+              <IndicatorVisualisation
+                samples={samples}
+                family={indicator.family}
+                range={range}
+              />
+            )}
           </Panel>
 
           <Panel

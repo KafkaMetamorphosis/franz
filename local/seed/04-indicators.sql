@@ -31,21 +31,21 @@ FROM realm r
 CROSS JOIN (VALUES
     -- Topic-scoped (005 ADR §2.1)
     ('00000000-0000-0000-0000-0000000ea001'::uuid, 'kafka.topic.state', 'enum', 'KAFKA_TOPIC'),
-    ('00000000-0000-0000-0000-0000000ea002'::uuid, 'kafka.topic.partitions', 'count', 'KAFKA_TOPIC'),
-    ('00000000-0000-0000-0000-0000000ea003'::uuid, 'kafka.topic.replication_factor', 'count', 'KAFKA_TOPIC'),
-    ('00000000-0000-0000-0000-0000000ea004'::uuid, 'kafka.topic.under_replicated_partitions', 'count', 'KAFKA_TOPIC'),
+    ('00000000-0000-0000-0000-0000000ea002'::uuid, 'kafka.topic.partitions', 'gauge', 'KAFKA_TOPIC'),
+    ('00000000-0000-0000-0000-0000000ea003'::uuid, 'kafka.topic.replication_factor', 'gauge', 'KAFKA_TOPIC'),
+    ('00000000-0000-0000-0000-0000000ea004'::uuid, 'kafka.topic.under_replicated_partitions', 'gauge', 'KAFKA_TOPIC'),
     ('00000000-0000-0000-0000-0000000ea005'::uuid, 'kafka.topic.config_drift', 'boolean', 'KAFKA_TOPIC'),
     ('00000000-0000-0000-0000-0000000ea00e'::uuid, 'kafka.topic.drained', 'boolean', 'KAFKA_TOPIC'),
     ('00000000-0000-0000-0000-0000000ea00f'::uuid, 'kafka.topic.consumer_connected', 'boolean', 'KAFKA_TOPIC'),
     -- Cluster-scoped (005 ADR §2.1)
-    ('00000000-0000-0000-0000-0000000ea006'::uuid, 'kafka.cluster.broker_count', 'count', 'KAFKA_CLUSTER'),
-    ('00000000-0000-0000-0000-0000000ea007'::uuid, 'kafka.cluster.online_broker_count', 'count', 'KAFKA_CLUSTER'),
+    ('00000000-0000-0000-0000-0000000ea006'::uuid, 'kafka.cluster.broker_count', 'gauge', 'KAFKA_CLUSTER'),
+    ('00000000-0000-0000-0000-0000000ea007'::uuid, 'kafka.cluster.online_broker_count', 'gauge', 'KAFKA_CLUSTER'),
     ('00000000-0000-0000-0000-0000000ea008'::uuid, 'kafka.cluster.controller_id', 'string', 'KAFKA_CLUSTER'),
-    ('00000000-0000-0000-0000-0000000ea009'::uuid, 'kafka.cluster.total_partition_replicas', 'count', 'KAFKA_CLUSTER'),
-    ('00000000-0000-0000-0000-0000000ea00a'::uuid, 'kafka.cluster.replicas_per_broker', 'count', 'KAFKA_CLUSTER'),
-    ('00000000-0000-0000-0000-0000000ea00b'::uuid, 'kafka.cluster.leaders_per_broker', 'count', 'KAFKA_CLUSTER'),
-    ('00000000-0000-0000-0000-0000000ea00c'::uuid, 'kafka.cluster.under_replicated_partitions', 'count', 'KAFKA_CLUSTER'),
-    ('00000000-0000-0000-0000-0000000ea00d'::uuid, 'kafka.cluster.offline_partitions', 'count', 'KAFKA_CLUSTER')
+    ('00000000-0000-0000-0000-0000000ea009'::uuid, 'kafka.cluster.total_partition_replicas', 'gauge', 'KAFKA_CLUSTER'),
+    ('00000000-0000-0000-0000-0000000ea00a'::uuid, 'kafka.cluster.replicas_per_broker', 'gauge', 'KAFKA_CLUSTER'),
+    ('00000000-0000-0000-0000-0000000ea00b'::uuid, 'kafka.cluster.leaders_per_broker', 'gauge', 'KAFKA_CLUSTER'),
+    ('00000000-0000-0000-0000-0000000ea00c'::uuid, 'kafka.cluster.under_replicated_partitions', 'gauge', 'KAFKA_CLUSTER'),
+    ('00000000-0000-0000-0000-0000000ea00d'::uuid, 'kafka.cluster.offline_partitions', 'gauge', 'KAFKA_CLUSTER')
 ) AS v(id, name, unit, applies_to)
 WHERE r.slug = 'default'
 ON CONFLICT (realm_id, name) DO UPDATE SET

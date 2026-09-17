@@ -69,7 +69,7 @@ func TestIndicatorRepoLifecycle(t *testing.T) {
 	}
 
 	// A duplicate name is AlreadyExists, not a raw constraint error.
-	dup, _ := indicator.NewIndicator(r, "disk-used", indicator.UnitCount,
+	dup, _ := indicator.NewIndicator(r, "disk-used", indicator.UnitGauge,
 		indicator.EntityKafkaCluster, "1h", nil)
 	if err := repo.Create(ctx, dup); errs.KindOf(err) != errs.AlreadyExists {
 		t.Fatalf("duplicate kind = %v (err %v)", errs.KindOf(err), err)
@@ -90,7 +90,7 @@ func TestIndicatorRepoAppliesToIsImmutable(t *testing.T) {
 	r := seededRealm(t, db)
 	ctx := context.Background()
 
-	i, err := indicator.NewIndicator(r, "lag", indicator.UnitCount,
+	i, err := indicator.NewIndicator(r, "lag", indicator.UnitGauge,
 		indicator.EntityAsyncChannel, "1h", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +132,7 @@ func TestIndicatorRepoRecordSampleOnlyAdvances(t *testing.T) {
 	r := seededRealm(t, db)
 	ctx := context.Background()
 
-	i, err := indicator.NewIndicator(r, "lag", indicator.UnitCount,
+	i, err := indicator.NewIndicator(r, "lag", indicator.UnitGauge,
 		indicator.EntityAsyncChannel, "1h", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -193,7 +193,7 @@ func TestIndicatorRepoListPaginates(t *testing.T) {
 	ctx := context.Background()
 
 	for _, name := range []string{"alpha", "bravo", "charlie"} {
-		i, err := indicator.NewIndicator(r, name, indicator.UnitCount,
+		i, err := indicator.NewIndicator(r, name, indicator.UnitGauge,
 			indicator.EntityAsyncChannel, "1h", nil)
 		if err != nil {
 			t.Fatal(err)
@@ -483,7 +483,7 @@ func TestIndicatorSampleRepoListAndLatestPerResource(t *testing.T) {
 
 	// indicator_sample.indicator is a foreign key to the registry (003.14 — no
 	// auto-creation), so the series needs its indicator registered first.
-	lag, err := indicator.NewIndicator(r, "lag", indicator.UnitCount,
+	lag, err := indicator.NewIndicator(r, "lag", indicator.UnitGauge,
 		indicator.EntityAsyncChannel, "1h", nil)
 	if err != nil {
 		t.Fatal(err)

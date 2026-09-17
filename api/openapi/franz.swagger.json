@@ -2883,7 +2883,7 @@
         },
         "unit": {
           "type": "string",
-          "description": "\"bytes\", \"count\", \"duration\", \"boolean\", ..."
+          "description": "\"bytes\", \"gauge\", \"duration\", \"boolean\", ...  Free-form: an agent may\npublish any unit name, and Franz classifies rather than enumerates. Use\n`family` to decide how to interpret or render a value."
         },
         "appliesTo": {
           "$ref": "#/definitions/v1Entity"
@@ -2904,9 +2904,26 @@
         "stalenessThreshold": {
           "type": "string",
           "description": "Beyond this age the indicator is stale and policies reading it do not act."
+        },
+        "family": {
+          "$ref": "#/definitions/v1IndicatorFamily",
+          "description": "The comparison family `unit` resolves to — the closed classification behind\nthe open unit string, and the same one Franz compares policy limits in.\nDerived server-side, never stored: a client switches on this instead of\nre-implementing the unit alias table."
         }
       },
       "description": "An indicator that Telemetry Agents publish samples for and policies read.\nAdmin-created (CreateIndicator); a sample or policy for an unknown indicator\nis rejected. See 003.14-telemetry-ingest.md."
+    },
+    "v1IndicatorFamily": {
+      "type": "string",
+      "enum": [
+        "INDICATOR_FAMILY_UNSPECIFIED",
+        "INDICATOR_FAMILY_NUMERIC",
+        "INDICATOR_FAMILY_BYTES",
+        "INDICATOR_FAMILY_DURATION",
+        "INDICATOR_FAMILY_BOOLEAN",
+        "INDICATOR_FAMILY_STRING"
+      ],
+      "default": "INDICATOR_FAMILY_UNSPECIFIED",
+      "description": "How an indicator's sample values are interpreted and compared. The unit\nstring is open; this classification is closed (003.8, `indicator.Unit.Family`).\n\n - INDICATOR_FAMILY_NUMERIC: A decimal number: gauges, percentages, ratios, and any unrecognised unit.\n - INDICATOR_FAMILY_BYTES: A byte size with SI (\"1G\") or binary (\"1Gi\") suffixes.\n - INDICATOR_FAMILY_DURATION: A duration string (\"90d\", \"5m\").\n - INDICATOR_FAMILY_BOOLEAN: \"true\" / \"false\".\n - INDICATOR_FAMILY_STRING: A categorical label — an enum member or an opaque id."
     },
     "v1IndicatorHealth": {
       "type": "string",

@@ -397,7 +397,7 @@ func TestUpdateIndicatorMaskRejectsAppliesTo(t *testing.T) {
 	// The three maskable fields forward.
 	if _, err := h.UpdateIndicator(context.Background(), franzv1.UpdateIndicatorRequest_builder{
 		Name:               proto.String("disk-used"),
-		Unit:               proto.String("count"),
+		Unit:               proto.String("gauge"),
 		StalenessThreshold: proto.String("6h"),
 		SourceAgents:       []string{"agent-b"},
 		UpdateMask: &fieldmaskpb.FieldMask{
@@ -407,7 +407,7 @@ func TestUpdateIndicatorMaskRejectsAppliesTo(t *testing.T) {
 		t.Fatalf("UpdateIndicator: %v", err)
 	}
 	got := svc.updatedIndicator
-	if got.Unit == nil || *got.Unit != indicator.UnitCount {
+	if got.Unit == nil || *got.Unit != indicator.UnitGauge {
 		t.Errorf("unit = %v", got.Unit)
 	}
 	if got.StalenessThreshold == nil || *got.StalenessThreshold != "6h" {
@@ -527,6 +527,50 @@ func TestGovernanceErrorsMapToStatusCodes(t *testing.T) {
 				franzv1.CreatePolicyRequest_builder{Name: proto.String("p")}.Build())
 			if status.Code(err) != tc.want {
 				t.Fatalf("code = %v, want %v", status.Code(err), tc.want)
+			}
+		})
+	}
+}
+
+// TestIndicatorFamilyIsOnTheWire pins the field the console switches on to pick
+// a visualisation. Family is derived from the unit, never stored, so the mapping
+// has to be exercised per family — a client that had to re-implement
+// indicator.Unit.Family's alias table in its own language would drift from it.
+func TestIndicatorFamilyIsOnTheWire(t *testing.T) {
+	for _, tc := range []struct {
+		unit string
+		want franzv1.IndicatorFamily
+	}{
+		{"gauge", franzv1.IndicatorFamily_INDICATOR_FAMILY_NUMERIC},
+		// The pre-rename spelling still classifies as it always did.
+		{"count", franzv1.IndicatorFamily_INDICATOR_FAMILY_NUMERIC},
+		{"widgets-per-fortnight", franzv1.IndicatorFamily_INDICATOR_FAMILY_NUMERIC},
+		{"bytes", franzv1.IndicatorFamily_INDICATOR_FAMILY_BYTES},
+		{"duration", franzv1.IndicatorFamily_INDICATOR_FAMILY_DURATION},
+		{"boolean", franzv1.IndicatorFamily_INDICATOR_FAMILY_BOOLEAN},
+		{"enum", franzv1.IndicatorFamily_INDICATOR_FAMILY_STRING},
+		{"string", franzv1.IndicatorFamily_INDICATOR_FAMILY_STRING},
+	} {
+		t.Run(tc.unit, func(t *testing.T) {
+			ind, err := indicator.NewIndicator(realm.Realm{Slug: "default"}, "x",
+				indicator.Unit(tc.unit), indicator.EntityKafkaTopic, "5m", nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			h := newGovernanceHandler(&fakeGovernanceSvc{indicator: ind}, time.Now())
+
+			resp, err := h.GetIndicator(context.Background(),
+				franzv1.GetIndicatorRequest_builder{Name: proto.String("x")}.Build())
+			if err != nil {
+				t.Fatalf("GetIndicator: %v", err)
+			}
+			if got := resp.GetIndicator().GetFamily(); got != tc.want {
+				t.Errorf("family for unit %q = %v, want %v", tc.unit, got, tc.want)
+			}
+			// The raw unit is still reported verbatim — family classifies it, it
+			// does not replace it.
+			if got := resp.GetIndicator().GetUnit(); got != tc.unit {
+				t.Errorf("unit = %q, want %q", got, tc.unit)
 			}
 		})
 	}

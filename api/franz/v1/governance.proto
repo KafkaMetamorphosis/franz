@@ -97,7 +97,9 @@ message PolicyAction {
 // is rejected. See 003.14-telemetry-ingest.md.
 message Indicator {
   string name = 1;
-  // "bytes", "count", "duration", "boolean", ...
+  // "bytes", "gauge", "duration", "boolean", ...  Free-form: an agent may
+  // publish any unit name, and Franz classifies rather than enumerates. Use
+  // `family` to decide how to interpret or render a value.
   string unit = 2;
   Entity applies_to = 3;
   repeated string source_agents = 4;
@@ -105,12 +107,33 @@ message Indicator {
   google.protobuf.Timestamp last_sample_at = 6;
   // Beyond this age the indicator is stale and policies reading it do not act.
   string staleness_threshold = 7;
+  // The comparison family `unit` resolves to — the closed classification behind
+  // the open unit string, and the same one Franz compares policy limits in.
+  // Derived server-side, never stored: a client switches on this instead of
+  // re-implementing the unit alias table.
+  IndicatorFamily family = 8;
 }
 
 enum IndicatorHealth {
   INDICATOR_HEALTH_UNSPECIFIED = 0;
   INDICATOR_HEALTH_HEALTHY = 1;
   INDICATOR_HEALTH_STALE = 2;
+}
+
+// How an indicator's sample values are interpreted and compared. The unit
+// string is open; this classification is closed (003.8, `indicator.Unit.Family`).
+enum IndicatorFamily {
+  INDICATOR_FAMILY_UNSPECIFIED = 0;
+  // A decimal number: gauges, percentages, ratios, and any unrecognised unit.
+  INDICATOR_FAMILY_NUMERIC = 1;
+  // A byte size with SI ("1G") or binary ("1Gi") suffixes.
+  INDICATOR_FAMILY_BYTES = 2;
+  // A duration string ("90d", "5m").
+  INDICATOR_FAMILY_DURATION = 3;
+  // "true" / "false".
+  INDICATOR_FAMILY_BOOLEAN = 4;
+  // A categorical label — an enum member or an opaque id.
+  INDICATOR_FAMILY_STRING = 5;
 }
 
 // One stored indicator sample, returned by ListIndicatorSamples. The write-side

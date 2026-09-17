@@ -80,7 +80,7 @@ func TestGovernanceEndToEndOnAChannel(t *testing.T) {
 	f := newGovernanceFixture(t)
 
 	if _, err := f.svc.CreateIndicator(f.ctx, in.CreateIndicatorInput{
-		Name: "consumer-lag", Unit: indicator.UnitCount,
+		Name: "consumer-lag", Unit: indicator.UnitGauge,
 		AppliesTo: indicator.EntityAsyncChannel, StalenessThreshold: "1h",
 	}); err != nil {
 		t.Fatalf("CreateIndicator: %v", err)
@@ -251,7 +251,7 @@ func TestDryRunAgainstARealStoreMutatesNothing(t *testing.T) {
 	f := newGovernanceFixture(t)
 
 	if _, err := f.svc.CreateIndicator(f.ctx, in.CreateIndicatorInput{
-		Name: "consumer-lag", Unit: indicator.UnitCount,
+		Name: "consumer-lag", Unit: indicator.UnitGauge,
 		AppliesTo: indicator.EntityAsyncChannel, StalenessThreshold: "1h",
 	}); err != nil {
 		t.Fatal(err)

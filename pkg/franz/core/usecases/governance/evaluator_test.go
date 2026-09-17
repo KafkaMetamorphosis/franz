@@ -72,7 +72,7 @@ func policy(name string, weight int32, def gov.Definition) *gov.Policy {
 // TestEvaluateAppliesActionAndRecordsIt is the "Done when" check: a
 // limit-crossing value applies the action and produces a PolicyAction.
 func TestEvaluateAppliesActionAndRecordsIt(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	orders := testChannel("orders", map[string]string{"tier": "gold"})
 	p := policy("pause-hot", 0, channelDefinition("lag", "tier=gold"))
 
@@ -112,7 +112,7 @@ func TestEvaluateAppliesActionAndRecordsIt(t *testing.T) {
 // TestEvaluateSkipsStaleIndicator is step 1 of 003.8 "Evaluation" and the other
 // half of the "Done when" line: a STALE indicator is skipped entirely.
 func TestEvaluateSkipsStaleIndicator(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	// The producer went quiet well beyond the 1h threshold.
 	longAgo := time.Now().Add(-48 * time.Hour).UTC()
 	ind.LastSampleAt = &longAgo
@@ -136,7 +136,7 @@ func TestEvaluateSkipsStaleIndicator(t *testing.T) {
 // TestEvaluateSkipsNeverSampledIndicator: "no data" is STALE, not HEALTHY. An
 // indicator that has never been sampled has no value for a policy to compare.
 func TestEvaluateSkipsNeverSampledIndicator(t *testing.T) {
-	ind, err := indicator.NewIndicator(testRealm(), "lag", indicator.UnitCount,
+	ind, err := indicator.NewIndicator(testRealm(), "lag", indicator.UnitGauge,
 		indicator.EntityAsyncChannel, "1h", nil)
 	if err != nil {
 		t.Fatal(err)
@@ -156,7 +156,7 @@ func TestEvaluateSkipsNeverSampledIndicator(t *testing.T) {
 
 // TestEvaluateSkipsDisabledPolicyAndNonMatchingSelector covers steps 2 and 3.
 func TestEvaluateSkipsDisabledPolicyAndNonMatchingSelector(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	bronze := testChannel("telemetry", map[string]string{"tier": "bronze"})
 
 	disabled := policy("disabled", 0, channelDefinition("lag", ""))
@@ -181,7 +181,7 @@ func TestEvaluateSkipsDisabledPolicyAndNonMatchingSelector(t *testing.T) {
 // policies on the same (resource, field) apply in (weight desc, name asc) order,
 // last write wins, and every action is logged.
 func TestEvaluateConflictOrder(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	orders := testChannel("orders", nil)
 
 	label := func(value string) gov.Definition {
@@ -224,7 +224,7 @@ func TestEvaluateConflictOrder(t *testing.T) {
 // TestEvaluateRecordsFailureWithoutFailingThePass: one bad rule must not block
 // telemetry ingest, and the failure must still be visible in the audit trail.
 func TestEvaluateRecordsFailureWithoutFailingThePass(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	orders := testChannel("orders", nil)
 
 	// A cluster-only action reaching a channel resource: the applier refuses it.
@@ -254,7 +254,7 @@ func TestEvaluateRecordsFailureWithoutFailingThePass(t *testing.T) {
 // TestEvaluateAppliesCapOnTopicFields exercises the arithmetic + cap path end to
 // end on a shard, which is where OQ1's encoding actually bites.
 func TestEvaluateAppliesCapOnTopicFields(t *testing.T) {
-	ind := registeredIndicator("throughput", indicator.UnitCount, indicator.EntityKafkaTopic)
+	ind := registeredIndicator("throughput", indicator.UnitGauge, indicator.EntityKafkaTopic)
 	shard := testShard("orders", 60)
 
 	def := gov.Definition{
@@ -335,7 +335,7 @@ func TestEvaluateOnClusterBrokers(t *testing.T) {
 // channel_partitions, un-deferred by the migration flow, actually re-shards
 // through channels.Service.Update rather than failing at write.
 func TestEvaluateAppliesChannelPartitionsReshard(t *testing.T) {
-	ind := registeredIndicator("throughput", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("throughput", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	orders := testChannel("orders", map[string]string{"env": "prod"})
 
 	def := gov.Definition{

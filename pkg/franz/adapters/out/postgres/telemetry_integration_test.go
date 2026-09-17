@@ -48,7 +48,7 @@ func TestIndicatorSampleRequiresRegisteredIndicator(t *testing.T) {
 
 	// Registering it opens the path — the "Done when" check of deliverable 15.
 	registered, err := indicator.NewIndicator(r, "never-registered",
-		indicator.UnitCount, indicator.EntityKafkaCluster, "1h", nil)
+		indicator.UnitGauge, indicator.EntityKafkaCluster, "1h", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

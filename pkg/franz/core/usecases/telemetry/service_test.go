@@ -37,7 +37,7 @@ func newFixture(indicators ...*indicator.Indicator) *fixture {
 // brokerCount is the registered indicator most of these tests publish to.
 func brokerCount() *indicator.Indicator {
 	return registered("kafka.cluster.broker_count",
-		indicator.UnitCount, indicator.EntityKafkaCluster)
+		indicator.UnitGauge, indicator.EntityKafkaCluster)
 }
 
 func sample(name, value string, at time.Time) indicator.Sample {

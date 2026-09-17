@@ -151,6 +151,28 @@ tr:last-child td { border-bottom: 0; }
 .login-card .button { width: 100%; margin-top: 8px; text-align: center; }
 .login-meta { margin-top: 24px; color: var(--muted); font-size: 12px; text-align: center; }
 
+/* --- indicator visualisations (governance) ------------------------------- */
+
+/* Range selector sits in a Panel's actions slot, so it reads as a segmented
+   control rather than three separate buttons. */
+.range-selector { display: inline-flex; }
+.range-selector .range-option { border-radius: 0; margin-left: -1px; }
+.range-selector .range-option:first-child { border-top-left-radius: var(--radius); border-bottom-left-radius: var(--radius); margin-left: 0; }
+.range-selector .range-option:last-child { border-top-right-radius: var(--radius); border-bottom-right-radius: var(--radius); }
+.range-selector .range-option.selected { background: var(--blue); border-color: var(--blue-dark); color: #fff; position: relative; z-index: 1; }
+
+.chart-wrap { width: 100%; margin: 4px 0 2px; }
+
+/* State timeline: a label column plus a proportional track per resource. */
+.state-row { display: grid; grid-template-columns: minmax(120px, 220px) 1fr; align-items: center; gap: 12px; margin-bottom: 8px; }
+.state-row-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.state-track { position: relative; height: 22px; background: var(--page); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.state-span { position: absolute; top: 0; bottom: 0; }
+
+.state-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 12px; }
+.state-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.state-swatch { width: 11px; height: 11px; border-radius: 2px; display: inline-block; }
+
 @media (max-width: 850px) {
   .topbar { padding: 0 14px; }
   .global-search, .product { display: none; }
@@ -166,4 +188,5 @@ tr:last-child td { border-bottom: 0; }
   .pagination { justify-content: center; flex-wrap: wrap; }
   .filter { width: 100%; }
   .table-wrap { overflow-x: auto; }
+  .state-row { grid-template-columns: 1fr; gap: 4px; }
 }

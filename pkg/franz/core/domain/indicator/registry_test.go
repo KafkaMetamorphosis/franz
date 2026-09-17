@@ -42,21 +42,21 @@ func TestNewIndicatorRejections(t *testing.T) {
 		staleness string
 		agents    []string
 	}{
-		{name: "bad name", indName: "Not A Name", unit: indicator.UnitCount,
+		{name: "bad name", indName: "Not A Name", unit: indicator.UnitGauge,
 			appliesTo: indicator.EntityKafkaCluster, staleness: "1h"},
-		{name: "unknown entity", indName: "x", unit: indicator.UnitCount,
+		{name: "unknown entity", indName: "x", unit: indicator.UnitGauge,
 			appliesTo: indicator.Entity("REALM"), staleness: "1h"},
 		{name: "empty unit", indName: "x", unit: "",
 			appliesTo: indicator.EntityKafkaCluster, staleness: "1h"},
-		{name: "empty staleness", indName: "x", unit: indicator.UnitCount,
+		{name: "empty staleness", indName: "x", unit: indicator.UnitGauge,
 			appliesTo: indicator.EntityKafkaCluster, staleness: ""},
-		{name: "malformed staleness", indName: "x", unit: indicator.UnitCount,
+		{name: "malformed staleness", indName: "x", unit: indicator.UnitGauge,
 			appliesTo: indicator.EntityKafkaCluster, staleness: "soon"},
-		{name: "zero staleness", indName: "x", unit: indicator.UnitCount,
+		{name: "zero staleness", indName: "x", unit: indicator.UnitGauge,
 			appliesTo: indicator.EntityKafkaCluster, staleness: "0s"},
-		{name: "empty source agent", indName: "x", unit: indicator.UnitCount,
+		{name: "empty source agent", indName: "x", unit: indicator.UnitGauge,
 			appliesTo: indicator.EntityKafkaCluster, staleness: "1h", agents: []string{" "}},
-		{name: "invalid source agent name", indName: "x", unit: indicator.UnitCount,
+		{name: "invalid source agent name", indName: "x", unit: indicator.UnitGauge,
 			appliesTo: indicator.EntityKafkaCluster, staleness: "1h", agents: []string{"Not A Name"}},
 	}
 
@@ -119,7 +119,7 @@ func TestAppliesToIsNotSettable(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := i.SetUnit(indicator.UnitCount); err != nil {
+	if err := i.SetUnit(indicator.UnitGauge); err != nil {
 		t.Fatalf("SetUnit: %v", err)
 	}
 	if err := i.SetStalenessThreshold("2w"); err != nil {
@@ -192,7 +192,7 @@ func TestUnitFamily(t *testing.T) {
 		unit indicator.Unit
 		want indicator.Family
 	}{
-		{indicator.UnitCount, indicator.FamilyNumeric},
+		{indicator.UnitGauge, indicator.FamilyNumeric},
 		{indicator.UnitPercent, indicator.FamilyNumeric},
 		{indicator.UnitRatio, indicator.FamilyNumeric},
 		{indicator.UnitBytes, indicator.FamilyBytes},
@@ -206,6 +206,12 @@ func TestUnitFamily(t *testing.T) {
 		{indicator.UnitEnum, indicator.FamilyString},
 		{indicator.Unit("STATE"), indicator.FamilyString},
 		{indicator.Unit("widgets-per-fortnight"), indicator.FamilyNumeric},
+		// "count" is the pre-rename spelling of "gauge". It must keep resolving
+		// to the same family, or an external publisher still sending it would
+		// have its samples reinterpreted — and any stored policy limit written
+		// against a "count" indicator would stop comparing.
+		{indicator.Unit("count"), indicator.FamilyNumeric},
+		{indicator.Unit("COUNT"), indicator.FamilyNumeric},
 	}
 
 	for _, tc := range tests {
@@ -257,13 +263,13 @@ func TestCategoricalValues(t *testing.T) {
 	if _, err := indicator.ParseValue(indicator.UnitString, "value", ""); err == nil {
 		t.Fatal("an empty label must not parse")
 	}
-	if _, err := indicator.ParseValue(indicator.UnitCount, "value", "provisioned"); err == nil {
+	if _, err := indicator.ParseValue(indicator.UnitGauge, "value", "provisioned"); err == nil {
 		t.Fatal("a label must not parse as a count")
 	}
 
 	// A label and a number are still different families, so a stored limit from
 	// before a unit change cannot be silently compared against a new value.
-	three, err := indicator.ParseValue(indicator.UnitCount, "value", "3")
+	three, err := indicator.ParseValue(indicator.UnitGauge, "value", "3")
 	if err != nil {
 		t.Fatal(err)
 	}

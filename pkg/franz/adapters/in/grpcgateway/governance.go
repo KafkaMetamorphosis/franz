@@ -368,6 +368,7 @@ func (h *governanceHandler) indicatorToProto(i *indicator.Indicator) *franzv1.In
 		SourceAgents:       i.SourceAgents,
 		Health:             healthToProto(i.Health(h.now())),
 		StalenessThreshold: proto.String(i.StalenessSpec),
+		Family:             familyToProto(i.Unit.Family()),
 	}
 	if i.LastSampleAt != nil {
 		b.LastSampleAt = timestamppb.New(*i.LastSampleAt)
@@ -536,6 +537,24 @@ func healthToProto(h indicator.Health) *franzv1.IndicatorHealth {
 		v = franzv1.IndicatorHealth_INDICATOR_HEALTH_HEALTHY
 	case indicator.HealthStale:
 		v = franzv1.IndicatorHealth_INDICATOR_HEALTH_STALE
+	}
+	return &v
+}
+
+// familyToProto exposes the closed classification behind the open unit string,
+// so a client can decide how to render a value without re-implementing
+// indicator.Unit.Family's alias table.
+func familyToProto(f indicator.Family) *franzv1.IndicatorFamily {
+	v := franzv1.IndicatorFamily_INDICATOR_FAMILY_NUMERIC
+	switch f {
+	case indicator.FamilyBytes:
+		v = franzv1.IndicatorFamily_INDICATOR_FAMILY_BYTES
+	case indicator.FamilyDuration:
+		v = franzv1.IndicatorFamily_INDICATOR_FAMILY_DURATION
+	case indicator.FamilyBoolean:
+		v = franzv1.IndicatorFamily_INDICATOR_FAMILY_BOOLEAN
+	case indicator.FamilyString:
+		v = franzv1.IndicatorFamily_INDICATOR_FAMILY_STRING
 	}
 	return &v
 }

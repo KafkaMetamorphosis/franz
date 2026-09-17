@@ -28,7 +28,7 @@ test("register an Indicator → register a Policy → dry-run → not applied", 
   await page.getByRole("link", { name: "Register Indicator" }).click();
 
   await page.getByLabel(/Name/).fill(INDICATOR);
-  await page.getByLabel(/Unit/).fill("count");
+  await page.getByLabel(/Unit/).fill("gauge");
   await page.getByLabel(/Applies to/).selectOption({ label: "Async Channel" });
   await page.getByRole("button", { name: "Register Indicator" }).click();
 

@@ -247,7 +247,7 @@ CREATE TABLE IF NOT EXISTS indicator (
     realm_id             uuid        NOT NULL REFERENCES realm (id),
     name                 text        NOT NULL,
     frn                  text        NOT NULL,
-    -- Free-form ("bytes", "count", "duration", "boolean", ...). Franz classifies
+    -- Free-form ("bytes", "gauge", "duration", "boolean", ...). Franz classifies
     -- rather than enumerates: an unrecognised unit compares numerically.
     unit                 text        NOT NULL,
     applies_to           text        NOT NULL

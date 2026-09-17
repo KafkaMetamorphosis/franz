@@ -46,6 +46,21 @@ export function entityLabel(v?: string): string {
   return ENTITY_TYPES.find((t) => t.value === v)?.label ?? "—";
 }
 
+// familyLabel names the closed comparison family behind an indicator's
+// free-form unit (`IndicatorFamily`). The unit is what an agent publishes;
+// the family is how Franz compares it and how the console picks a chart.
+const FAMILY_LABELS: Record<string, string> = {
+  INDICATOR_FAMILY_NUMERIC: "a number",
+  INDICATOR_FAMILY_BYTES: "a byte size",
+  INDICATOR_FAMILY_DURATION: "a duration",
+  INDICATOR_FAMILY_BOOLEAN: "a boolean",
+  INDICATOR_FAMILY_STRING: "a label",
+};
+
+export function familyLabel(v?: string): string {
+  return FAMILY_LABELS[v ?? ""] ?? "a number";
+}
+
 export function healthLabel(v?: string): string {
   const short = (v ?? "").replace(/^INDICATOR_HEALTH_/, "");
   if (!short || short === "UNSPECIFIED") return "No samples yet";

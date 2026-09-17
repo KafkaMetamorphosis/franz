@@ -19,7 +19,12 @@ type Unit string
 // The units Franz interprets specially. Any other non-empty string is accepted
 // and compared numerically.
 const (
-	UnitCount    Unit = "count"
+	// UnitGauge is a plain instantaneous number — a broker count, a partition
+	// count, a replica count. Named after Prometheus's "gauge" rather than the
+	// older "count": "count" reads like a monotonic counter, which none of these
+	// are (005 §2.1's values go up *and* down). "count" is still accepted as an
+	// alias so an external publisher predating the rename keeps working.
+	UnitGauge    Unit = "gauge"
 	UnitBytes    Unit = "bytes"
 	UnitDuration Unit = "duration"
 	UnitBoolean  Unit = "boolean"
@@ -37,7 +42,7 @@ const (
 const maxUnitLen = 64
 
 // Validate rejects an empty or over-long unit. Any other value is accepted:
-// Franz classifies rather than enumerates (003.8 "unit": `"bytes"`, `"count"`,
+// Franz classifies rather than enumerates (003.8 "unit": `"bytes"`, `"gauge"`,
 // `"duration"`, `"boolean"`, …).
 func (u Unit) Validate() error {
 	s := strings.TrimSpace(string(u))
@@ -55,7 +60,7 @@ func (u Unit) Validate() error {
 type Family int
 
 const (
-	// FamilyNumeric covers counts, percentages, ratios and any unrecognised
+	// FamilyNumeric covers gauges, percentages, ratios and any unrecognised
 	// unit: the value is a decimal number.
 	FamilyNumeric Family = iota
 	// FamilyBytes is a byte size, with the SI ("1G") and binary ("1Gi")
@@ -90,6 +95,11 @@ func (u Unit) Family() Family {
 		return FamilyBoolean
 	case string(UnitString), string(UnitEnum), "text", "state", "id":
 		return FamilyString
+	case string(UnitGauge), "count", string(UnitPercent), string(UnitRatio):
+		// "count" is the pre-rename spelling of "gauge" and stays an accepted
+		// alias. Listing these explicitly rather than leaning on the default is
+		// documentation: they are numeric *by intent*, not by falling through.
+		return FamilyNumeric
 	default:
 		return FamilyNumeric
 	}

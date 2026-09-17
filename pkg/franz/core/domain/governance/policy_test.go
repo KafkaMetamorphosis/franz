@@ -110,7 +110,7 @@ func TestValidateAgainstWhitelist(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			def := definition(tc.entity, tc.action)
-			err := def.ValidateAgainst(testIndicator(indicator.UnitCount, tc.entity))
+			err := def.ValidateAgainst(testIndicator(indicator.UnitGauge, tc.entity))
 			if tc.accepted {
 				if err != nil {
 					t.Fatalf("want accepted, got %v", err)
@@ -145,7 +145,7 @@ func TestValidateAgainstDeferredActions(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			def := definition(tc.entity, tc.action)
-			err := def.ValidateAgainst(testIndicator(indicator.UnitCount, tc.entity))
+			err := def.ValidateAgainst(testIndicator(indicator.UnitGauge, tc.entity))
 			if got := errs.KindOf(err); got != errs.FailedPrecondition {
 				t.Fatalf("kind = %v (err %v), want FailedPrecondition", got, err)
 			}
@@ -185,7 +185,7 @@ func TestValidateAgainstArity(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			def := definition(tc.entity, tc.action)
-			err := def.ValidateAgainst(testIndicator(indicator.UnitCount, tc.entity))
+			err := def.ValidateAgainst(testIndicator(indicator.UnitGauge, tc.entity))
 			if tc.ok && err != nil {
 				t.Fatalf("want accepted, got %v", err)
 			}
@@ -205,14 +205,14 @@ func TestValidateAgainstAppliesTo(t *testing.T) {
 	t.Run("agreeing entity is accepted", func(t *testing.T) {
 		def := definition(indicator.EntityAsyncChannel, channelAction)
 		if err := def.ValidateAgainst(
-			testIndicator(indicator.UnitCount, indicator.EntityAsyncChannel)); err != nil {
+			testIndicator(indicator.UnitGauge, indicator.EntityAsyncChannel)); err != nil {
 			t.Fatalf("want accepted, got %v", err)
 		}
 	})
 
 	t.Run("cluster indicator cannot drive a channel matcher", func(t *testing.T) {
 		def := definition(indicator.EntityAsyncChannel, channelAction)
-		err := def.ValidateAgainst(testIndicator(indicator.UnitCount, indicator.EntityKafkaCluster))
+		err := def.ValidateAgainst(testIndicator(indicator.UnitGauge, indicator.EntityKafkaCluster))
 		if errs.KindOf(err) != errs.InvalidArgument {
 			t.Fatalf("kind = %v (err %v), want InvalidArgument", errs.KindOf(err), err)
 		}
@@ -236,7 +236,7 @@ func TestValidateAgainstAppliesTo(t *testing.T) {
 
 	t.Run("actions must not be empty", func(t *testing.T) {
 		def := definition(indicator.EntityAsyncChannel)
-		err := def.ValidateAgainst(testIndicator(indicator.UnitCount, indicator.EntityAsyncChannel))
+		err := def.ValidateAgainst(testIndicator(indicator.UnitGauge, indicator.EntityAsyncChannel))
 		if errs.KindOf(err) != errs.InvalidArgument {
 			t.Fatalf("want InvalidArgument, got %v", err)
 		}
@@ -259,14 +259,14 @@ func TestRequireCapOnPartitionIncrease(t *testing.T) {
 	withoutCap := definition(indicator.EntityKafkaTopic,
 		action(governance.ActionIncreaseFieldBy, "partitions", "2"))
 	if errs.KindOf(withoutCap.ValidateAgainst(
-		testIndicator(indicator.UnitCount, indicator.EntityKafkaTopic))) != errs.InvalidArgument {
+		testIndicator(indicator.UnitGauge, indicator.EntityKafkaTopic))) != errs.InvalidArgument {
 		t.Fatal("INCREASE_FIELD_BY on partitions must require a cap")
 	}
 
 	withCap := definition(indicator.EntityKafkaTopic,
 		action(governance.ActionIncreaseFieldBy, "partitions", "2", "max=64"))
 	if err := withCap.ValidateAgainst(
-		testIndicator(indicator.UnitCount, indicator.EntityKafkaTopic)); err != nil {
+		testIndicator(indicator.UnitGauge, indicator.EntityKafkaTopic)); err != nil {
 		t.Fatalf("a capped partition increase must be accepted: %v", err)
 	}
 }
@@ -281,11 +281,11 @@ func TestLimitTriggers(t *testing.T) {
 		value string
 		want  bool
 	}{
-		{"count above", indicator.UnitCount, governance.OpGreaterThan, "100", "150", true},
-		{"count equal is not above", indicator.UnitCount, governance.OpGreaterThan, "100", "100", false},
-		{"count at or above", indicator.UnitCount, governance.OpGreaterThanOrEqual, "100", "100", true},
-		{"count below", indicator.UnitCount, governance.OpLessThan, "3", "2", true},
-		{"count not equal", indicator.UnitCount, governance.OpNotEqual, "3", "4", true},
+		{"count above", indicator.UnitGauge, governance.OpGreaterThan, "100", "150", true},
+		{"count equal is not above", indicator.UnitGauge, governance.OpGreaterThan, "100", "100", false},
+		{"count at or above", indicator.UnitGauge, governance.OpGreaterThanOrEqual, "100", "100", true},
+		{"count below", indicator.UnitGauge, governance.OpLessThan, "3", "2", true},
+		{"count not equal", indicator.UnitGauge, governance.OpNotEqual, "3", "4", true},
 		{"bytes binary suffix", indicator.UnitBytes, governance.OpGreaterThan, "150Gi", "200Gi", true},
 		{"bytes SI vs binary", indicator.UnitBytes, governance.OpLessThan, "1Gi", "1G", true},
 		{"bytes trailing B", indicator.UnitBytes, governance.OpEqual, "512", "512B", true},
@@ -317,7 +317,7 @@ func TestLimitTriggers(t *testing.T) {
 // visible.
 func TestLimitTriggersSurfacesUnparseableValues(t *testing.T) {
 	limit := governance.Limit{Operator: governance.OpGreaterThan, Value: "100"}
-	if _, err := limit.Triggers(indicator.UnitCount, "not-a-number"); err == nil {
+	if _, err := limit.Triggers(indicator.UnitGauge, "not-a-number"); err == nil {
 		t.Fatal("an unparseable value must surface as an error")
 	}
 }

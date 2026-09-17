@@ -5,6 +5,62 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- **Indicator history is visualised, not just tabulated.** The Indicator detail
+  page gains a **History** panel above the existing samples table (which is
+  unchanged), with a 1h / 6h / 24h range selector. What it draws is chosen by
+  the indicator's family, never by parsing its unit string:
+  - **numeric / bytes / duration** — a recharts line chart, one series per
+    resource the indicator covers (`replicas_per_broker` is one sample per
+    broker), with byte and duration axes formatted in their own vocabulary and
+    gaps rather than zeroes where a value could not be read;
+  - **boolean and small enums** — a state-timeline strip, one proportional band
+    per resource, coloured by value, with a legend. Booleans stay semantic
+    (true green / false muted); enum labels take stable palette colours in
+    value-sorted order so a state keeps its colour between renders;
+  - **high-cardinality labels** — beyond six distinct values a colour band per
+    value teaches nothing, so `kafka.cluster.controller_id` and friends fall
+    back to a transition list: current value, when it last changed, and how
+    many changes fell in the window.
+
+  At 24h a 60s sweep is ~1440 points per series, so a series is decimated
+  client-side to at most 480 evenly-spaced points, **always keeping the newest
+  sample** — the one an operator is actually looking for. The panel says when it
+  has thinned, and the table below stays unthinned. Server-side bucketing would
+  be the better answer if ranges ever grow past a day; deliberately not built.
+
+  recharts is larger than the rest of the console put together, so the chart is
+  behind `React.lazy` and ships as its own chunk: the main bundle grows 319 kB →
+  326 kB (88 → 91 kB gzip) and the 380 kB chart chunk is fetched only when a
+  numeric indicator's detail page is actually opened. The state timeline and the
+  transition list pull in no charting code at all.
+- **`Indicator.family`** — the closed comparison family (`NUMERIC`, `BYTES`,
+  `DURATION`, `BOOLEAN`, `STRING`) behind the open `unit` string is now on the
+  wire, derived server-side and never stored. Franz already classified units
+  this way to compare policy limits; exposing it means a client switches on one
+  authoritative field instead of re-implementing `indicator.Unit.Family`'s alias
+  table (`bool`, `byte`, `lag`, `state`, `id`, …) and drifting from it.
+
+### Changed
+
+- **The `count` indicator unit is now `gauge`.** "count" read like a monotonic
+  counter, and nothing in 005 §2.1 is one — every value there goes up *and*
+  down. "gauge" is the Prometheus word for exactly that, so the ten `count`
+  indicators (`kafka.topic.partitions`, `kafka.cluster.broker_count`, …) are
+  renamed across the 005 §2.1 table, the local seed, and the `UnitGauge`
+  constant. **`"count"` remains an accepted alias**: it resolves to the same
+  `NUMERIC` family, so an external publisher still sending it keeps working and
+  any stored policy limit written against a `count` indicator keeps comparing.
+  A deployment carrying `count` rows can rename them with
+  `UPDATE indicator SET unit='gauge' WHERE unit='count'` — no `indicator_sample`
+  rows are affected, since a sample stores its indicator's name, not its unit.
+
+  This makes visible, rather than resolves, that `unit` is doing two jobs —
+  Prometheus separates metric *type* (counter/gauge/histogram) from *unit*
+  (bytes/seconds) and Franz has one field for both, so a gauge measured in bytes
+  cannot say so. Logged as 005 open question 8; not changed here.
+
 ### Fixed
 
 - **Cluster-level indicators were never reported for a cluster with nothing

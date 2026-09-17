@@ -1015,6 +1015,7 @@ export interface components {
          */
         v1Indicator: {
             appliesTo?: components["schemas"]["v1Entity"];
+            family?: components["schemas"]["v1IndicatorFamily"];
             health?: components["schemas"]["v1IndicatorHealth"];
             /** Format: date-time */
             lastSampleAt?: string;
@@ -1022,9 +1023,26 @@ export interface components {
             sourceAgents?: string[];
             /** @description Beyond this age the indicator is stale and policies reading it do not act. */
             stalenessThreshold?: string;
-            /** @description "bytes", "count", "duration", "boolean", ... */
+            /**
+             * @description "bytes", "gauge", "duration", "boolean", ...  Free-form: an agent may
+             *     publish any unit name, and Franz classifies rather than enumerates. Use
+             *     `family` to decide how to interpret or render a value.
+             */
             unit?: string;
         };
+        /**
+         * @description How an indicator's sample values are interpreted and compared. The unit
+         *     string is open; this classification is closed (003.8, `indicator.Unit.Family`).
+         *
+         *      - INDICATOR_FAMILY_NUMERIC: A decimal number: gauges, percentages, ratios, and any unrecognised unit.
+         *      - INDICATOR_FAMILY_BYTES: A byte size with SI ("1G") or binary ("1Gi") suffixes.
+         *      - INDICATOR_FAMILY_DURATION: A duration string ("90d", "5m").
+         *      - INDICATOR_FAMILY_BOOLEAN: "true" / "false".
+         *      - INDICATOR_FAMILY_STRING: A categorical label — an enum member or an opaque id.
+         * @default INDICATOR_FAMILY_UNSPECIFIED
+         * @enum {string}
+         */
+        v1IndicatorFamily: "INDICATOR_FAMILY_UNSPECIFIED" | "INDICATOR_FAMILY_NUMERIC" | "INDICATOR_FAMILY_BYTES" | "INDICATOR_FAMILY_DURATION" | "INDICATOR_FAMILY_BOOLEAN" | "INDICATOR_FAMILY_STRING";
         /**
          * @default INDICATOR_HEALTH_UNSPECIFIED
          * @enum {string}

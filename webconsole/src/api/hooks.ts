@@ -320,13 +320,38 @@ export function useIndicator(name: string) {
 
 // No resourceFrn filter: the detail page's "recent samples" table shows the
 // indicator's most recent activity across every resource it applies to.
-export function useIndicatorSamples(indicator: string) {
+// IndicatorSamplesQuery narrows the sample history a caller wants.
+//
+// `from` is what makes a chart possible: the series is 30-day-retained and the
+// default page is 50 rows *across every resource the indicator covers*, so an
+// unbounded request gives a few minutes of history for a multi-resource
+// indicator. A visualisation has to say how far back it wants and raise the page
+// size to match.
+export type IndicatorSamplesQuery = {
+  /** ISO-8601 lower bound. Omit for "as far back as one page reaches". */
+  from?: string;
+  /** Restrict to one resource — omit to get every resource, one series each. */
+  resourceFrn?: string;
+  pageSize?: number;
+};
+
+export function useIndicatorSamples(indicator: string, query: IndicatorSamplesQuery = {}) {
+  const { from, resourceFrn, pageSize } = query;
   return useQuery({
-    queryKey: ["indicator-samples", indicator],
+    // from/resourceFrn/pageSize are part of the key: changing the range must
+    // refetch rather than reuse a narrower window's cache.
+    queryKey: ["indicator-samples", indicator, from ?? null, resourceFrn ?? null, pageSize ?? null],
     queryFn: async () =>
       unwrap(
         await api.GET("/v1/governance/indicators/{indicator}/samples", {
-          params: { path: { indicator }, query: {} },
+          params: {
+            path: { indicator },
+            query: {
+              ...(from ? { from } : {}),
+              ...(resourceFrn ? { resourceFrn } : {}),
+              ...(pageSize ? { "page.pageSize": pageSize } : {}),
+            },
+          },
         }),
       ),
     enabled: !!indicator,

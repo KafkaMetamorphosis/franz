@@ -98,7 +98,7 @@ func TestCreatePolicyRejectsUnknownIndicator(t *testing.T) {
 
 // TestCreatePolicyRejectsOutOfWhitelistAction is the second "Done when" check.
 func TestCreatePolicyRejectsOutOfWhitelistAction(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	f := newServiceFixture([]*indicator.Indicator{ind}, nil, nil)
 
 	def := channelDefinition("lag", "")
@@ -123,7 +123,7 @@ func TestCreatePolicyRejectsOutOfWhitelistAction(t *testing.T) {
 // at write. What actually happens when one fires is the applier's concern
 // (actions_test.go), not the whitelist's.
 func TestCreatePolicyAcceptsPlacementActions(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	f := newServiceFixture([]*indicator.Indicator{ind}, nil, nil)
 
 	tests := []struct {
@@ -156,7 +156,7 @@ func TestCreatePolicyAcceptsPlacementActions(t *testing.T) {
 // still deferred: shrinking needs the removed shards drained and retired on
 // the re-shard's behalf, which the migration flow does not yet drive.
 func TestCreatePolicyRejectsChannelPartitionsDecrease(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	f := newServiceFixture([]*indicator.Indicator{ind}, nil, nil)
 
 	def := channelDefinition("lag", "")
@@ -186,7 +186,7 @@ func TestCreatePolicyRejectsEntityMismatch(t *testing.T) {
 }
 
 func TestCreateAndGetPolicy(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	f := newServiceFixture([]*indicator.Indicator{ind}, nil, nil)
 	ctx := ctxWithRealm()
 
@@ -261,7 +261,7 @@ func TestUpdatePolicyRevalidatesWholeDefinition(t *testing.T) {
 // TestUpdatePolicyRejectsUnknownIndicator: repointing at an unregistered
 // indicator is refused, so a stored policy can never name one.
 func TestUpdatePolicyRejectsUnknownIndicator(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	f := newServiceFixture([]*indicator.Indicator{ind}, nil, nil)
 	ctx := ctxWithRealm()
 
@@ -298,7 +298,7 @@ func TestIndicatorCRUD(t *testing.T) {
 		t.Errorf("StalenessThreshold = %v", created.StalenessThreshold)
 	}
 
-	unit := indicator.UnitCount
+	unit := indicator.UnitGauge
 	staleness := "12h"
 	updated, err := f.svc.UpdateIndicator(ctx, in.UpdateIndicatorInput{
 		Name: "disk-used", Unit: &unit, StalenessThreshold: &staleness,
@@ -306,7 +306,7 @@ func TestIndicatorCRUD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("UpdateIndicator: %v", err)
 	}
-	if updated.Unit != indicator.UnitCount || updated.StalenessThreshold != 12*time.Hour {
+	if updated.Unit != indicator.UnitGauge || updated.StalenessThreshold != 12*time.Hour {
 		t.Fatalf("updated = %+v", updated)
 	}
 	// applies_to is immutable (003.14) — no mask can reach it.
@@ -325,7 +325,7 @@ func TestIndicatorCRUD(t *testing.T) {
 // TestDeleteIndicatorRefusesWhileReferenced: deleting an indicator a policy
 // names would leave a rule that can never be evaluated and never repaired.
 func TestDeleteIndicatorRefusesWhileReferenced(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	f := newServiceFixture([]*indicator.Indicator{ind}, nil, nil)
 	ctx := ctxWithRealm()
 
@@ -366,7 +366,7 @@ func TestDeleteIndicatorNotFound(t *testing.T) {
 // per-resource would_trigger and writes nothing — no entity change, and no
 // PolicyAction.
 func TestDryRunEvaluatesWithoutMutating(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	channels := map[string]*channel.AsyncChannel{
 		"orders":    testChannel("orders", map[string]string{"tier": "gold"}),
 		"invoices":  testChannel("invoices", map[string]string{"tier": "gold"}),
@@ -429,7 +429,7 @@ func TestDryRunValidatesTheDefinition(t *testing.T) {
 // TestDryRunSkipsSamplesForTheWrongEntity keeps a matcher honest when an
 // indicator's history contains rows from before an operator repointed things.
 func TestDryRunSkipsSamplesForTheWrongEntity(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	channels := map[string]*channel.AsyncChannel{"orders": testChannel("orders", nil)}
 	f := newServiceFixture([]*indicator.Indicator{ind}, nil, channels)
 
@@ -453,7 +453,7 @@ func TestDryRunSkipsSamplesForTheWrongEntity(t *testing.T) {
 // --- listing --------------------------------------------------------------
 
 func TestListPoliciesPaginates(t *testing.T) {
-	ind := registeredIndicator("lag", indicator.UnitCount, indicator.EntityAsyncChannel)
+	ind := registeredIndicator("lag", indicator.UnitGauge, indicator.EntityAsyncChannel)
 	f := newServiceFixture([]*indicator.Indicator{ind}, nil, nil)
 	ctx := ctxWithRealm()
 

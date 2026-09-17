@@ -226,6 +226,66 @@ func (x IndicatorHealth) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
+// How an indicator's sample values are interpreted and compared. The unit
+// string is open; this classification is closed (003.8, `indicator.Unit.Family`).
+type IndicatorFamily int32
+
+const (
+	IndicatorFamily_INDICATOR_FAMILY_UNSPECIFIED IndicatorFamily = 0
+	// A decimal number: gauges, percentages, ratios, and any unrecognised unit.
+	IndicatorFamily_INDICATOR_FAMILY_NUMERIC IndicatorFamily = 1
+	// A byte size with SI ("1G") or binary ("1Gi") suffixes.
+	IndicatorFamily_INDICATOR_FAMILY_BYTES IndicatorFamily = 2
+	// A duration string ("90d", "5m").
+	IndicatorFamily_INDICATOR_FAMILY_DURATION IndicatorFamily = 3
+	// "true" / "false".
+	IndicatorFamily_INDICATOR_FAMILY_BOOLEAN IndicatorFamily = 4
+	// A categorical label — an enum member or an opaque id.
+	IndicatorFamily_INDICATOR_FAMILY_STRING IndicatorFamily = 5
+)
+
+// Enum value maps for IndicatorFamily.
+var (
+	IndicatorFamily_name = map[int32]string{
+		0: "INDICATOR_FAMILY_UNSPECIFIED",
+		1: "INDICATOR_FAMILY_NUMERIC",
+		2: "INDICATOR_FAMILY_BYTES",
+		3: "INDICATOR_FAMILY_DURATION",
+		4: "INDICATOR_FAMILY_BOOLEAN",
+		5: "INDICATOR_FAMILY_STRING",
+	}
+	IndicatorFamily_value = map[string]int32{
+		"INDICATOR_FAMILY_UNSPECIFIED": 0,
+		"INDICATOR_FAMILY_NUMERIC":     1,
+		"INDICATOR_FAMILY_BYTES":       2,
+		"INDICATOR_FAMILY_DURATION":    3,
+		"INDICATOR_FAMILY_BOOLEAN":     4,
+		"INDICATOR_FAMILY_STRING":      5,
+	}
+)
+
+func (x IndicatorFamily) Enum() *IndicatorFamily {
+	p := new(IndicatorFamily)
+	*p = x
+	return p
+}
+
+func (x IndicatorFamily) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (IndicatorFamily) Descriptor() protoreflect.EnumDescriptor {
+	return file_franz_v1_governance_proto_enumTypes[4].Descriptor()
+}
+
+func (IndicatorFamily) Type() protoreflect.EnumType {
+	return &file_franz_v1_governance_proto_enumTypes[4]
+}
+
+func (x IndicatorFamily) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
 // A governance policy watches one indicator and acts on the resources it
 // matches when a limit is crossed. Reactive only: actions change Franz's
 // declared state, which the normal reconciliation path realises.
@@ -1104,6 +1164,7 @@ type Indicator struct {
 	xxx_hidden_Health             IndicatorHealth        `protobuf:"varint,5,opt,name=health,enum=franz.v1.IndicatorHealth"`
 	xxx_hidden_LastSampleAt       *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=last_sample_at,json=lastSampleAt"`
 	xxx_hidden_StalenessThreshold *string                `protobuf:"bytes,7,opt,name=staleness_threshold,json=stalenessThreshold"`
+	xxx_hidden_Family             IndicatorFamily        `protobuf:"varint,8,opt,name=family,enum=franz.v1.IndicatorFamily"`
 	XXX_raceDetectHookData        protoimpl.RaceDetectHookData
 	XXX_presence                  [1]uint32
 	unknownFields                 protoimpl.UnknownFields
@@ -1197,19 +1258,28 @@ func (x *Indicator) GetStalenessThreshold() string {
 	return ""
 }
 
+func (x *Indicator) GetFamily() IndicatorFamily {
+	if x != nil {
+		if protoimpl.X.Present(&(x.XXX_presence[0]), 7) {
+			return x.xxx_hidden_Family
+		}
+	}
+	return IndicatorFamily_INDICATOR_FAMILY_UNSPECIFIED
+}
+
 func (x *Indicator) SetName(v string) {
 	x.xxx_hidden_Name = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 0, 8)
 }
 
 func (x *Indicator) SetUnit(v string) {
 	x.xxx_hidden_Unit = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 1, 8)
 }
 
 func (x *Indicator) SetAppliesTo(v Entity) {
 	x.xxx_hidden_AppliesTo = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 2, 8)
 }
 
 func (x *Indicator) SetSourceAgents(v []string) {
@@ -1218,7 +1288,7 @@ func (x *Indicator) SetSourceAgents(v []string) {
 
 func (x *Indicator) SetHealth(v IndicatorHealth) {
 	x.xxx_hidden_Health = v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 4, 8)
 }
 
 func (x *Indicator) SetLastSampleAt(v *timestamppb.Timestamp) {
@@ -1227,7 +1297,12 @@ func (x *Indicator) SetLastSampleAt(v *timestamppb.Timestamp) {
 
 func (x *Indicator) SetStalenessThreshold(v string) {
 	x.xxx_hidden_StalenessThreshold = &v
-	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 7)
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 6, 8)
+}
+
+func (x *Indicator) SetFamily(v IndicatorFamily) {
+	x.xxx_hidden_Family = v
+	protoimpl.X.SetPresent(&(x.XXX_presence[0]), 7, 8)
 }
 
 func (x *Indicator) HasName() bool {
@@ -1272,6 +1347,13 @@ func (x *Indicator) HasStalenessThreshold() bool {
 	return protoimpl.X.Present(&(x.XXX_presence[0]), 6)
 }
 
+func (x *Indicator) HasFamily() bool {
+	if x == nil {
+		return false
+	}
+	return protoimpl.X.Present(&(x.XXX_presence[0]), 7)
+}
+
 func (x *Indicator) ClearName() {
 	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 0)
 	x.xxx_hidden_Name = nil
@@ -1301,11 +1383,18 @@ func (x *Indicator) ClearStalenessThreshold() {
 	x.xxx_hidden_StalenessThreshold = nil
 }
 
+func (x *Indicator) ClearFamily() {
+	protoimpl.X.ClearPresent(&(x.XXX_presence[0]), 7)
+	x.xxx_hidden_Family = IndicatorFamily_INDICATOR_FAMILY_UNSPECIFIED
+}
+
 type Indicator_builder struct {
 	_ [0]func() // Prevents comparability and use of unkeyed literals for the builder.
 
 	Name *string
-	// "bytes", "count", "duration", "boolean", ...
+	// "bytes", "gauge", "duration", "boolean", ...  Free-form: an agent may
+	// publish any unit name, and Franz classifies rather than enumerates. Use
+	// `family` to decide how to interpret or render a value.
 	Unit         *string
 	AppliesTo    *Entity
 	SourceAgents []string
@@ -1313,6 +1402,11 @@ type Indicator_builder struct {
 	LastSampleAt *timestamppb.Timestamp
 	// Beyond this age the indicator is stale and policies reading it do not act.
 	StalenessThreshold *string
+	// The comparison family `unit` resolves to — the closed classification behind
+	// the open unit string, and the same one Franz compares policy limits in.
+	// Derived server-side, never stored: a client switches on this instead of
+	// re-implementing the unit alias table.
+	Family *IndicatorFamily
 }
 
 func (b0 Indicator_builder) Build() *Indicator {
@@ -1320,26 +1414,30 @@ func (b0 Indicator_builder) Build() *Indicator {
 	b, x := &b0, m0
 	_, _ = b, x
 	if b.Name != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 0, 8)
 		x.xxx_hidden_Name = b.Name
 	}
 	if b.Unit != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 1, 8)
 		x.xxx_hidden_Unit = b.Unit
 	}
 	if b.AppliesTo != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 2, 8)
 		x.xxx_hidden_AppliesTo = *b.AppliesTo
 	}
 	x.xxx_hidden_SourceAgents = b.SourceAgents
 	if b.Health != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 4, 8)
 		x.xxx_hidden_Health = *b.Health
 	}
 	x.xxx_hidden_LastSampleAt = b.LastSampleAt
 	if b.StalenessThreshold != nil {
-		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 7)
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 6, 8)
 		x.xxx_hidden_StalenessThreshold = b.StalenessThreshold
+	}
+	if b.Family != nil {
+		protoimpl.X.SetPresentNonAtomic(&(x.XXX_presence[0]), 7, 8)
+		x.xxx_hidden_Family = *b.Family
 	}
 	return m0
 }
@@ -4337,7 +4435,7 @@ const file_franz_v1_governance_proto_rawDesc = "" +
 	"\fresource_frn\x18\x02 \x01(\tR\vresourceFrn\x12'\n" +
 	"\x0findicator_value\x18\x03 \x01(\tR\x0eindicatorValue\x12(\n" +
 	"\x06action\x18\x04 \x01(\v2\x10.franz.v1.ActionR\x06action\x12\x16\n" +
-	"\x06result\x18\x05 \x01(\tR\x06result\"\xaf\x02\n" +
+	"\x06result\x18\x05 \x01(\tR\x06result\"\xe2\x02\n" +
 	"\tIndicator\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x12\n" +
 	"\x04unit\x18\x02 \x01(\tR\x04unit\x12/\n" +
@@ -4346,7 +4444,8 @@ const file_franz_v1_governance_proto_rawDesc = "" +
 	"\rsource_agents\x18\x04 \x03(\tR\fsourceAgents\x121\n" +
 	"\x06health\x18\x05 \x01(\x0e2\x19.franz.v1.IndicatorHealthR\x06health\x12@\n" +
 	"\x0elast_sample_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\flastSampleAt\x12/\n" +
-	"\x13staleness_threshold\x18\a \x01(\tR\x12stalenessThreshold\"\xc2\x01\n" +
+	"\x13staleness_threshold\x18\a \x01(\tR\x12stalenessThreshold\x121\n" +
+	"\x06family\x18\b \x01(\x0e2\x19.franz.v1.IndicatorFamilyR\x06family\"\xc2\x01\n" +
 	"\x13IndicatorSampleView\x12!\n" +
 	"\fresource_frn\x18\x01 \x01(\tR\vresourceFrn\x129\n" +
 	"\x0fresource_entity\x18\x02 \x01(\x0e2\x10.franz.v1.EntityR\x0eresourceEntity\x12\x14\n" +
@@ -4469,7 +4568,14 @@ const file_franz_v1_governance_proto_rawDesc = "" +
 	"\x0fIndicatorHealth\x12 \n" +
 	"\x1cINDICATOR_HEALTH_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18INDICATOR_HEALTH_HEALTHY\x10\x01\x12\x1a\n" +
-	"\x16INDICATOR_HEALTH_STALE\x10\x022\xf5\f\n" +
+	"\x16INDICATOR_HEALTH_STALE\x10\x02*\xc7\x01\n" +
+	"\x0fIndicatorFamily\x12 \n" +
+	"\x1cINDICATOR_FAMILY_UNSPECIFIED\x10\x00\x12\x1c\n" +
+	"\x18INDICATOR_FAMILY_NUMERIC\x10\x01\x12\x1a\n" +
+	"\x16INDICATOR_FAMILY_BYTES\x10\x02\x12\x1d\n" +
+	"\x19INDICATOR_FAMILY_DURATION\x10\x03\x12\x1c\n" +
+	"\x18INDICATOR_FAMILY_BOOLEAN\x10\x04\x12\x1b\n" +
+	"\x17INDICATOR_FAMILY_STRING\x10\x052\xf5\f\n" +
 	"\x11GovernanceService\x12q\n" +
 	"\fCreatePolicy\x12\x1d.franz.v1.CreatePolicyRequest\x1a\x1e.franz.v1.CreatePolicyResponse\"\"\x82\xd3\xe4\x93\x02\x1c:\x01*\"\x17/v1/governance/policies\x12l\n" +
 	"\tGetPolicy\x12\x1a.franz.v1.GetPolicyRequest\x1a\x1b.franz.v1.GetPolicyResponse\"&\x82\xd3\xe4\x93\x02 \x12\x1e/v1/governance/policies/{name}\x12n\n" +
@@ -4486,133 +4592,135 @@ const file_franz_v1_governance_proto_rawDesc = "" +
 	"\x14ListIndicatorSamples\x12%.franz.v1.ListIndicatorSamplesRequest\x1a&.franz.v1.ListIndicatorSamplesResponse\"5\x82\xd3\xe4\x93\x02/\x12-/v1/governance/indicators/{indicator}/samplesB\xa1\x01\n" +
 	"\fcom.franz.v1B\x0fGovernanceProtoP\x01Z?github.com/KafkaMetamorphosis/franz/pkg/gen/go/franz/v1;franzv1\xa2\x02\x03FXX\xaa\x02\bFranz.V1\xca\x02\bFranz\\V1\xe2\x02\x14Franz\\V1\\GPBMetadata\xea\x02\tFranz::V1b\beditionsp\xe9\a"
 
-var file_franz_v1_governance_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
+var file_franz_v1_governance_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
 var file_franz_v1_governance_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
 var file_franz_v1_governance_proto_goTypes = []any{
 	(Entity)(0),                          // 0: franz.v1.Entity
 	(Operator)(0),                        // 1: franz.v1.Operator
 	(ActionKind)(0),                      // 2: franz.v1.ActionKind
 	(IndicatorHealth)(0),                 // 3: franz.v1.IndicatorHealth
-	(*Policy)(nil),                       // 4: franz.v1.Policy
-	(*Matcher)(nil),                      // 5: franz.v1.Matcher
-	(*Limit)(nil),                        // 6: franz.v1.Limit
-	(*Action)(nil),                       // 7: franz.v1.Action
-	(*PolicyAction)(nil),                 // 8: franz.v1.PolicyAction
-	(*Indicator)(nil),                    // 9: franz.v1.Indicator
-	(*IndicatorSampleView)(nil),          // 10: franz.v1.IndicatorSampleView
-	(*CreatePolicyRequest)(nil),          // 11: franz.v1.CreatePolicyRequest
-	(*CreatePolicyResponse)(nil),         // 12: franz.v1.CreatePolicyResponse
-	(*GetPolicyRequest)(nil),             // 13: franz.v1.GetPolicyRequest
-	(*GetPolicyResponse)(nil),            // 14: franz.v1.GetPolicyResponse
-	(*ListPoliciesRequest)(nil),          // 15: franz.v1.ListPoliciesRequest
-	(*ListPoliciesResponse)(nil),         // 16: franz.v1.ListPoliciesResponse
-	(*UpdatePolicyRequest)(nil),          // 17: franz.v1.UpdatePolicyRequest
-	(*UpdatePolicyResponse)(nil),         // 18: franz.v1.UpdatePolicyResponse
-	(*DeletePolicyRequest)(nil),          // 19: franz.v1.DeletePolicyRequest
-	(*DeletePolicyResponse)(nil),         // 20: franz.v1.DeletePolicyResponse
-	(*DryRunPolicyRequest)(nil),          // 21: franz.v1.DryRunPolicyRequest
-	(*DryRunPolicyResponse)(nil),         // 22: franz.v1.DryRunPolicyResponse
-	(*ListPolicyActionsRequest)(nil),     // 23: franz.v1.ListPolicyActionsRequest
-	(*ListPolicyActionsResponse)(nil),    // 24: franz.v1.ListPolicyActionsResponse
-	(*CreateIndicatorRequest)(nil),       // 25: franz.v1.CreateIndicatorRequest
-	(*CreateIndicatorResponse)(nil),      // 26: franz.v1.CreateIndicatorResponse
-	(*GetIndicatorRequest)(nil),          // 27: franz.v1.GetIndicatorRequest
-	(*GetIndicatorResponse)(nil),         // 28: franz.v1.GetIndicatorResponse
-	(*ListIndicatorsRequest)(nil),        // 29: franz.v1.ListIndicatorsRequest
-	(*ListIndicatorsResponse)(nil),       // 30: franz.v1.ListIndicatorsResponse
-	(*UpdateIndicatorRequest)(nil),       // 31: franz.v1.UpdateIndicatorRequest
-	(*UpdateIndicatorResponse)(nil),      // 32: franz.v1.UpdateIndicatorResponse
-	(*DeleteIndicatorRequest)(nil),       // 33: franz.v1.DeleteIndicatorRequest
-	(*DeleteIndicatorResponse)(nil),      // 34: franz.v1.DeleteIndicatorResponse
-	(*ListIndicatorSamplesRequest)(nil),  // 35: franz.v1.ListIndicatorSamplesRequest
-	(*ListIndicatorSamplesResponse)(nil), // 36: franz.v1.ListIndicatorSamplesResponse
-	(*DryRunPolicyResponse_Match)(nil),   // 37: franz.v1.DryRunPolicyResponse.Match
-	(*timestamppb.Timestamp)(nil),        // 38: google.protobuf.Timestamp
-	(*PageRequest)(nil),                  // 39: franz.v1.PageRequest
-	(*PageResponse)(nil),                 // 40: franz.v1.PageResponse
-	(*fieldmaskpb.FieldMask)(nil),        // 41: google.protobuf.FieldMask
+	(IndicatorFamily)(0),                 // 4: franz.v1.IndicatorFamily
+	(*Policy)(nil),                       // 5: franz.v1.Policy
+	(*Matcher)(nil),                      // 6: franz.v1.Matcher
+	(*Limit)(nil),                        // 7: franz.v1.Limit
+	(*Action)(nil),                       // 8: franz.v1.Action
+	(*PolicyAction)(nil),                 // 9: franz.v1.PolicyAction
+	(*Indicator)(nil),                    // 10: franz.v1.Indicator
+	(*IndicatorSampleView)(nil),          // 11: franz.v1.IndicatorSampleView
+	(*CreatePolicyRequest)(nil),          // 12: franz.v1.CreatePolicyRequest
+	(*CreatePolicyResponse)(nil),         // 13: franz.v1.CreatePolicyResponse
+	(*GetPolicyRequest)(nil),             // 14: franz.v1.GetPolicyRequest
+	(*GetPolicyResponse)(nil),            // 15: franz.v1.GetPolicyResponse
+	(*ListPoliciesRequest)(nil),          // 16: franz.v1.ListPoliciesRequest
+	(*ListPoliciesResponse)(nil),         // 17: franz.v1.ListPoliciesResponse
+	(*UpdatePolicyRequest)(nil),          // 18: franz.v1.UpdatePolicyRequest
+	(*UpdatePolicyResponse)(nil),         // 19: franz.v1.UpdatePolicyResponse
+	(*DeletePolicyRequest)(nil),          // 20: franz.v1.DeletePolicyRequest
+	(*DeletePolicyResponse)(nil),         // 21: franz.v1.DeletePolicyResponse
+	(*DryRunPolicyRequest)(nil),          // 22: franz.v1.DryRunPolicyRequest
+	(*DryRunPolicyResponse)(nil),         // 23: franz.v1.DryRunPolicyResponse
+	(*ListPolicyActionsRequest)(nil),     // 24: franz.v1.ListPolicyActionsRequest
+	(*ListPolicyActionsResponse)(nil),    // 25: franz.v1.ListPolicyActionsResponse
+	(*CreateIndicatorRequest)(nil),       // 26: franz.v1.CreateIndicatorRequest
+	(*CreateIndicatorResponse)(nil),      // 27: franz.v1.CreateIndicatorResponse
+	(*GetIndicatorRequest)(nil),          // 28: franz.v1.GetIndicatorRequest
+	(*GetIndicatorResponse)(nil),         // 29: franz.v1.GetIndicatorResponse
+	(*ListIndicatorsRequest)(nil),        // 30: franz.v1.ListIndicatorsRequest
+	(*ListIndicatorsResponse)(nil),       // 31: franz.v1.ListIndicatorsResponse
+	(*UpdateIndicatorRequest)(nil),       // 32: franz.v1.UpdateIndicatorRequest
+	(*UpdateIndicatorResponse)(nil),      // 33: franz.v1.UpdateIndicatorResponse
+	(*DeleteIndicatorRequest)(nil),       // 34: franz.v1.DeleteIndicatorRequest
+	(*DeleteIndicatorResponse)(nil),      // 35: franz.v1.DeleteIndicatorResponse
+	(*ListIndicatorSamplesRequest)(nil),  // 36: franz.v1.ListIndicatorSamplesRequest
+	(*ListIndicatorSamplesResponse)(nil), // 37: franz.v1.ListIndicatorSamplesResponse
+	(*DryRunPolicyResponse_Match)(nil),   // 38: franz.v1.DryRunPolicyResponse.Match
+	(*timestamppb.Timestamp)(nil),        // 39: google.protobuf.Timestamp
+	(*PageRequest)(nil),                  // 40: franz.v1.PageRequest
+	(*PageResponse)(nil),                 // 41: franz.v1.PageResponse
+	(*fieldmaskpb.FieldMask)(nil),        // 42: google.protobuf.FieldMask
 }
 var file_franz_v1_governance_proto_depIdxs = []int32{
-	5,  // 0: franz.v1.Policy.matcher:type_name -> franz.v1.Matcher
-	6,  // 1: franz.v1.Policy.limit:type_name -> franz.v1.Limit
-	7,  // 2: franz.v1.Policy.actions:type_name -> franz.v1.Action
-	38, // 3: franz.v1.Policy.last_fired_at:type_name -> google.protobuf.Timestamp
-	38, // 4: franz.v1.Policy.created_at:type_name -> google.protobuf.Timestamp
-	38, // 5: franz.v1.Policy.updated_at:type_name -> google.protobuf.Timestamp
+	6,  // 0: franz.v1.Policy.matcher:type_name -> franz.v1.Matcher
+	7,  // 1: franz.v1.Policy.limit:type_name -> franz.v1.Limit
+	8,  // 2: franz.v1.Policy.actions:type_name -> franz.v1.Action
+	39, // 3: franz.v1.Policy.last_fired_at:type_name -> google.protobuf.Timestamp
+	39, // 4: franz.v1.Policy.created_at:type_name -> google.protobuf.Timestamp
+	39, // 5: franz.v1.Policy.updated_at:type_name -> google.protobuf.Timestamp
 	0,  // 6: franz.v1.Matcher.entity:type_name -> franz.v1.Entity
 	1,  // 7: franz.v1.Limit.operator:type_name -> franz.v1.Operator
 	2,  // 8: franz.v1.Action.kind:type_name -> franz.v1.ActionKind
-	38, // 9: franz.v1.PolicyAction.occurred_at:type_name -> google.protobuf.Timestamp
-	7,  // 10: franz.v1.PolicyAction.action:type_name -> franz.v1.Action
+	39, // 9: franz.v1.PolicyAction.occurred_at:type_name -> google.protobuf.Timestamp
+	8,  // 10: franz.v1.PolicyAction.action:type_name -> franz.v1.Action
 	0,  // 11: franz.v1.Indicator.applies_to:type_name -> franz.v1.Entity
 	3,  // 12: franz.v1.Indicator.health:type_name -> franz.v1.IndicatorHealth
-	38, // 13: franz.v1.Indicator.last_sample_at:type_name -> google.protobuf.Timestamp
-	0,  // 14: franz.v1.IndicatorSampleView.resource_entity:type_name -> franz.v1.Entity
-	38, // 15: franz.v1.IndicatorSampleView.sample_at:type_name -> google.protobuf.Timestamp
-	5,  // 16: franz.v1.CreatePolicyRequest.matcher:type_name -> franz.v1.Matcher
-	6,  // 17: franz.v1.CreatePolicyRequest.limit:type_name -> franz.v1.Limit
-	7,  // 18: franz.v1.CreatePolicyRequest.actions:type_name -> franz.v1.Action
-	4,  // 19: franz.v1.CreatePolicyResponse.policy:type_name -> franz.v1.Policy
-	4,  // 20: franz.v1.GetPolicyResponse.policy:type_name -> franz.v1.Policy
-	39, // 21: franz.v1.ListPoliciesRequest.page:type_name -> franz.v1.PageRequest
-	4,  // 22: franz.v1.ListPoliciesResponse.policies:type_name -> franz.v1.Policy
-	40, // 23: franz.v1.ListPoliciesResponse.page:type_name -> franz.v1.PageResponse
-	5,  // 24: franz.v1.UpdatePolicyRequest.matcher:type_name -> franz.v1.Matcher
-	6,  // 25: franz.v1.UpdatePolicyRequest.limit:type_name -> franz.v1.Limit
-	7,  // 26: franz.v1.UpdatePolicyRequest.actions:type_name -> franz.v1.Action
-	41, // 27: franz.v1.UpdatePolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
-	4,  // 28: franz.v1.UpdatePolicyResponse.policy:type_name -> franz.v1.Policy
-	5,  // 29: franz.v1.DryRunPolicyRequest.matcher:type_name -> franz.v1.Matcher
-	6,  // 30: franz.v1.DryRunPolicyRequest.limit:type_name -> franz.v1.Limit
-	7,  // 31: franz.v1.DryRunPolicyRequest.actions:type_name -> franz.v1.Action
-	37, // 32: franz.v1.DryRunPolicyResponse.matches:type_name -> franz.v1.DryRunPolicyResponse.Match
-	39, // 33: franz.v1.ListPolicyActionsRequest.page:type_name -> franz.v1.PageRequest
-	8,  // 34: franz.v1.ListPolicyActionsResponse.actions:type_name -> franz.v1.PolicyAction
-	40, // 35: franz.v1.ListPolicyActionsResponse.page:type_name -> franz.v1.PageResponse
-	0,  // 36: franz.v1.CreateIndicatorRequest.applies_to:type_name -> franz.v1.Entity
-	9,  // 37: franz.v1.CreateIndicatorResponse.indicator:type_name -> franz.v1.Indicator
-	9,  // 38: franz.v1.GetIndicatorResponse.indicator:type_name -> franz.v1.Indicator
-	39, // 39: franz.v1.ListIndicatorsRequest.page:type_name -> franz.v1.PageRequest
-	9,  // 40: franz.v1.ListIndicatorsResponse.indicators:type_name -> franz.v1.Indicator
-	40, // 41: franz.v1.ListIndicatorsResponse.page:type_name -> franz.v1.PageResponse
-	41, // 42: franz.v1.UpdateIndicatorRequest.update_mask:type_name -> google.protobuf.FieldMask
-	9,  // 43: franz.v1.UpdateIndicatorResponse.indicator:type_name -> franz.v1.Indicator
-	38, // 44: franz.v1.ListIndicatorSamplesRequest.from:type_name -> google.protobuf.Timestamp
-	38, // 45: franz.v1.ListIndicatorSamplesRequest.to:type_name -> google.protobuf.Timestamp
-	39, // 46: franz.v1.ListIndicatorSamplesRequest.page:type_name -> franz.v1.PageRequest
-	10, // 47: franz.v1.ListIndicatorSamplesResponse.samples:type_name -> franz.v1.IndicatorSampleView
-	40, // 48: franz.v1.ListIndicatorSamplesResponse.page:type_name -> franz.v1.PageResponse
-	11, // 49: franz.v1.GovernanceService.CreatePolicy:input_type -> franz.v1.CreatePolicyRequest
-	13, // 50: franz.v1.GovernanceService.GetPolicy:input_type -> franz.v1.GetPolicyRequest
-	15, // 51: franz.v1.GovernanceService.ListPolicies:input_type -> franz.v1.ListPoliciesRequest
-	17, // 52: franz.v1.GovernanceService.UpdatePolicy:input_type -> franz.v1.UpdatePolicyRequest
-	19, // 53: franz.v1.GovernanceService.DeletePolicy:input_type -> franz.v1.DeletePolicyRequest
-	21, // 54: franz.v1.GovernanceService.DryRunPolicy:input_type -> franz.v1.DryRunPolicyRequest
-	23, // 55: franz.v1.GovernanceService.ListPolicyActions:input_type -> franz.v1.ListPolicyActionsRequest
-	25, // 56: franz.v1.GovernanceService.CreateIndicator:input_type -> franz.v1.CreateIndicatorRequest
-	27, // 57: franz.v1.GovernanceService.GetIndicator:input_type -> franz.v1.GetIndicatorRequest
-	29, // 58: franz.v1.GovernanceService.ListIndicators:input_type -> franz.v1.ListIndicatorsRequest
-	31, // 59: franz.v1.GovernanceService.UpdateIndicator:input_type -> franz.v1.UpdateIndicatorRequest
-	33, // 60: franz.v1.GovernanceService.DeleteIndicator:input_type -> franz.v1.DeleteIndicatorRequest
-	35, // 61: franz.v1.GovernanceService.ListIndicatorSamples:input_type -> franz.v1.ListIndicatorSamplesRequest
-	12, // 62: franz.v1.GovernanceService.CreatePolicy:output_type -> franz.v1.CreatePolicyResponse
-	14, // 63: franz.v1.GovernanceService.GetPolicy:output_type -> franz.v1.GetPolicyResponse
-	16, // 64: franz.v1.GovernanceService.ListPolicies:output_type -> franz.v1.ListPoliciesResponse
-	18, // 65: franz.v1.GovernanceService.UpdatePolicy:output_type -> franz.v1.UpdatePolicyResponse
-	20, // 66: franz.v1.GovernanceService.DeletePolicy:output_type -> franz.v1.DeletePolicyResponse
-	22, // 67: franz.v1.GovernanceService.DryRunPolicy:output_type -> franz.v1.DryRunPolicyResponse
-	24, // 68: franz.v1.GovernanceService.ListPolicyActions:output_type -> franz.v1.ListPolicyActionsResponse
-	26, // 69: franz.v1.GovernanceService.CreateIndicator:output_type -> franz.v1.CreateIndicatorResponse
-	28, // 70: franz.v1.GovernanceService.GetIndicator:output_type -> franz.v1.GetIndicatorResponse
-	30, // 71: franz.v1.GovernanceService.ListIndicators:output_type -> franz.v1.ListIndicatorsResponse
-	32, // 72: franz.v1.GovernanceService.UpdateIndicator:output_type -> franz.v1.UpdateIndicatorResponse
-	34, // 73: franz.v1.GovernanceService.DeleteIndicator:output_type -> franz.v1.DeleteIndicatorResponse
-	36, // 74: franz.v1.GovernanceService.ListIndicatorSamples:output_type -> franz.v1.ListIndicatorSamplesResponse
-	62, // [62:75] is the sub-list for method output_type
-	49, // [49:62] is the sub-list for method input_type
-	49, // [49:49] is the sub-list for extension type_name
-	49, // [49:49] is the sub-list for extension extendee
-	0,  // [0:49] is the sub-list for field type_name
+	39, // 13: franz.v1.Indicator.last_sample_at:type_name -> google.protobuf.Timestamp
+	4,  // 14: franz.v1.Indicator.family:type_name -> franz.v1.IndicatorFamily
+	0,  // 15: franz.v1.IndicatorSampleView.resource_entity:type_name -> franz.v1.Entity
+	39, // 16: franz.v1.IndicatorSampleView.sample_at:type_name -> google.protobuf.Timestamp
+	6,  // 17: franz.v1.CreatePolicyRequest.matcher:type_name -> franz.v1.Matcher
+	7,  // 18: franz.v1.CreatePolicyRequest.limit:type_name -> franz.v1.Limit
+	8,  // 19: franz.v1.CreatePolicyRequest.actions:type_name -> franz.v1.Action
+	5,  // 20: franz.v1.CreatePolicyResponse.policy:type_name -> franz.v1.Policy
+	5,  // 21: franz.v1.GetPolicyResponse.policy:type_name -> franz.v1.Policy
+	40, // 22: franz.v1.ListPoliciesRequest.page:type_name -> franz.v1.PageRequest
+	5,  // 23: franz.v1.ListPoliciesResponse.policies:type_name -> franz.v1.Policy
+	41, // 24: franz.v1.ListPoliciesResponse.page:type_name -> franz.v1.PageResponse
+	6,  // 25: franz.v1.UpdatePolicyRequest.matcher:type_name -> franz.v1.Matcher
+	7,  // 26: franz.v1.UpdatePolicyRequest.limit:type_name -> franz.v1.Limit
+	8,  // 27: franz.v1.UpdatePolicyRequest.actions:type_name -> franz.v1.Action
+	42, // 28: franz.v1.UpdatePolicyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	5,  // 29: franz.v1.UpdatePolicyResponse.policy:type_name -> franz.v1.Policy
+	6,  // 30: franz.v1.DryRunPolicyRequest.matcher:type_name -> franz.v1.Matcher
+	7,  // 31: franz.v1.DryRunPolicyRequest.limit:type_name -> franz.v1.Limit
+	8,  // 32: franz.v1.DryRunPolicyRequest.actions:type_name -> franz.v1.Action
+	38, // 33: franz.v1.DryRunPolicyResponse.matches:type_name -> franz.v1.DryRunPolicyResponse.Match
+	40, // 34: franz.v1.ListPolicyActionsRequest.page:type_name -> franz.v1.PageRequest
+	9,  // 35: franz.v1.ListPolicyActionsResponse.actions:type_name -> franz.v1.PolicyAction
+	41, // 36: franz.v1.ListPolicyActionsResponse.page:type_name -> franz.v1.PageResponse
+	0,  // 37: franz.v1.CreateIndicatorRequest.applies_to:type_name -> franz.v1.Entity
+	10, // 38: franz.v1.CreateIndicatorResponse.indicator:type_name -> franz.v1.Indicator
+	10, // 39: franz.v1.GetIndicatorResponse.indicator:type_name -> franz.v1.Indicator
+	40, // 40: franz.v1.ListIndicatorsRequest.page:type_name -> franz.v1.PageRequest
+	10, // 41: franz.v1.ListIndicatorsResponse.indicators:type_name -> franz.v1.Indicator
+	41, // 42: franz.v1.ListIndicatorsResponse.page:type_name -> franz.v1.PageResponse
+	42, // 43: franz.v1.UpdateIndicatorRequest.update_mask:type_name -> google.protobuf.FieldMask
+	10, // 44: franz.v1.UpdateIndicatorResponse.indicator:type_name -> franz.v1.Indicator
+	39, // 45: franz.v1.ListIndicatorSamplesRequest.from:type_name -> google.protobuf.Timestamp
+	39, // 46: franz.v1.ListIndicatorSamplesRequest.to:type_name -> google.protobuf.Timestamp
+	40, // 47: franz.v1.ListIndicatorSamplesRequest.page:type_name -> franz.v1.PageRequest
+	11, // 48: franz.v1.ListIndicatorSamplesResponse.samples:type_name -> franz.v1.IndicatorSampleView
+	41, // 49: franz.v1.ListIndicatorSamplesResponse.page:type_name -> franz.v1.PageResponse
+	12, // 50: franz.v1.GovernanceService.CreatePolicy:input_type -> franz.v1.CreatePolicyRequest
+	14, // 51: franz.v1.GovernanceService.GetPolicy:input_type -> franz.v1.GetPolicyRequest
+	16, // 52: franz.v1.GovernanceService.ListPolicies:input_type -> franz.v1.ListPoliciesRequest
+	18, // 53: franz.v1.GovernanceService.UpdatePolicy:input_type -> franz.v1.UpdatePolicyRequest
+	20, // 54: franz.v1.GovernanceService.DeletePolicy:input_type -> franz.v1.DeletePolicyRequest
+	22, // 55: franz.v1.GovernanceService.DryRunPolicy:input_type -> franz.v1.DryRunPolicyRequest
+	24, // 56: franz.v1.GovernanceService.ListPolicyActions:input_type -> franz.v1.ListPolicyActionsRequest
+	26, // 57: franz.v1.GovernanceService.CreateIndicator:input_type -> franz.v1.CreateIndicatorRequest
+	28, // 58: franz.v1.GovernanceService.GetIndicator:input_type -> franz.v1.GetIndicatorRequest
+	30, // 59: franz.v1.GovernanceService.ListIndicators:input_type -> franz.v1.ListIndicatorsRequest
+	32, // 60: franz.v1.GovernanceService.UpdateIndicator:input_type -> franz.v1.UpdateIndicatorRequest
+	34, // 61: franz.v1.GovernanceService.DeleteIndicator:input_type -> franz.v1.DeleteIndicatorRequest
+	36, // 62: franz.v1.GovernanceService.ListIndicatorSamples:input_type -> franz.v1.ListIndicatorSamplesRequest
+	13, // 63: franz.v1.GovernanceService.CreatePolicy:output_type -> franz.v1.CreatePolicyResponse
+	15, // 64: franz.v1.GovernanceService.GetPolicy:output_type -> franz.v1.GetPolicyResponse
+	17, // 65: franz.v1.GovernanceService.ListPolicies:output_type -> franz.v1.ListPoliciesResponse
+	19, // 66: franz.v1.GovernanceService.UpdatePolicy:output_type -> franz.v1.UpdatePolicyResponse
+	21, // 67: franz.v1.GovernanceService.DeletePolicy:output_type -> franz.v1.DeletePolicyResponse
+	23, // 68: franz.v1.GovernanceService.DryRunPolicy:output_type -> franz.v1.DryRunPolicyResponse
+	25, // 69: franz.v1.GovernanceService.ListPolicyActions:output_type -> franz.v1.ListPolicyActionsResponse
+	27, // 70: franz.v1.GovernanceService.CreateIndicator:output_type -> franz.v1.CreateIndicatorResponse
+	29, // 71: franz.v1.GovernanceService.GetIndicator:output_type -> franz.v1.GetIndicatorResponse
+	31, // 72: franz.v1.GovernanceService.ListIndicators:output_type -> franz.v1.ListIndicatorsResponse
+	33, // 73: franz.v1.GovernanceService.UpdateIndicator:output_type -> franz.v1.UpdateIndicatorResponse
+	35, // 74: franz.v1.GovernanceService.DeleteIndicator:output_type -> franz.v1.DeleteIndicatorResponse
+	37, // 75: franz.v1.GovernanceService.ListIndicatorSamples:output_type -> franz.v1.ListIndicatorSamplesResponse
+	63, // [63:76] is the sub-list for method output_type
+	50, // [50:63] is the sub-list for method input_type
+	50, // [50:50] is the sub-list for extension type_name
+	50, // [50:50] is the sub-list for extension extendee
+	0,  // [0:50] is the sub-list for field type_name
 }
 
 func init() { file_franz_v1_governance_proto_init() }
@@ -4626,7 +4734,7 @@ func file_franz_v1_governance_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_franz_v1_governance_proto_rawDesc), len(file_franz_v1_governance_proto_rawDesc)),
-			NumEnums:      4,
+			NumEnums:      5,
 			NumMessages:   34,
 			NumExtensions: 0,
 			NumServices:   1,
