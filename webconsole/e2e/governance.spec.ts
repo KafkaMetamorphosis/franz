@@ -43,7 +43,7 @@ test("register an Indicator → register a Policy → dry-run → not applied", 
   await page.getByRole("link", { name: "Register Policy" }).click();
 
   await page.getByLabel(/Name/).fill(POLICY);
-  await page.getByLabel(/Indicator/).selectOption({ label: `${INDICATOR} (count)` });
+  await page.getByLabel(/Indicator/).selectOption({ label: `${INDICATOR} (gauge)` });
   await page.getByLabel("Label selector").fill("env=prod");
   await page.getByLabel(/Value/).fill("100");
   await page.getByRole("button", { name: "Add action" }).click();

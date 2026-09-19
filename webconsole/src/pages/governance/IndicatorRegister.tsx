@@ -113,7 +113,7 @@ export function IndicatorRegister() {
             </div>
             <div className="field">
               <label htmlFor="indicator-unit">
-                Unit <small>bytes, count, duration, boolean, percent, or a string/enum family.</small>
+                Unit <small>gauge, bytes, duration, boolean, percent, or a string/enum family.</small>
               </label>
               <div>
                 <input
